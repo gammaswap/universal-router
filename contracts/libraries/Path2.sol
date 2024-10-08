@@ -62,6 +62,14 @@ library Path2 {
     /// @param path The bytes encoded swap path
     /// @return The segment containing all data necessary to target the first pool in the path
     function getFirstPool(bytes memory path) internal pure returns (bytes memory) {
+        uint256 _numPools = numPools(path);
+        return path.slice(MULTIPLE_POOLS_MIN_LENGTH * (_numPools - 1), POP_OFFSET);
+    }
+
+    /// @notice Gets the segment corresponding to the first pool in the path
+    /// @param path The bytes encoded swap path
+    /// @return The segment containing all data necessary to target the first pool in the path
+    function getLastPool(bytes memory path) internal pure returns (bytes memory) {
         return path.slice(0, POP_OFFSET);
     }
 
@@ -70,5 +78,13 @@ library Path2 {
     /// @return The remaining token + fee elements in the path
     function skipToken(bytes memory path) internal pure returns (bytes memory) {
         return path.slice(NEXT_OFFSET, path.length - NEXT_OFFSET);
+    }
+
+    /// @notice Skips a token + fee element from the buffer and returns the remainder
+    /// @param path The swap path
+    /// @return The remaining token + fee elements in the path
+    function hopToken(bytes memory path) internal pure returns (bytes memory) {
+        uint256 _numPools = numPools(path);
+        return path.slice(0, MULTIPLE_POOLS_MIN_LENGTH * (_numPools - 1));
     }
 }

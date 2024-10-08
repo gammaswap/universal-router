@@ -6,6 +6,8 @@ import './libraries/BytesLib2.sol';
 import './libraries/RouterLibrary.sol';
 import "@gammaswap/v1-deltaswap/contracts/interfaces/IDeltaSwapPair.sol";
 import "@gammaswap/v1-deltaswap/contracts/libraries/DSMath.sol";
+import "@gammaswap/v1-core/contracts/libraries/GammaSwapLibrary.sol";
+import "@gammaswap/v1-periphery/contracts/interfaces/external/IWETH.sol";
 
 contract UniversalRouter {
 
@@ -13,9 +15,16 @@ contract UniversalRouter {
     using BytesLib2 for bytes;
 
     address public immutable factory;
+    address public immutable WETH;
 
-    constructor(address _factory){
+    constructor(address _factory, address _WETH){
         factory = _factory;
+        WETH = _WETH;
+    }
+
+    modifier ensure(uint256 deadline) {
+        require(deadline >= block.timestamp, 'DeltaSwapRouter: EXPIRED');
+        _;
     }
 
     function _getTokenOut(bytes memory path) public view returns(address tokenOut) {
@@ -111,10 +120,9 @@ contract UniversalRouter {
         fee = IDeltaSwapPair(pair).estimateTradingFee(tradeLiquidity);
     }
 
-    function calcOutAmount(uint256 amountIn, address factory, address tokenA, address tokenB, uint16 protocolId, uint256 fee) internal view returns(uint256 amountOut) {
+    function calcOutAmount(uint256 amountIn, address factory, address tokenA, address tokenB, uint16 protocolId, uint256 fee) internal view returns(uint256 amountOut, address pair) {
         uint256 reserveIn;
         uint256 reserveOut;
-        address pair;
         if(protocolId >= 1 && protocolId <= 3) {
             fee = 3;
             (reserveIn, reserveOut, pair) = getReserves(factory, tokenA, tokenB, protocolId);
@@ -157,18 +165,34 @@ contract UniversalRouter {
         }
     }
 
-    function getAmountsOut(uint256 amountIn, bytes memory path) public view virtual returns (uint256[] memory amounts) {
+    struct Route {
+        address pair;
+        address from;
+        address to;
+        uint16 protocolId;
+        uint24 fee;
+    }
+
+    function getAmountsOut(uint256 amountIn, bytes memory path) public view virtual returns (uint256[] memory amounts, Route[] memory routes) {
         require(path.length >= 45 && (path.length - 20) % 25 == 0, "INVALID_PATH");
+        routes = new Route[](path.numPools() + 1);
         amounts = new uint256[](path.numPools() + 1);
         amounts[0] = amountIn;
         uint256 i = 0;
         while (true) {
             bool hasMultiplePools = path.hasMultiplePools();
 
+            routes[i] = Route({
+                pair: address(0),
+                from: address(0),
+                to: address(0),
+                protocolId: 0,
+                fee: 0
+            });
             // only the first pool in the path is necessary
-            (address tokenA, address tokenB, uint16 protocolId, uint24 fee) = path.getFirstPool().decodeFirstPool();
+            (routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee) = path.getFirstPool().decodeFirstPool();
 
-            amounts[i + 1] = calcOutAmount(amounts[i], factory, tokenA, tokenB, protocolId, fee);
+            (amounts[i + 1], routes[i].pair) = calcOutAmount(amounts[i], factory, routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee);
 
             // decide whether to continue or terminate
             if (hasMultiplePools) {
@@ -182,10 +206,9 @@ contract UniversalRouter {
         }
     }
 
-    function calcInAmount(uint256 amountOut, address factory, address tokenA, address tokenB, uint16 protocolId, uint256 fee) internal view returns(uint256 amountIn) {
+    function calcInAmount(uint256 amountOut, address factory, address tokenA, address tokenB, uint16 protocolId, uint256 fee) internal view returns(uint256 amountIn, address pair) {
         uint256 reserveIn;
         uint256 reserveOut;
-        address pair;
         if(protocolId >= 1 && protocolId <= 3) {
             (reserveIn, reserveOut, pair) = getReserves(factory, tokenA, tokenB, protocolId);
             if(protocolId == 3) {
@@ -211,22 +234,34 @@ contract UniversalRouter {
     }
 
     // path is assumed to be reversed from the one in getAmountsOut. In original getAmountsOut it is not reversed
-    function getAmountsIn(uint256 amountIn, bytes memory path) public view virtual returns (uint256[] memory amounts) {
+    function getAmountsIn(uint256 amountOut, bytes memory path) public view virtual returns (uint256[] memory amounts, Route[] memory routes) {
         require(path.length >= 45 && (path.length - 20) % 25 == 0, "INVALID_PATH");
+        routes = new Route[](path.numPools() + 1);
         amounts = new uint256[](path.numPools() + 1);
         uint256 i = amounts.length - 1;
-        amounts[i] = amountIn;
+        amounts[i] = amountOut;
         while (true) {
             bool hasMultiplePools = path.hasMultiplePools();
 
-            // only the first pool in the path is necessary
-            (address tokenA, address tokenB, uint16 protocolId, uint24 fee) = path.getFirstPool().decodeFirstPool();
+            routes[i] = Route({
+                pair: address(0),
+                from: address(0),
+                to: address(0),
+                protocolId: 0,
+                fee: 0
+            });
 
-            amounts[i - 1] = calcInAmount(amounts[i], factory, tokenA, tokenB, protocolId, fee);
+            // only the first pool in the path is necessary
+            //(address tokenA, address tokenB, uint16 protocolId, uint24 fee) = path.getFirstPool().decodeFirstPool();
+            (routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee) = path.getLastPool().decodeFirstPool();
+
+            //amounts[i - 1] = calcInAmount(amounts[i], factory, tokenA, tokenB, protocolId, fee);
+            (amounts[i - 1], routes[i].pair) = calcInAmount(amounts[i], factory, routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee);
+            //(amounts[i + 1], route[i].pair) = calcOutAmount(amounts[i], factory, route[i].from, route[i].to, route[i].protocolId, route[i].fee);
 
             // decide whether to continue or terminate
             if (hasMultiplePools) {
-                path = path.skipToken();
+                path = path.hopToken();
             } else {
                 break;
             }
@@ -364,6 +399,111 @@ contract UniversalRouter {
 
         return (investment * 1e18) / (ratio + 1e18);/**/
     }
+
+    // **** SWAP ****
+    function _swap(uint256[] memory amounts, Route[] memory routes, address _to) internal virtual {
+        for (uint256 i; i < routes.length - 1; i++) {
+            (address token0,) = sortTokens(routes[i].from, routes[i].to);
+            uint256 amountOut = amounts[i + 1];
+            (uint256 amount0Out, uint256 amount1Out) = routes[i].from == token0 ? (uint256(0), amountOut) : (amountOut, uint256(0));
+            address to = i < routes.length - 2 ? routes[i + 1].pair : _to;
+            IDeltaSwapPair(routes[i].pair).swap(amount0Out, amount1Out, to, new bytes(0));
+        }
+    }
+
+    function swapExactTokensForTokens(
+        uint256 amountIn,
+        uint256 amountOutMin,
+        bytes memory path,
+        address to,
+        uint256 deadline
+    ) external virtual /*override*/ ensure(deadline) returns (uint256[] memory amounts) {
+        Route[] memory routes;
+        (amounts, routes) = getAmountsOut(amountIn, path);
+        require(amounts[amounts.length - 1] >= amountOutMin, 'UniversalRouter: INSUFFICIENT_OUTPUT_AMOUNT');
+        GammaSwapLibrary.safeTransferFrom(routes[0].from, msg.sender, routes[0].pair, amounts[0]);
+        _swap(amounts, routes, to);
+    }
+
+    function swapTokensForExactTokens(
+        uint256 amountOut,
+        uint256 amountInMax,
+        bytes calldata path,
+        address to,
+        uint256 deadline
+    ) external virtual /*override*/ ensure(deadline) returns (uint256[] memory amounts) {
+        Route[] memory routes;
+        (amounts, routes) = getAmountsIn(amountOut, path);
+        require(amounts[0] <= amountInMax, 'UniversalRouter: EXCESSIVE_INPUT_AMOUNT');
+        GammaSwapLibrary.safeTransferFrom(routes[0].from, msg.sender, routes[0].pair, amounts[0]);
+        _swap(amounts, routes, to);
+    }
+
+    function swapExactETHForTokens(uint256 amountOutMin, bytes calldata path, address to, uint256 deadline)
+    external
+    virtual
+    //override
+    payable
+    //ensure(deadline)
+    returns (uint256[] memory amounts)
+    {
+        Route[] memory routes;
+        (amounts, routes) = getAmountsOut(msg.value, path);
+        require(routes[0].from == WETH, 'UniversalRouter: INVALID_PATH');
+        require(amounts[amounts.length - 1] >= amountOutMin, 'UniversalRouter: INSUFFICIENT_OUTPUT_AMOUNT');
+        IWETH(WETH).deposit{value: amounts[0]}();
+        assert(IWETH(WETH).transfer(routes[0].pair, amounts[0]));
+        _swap(amounts, routes, to);
+    }
+    function swapTokensForExactETH(uint256 amountOut, uint256 amountInMax, bytes calldata path, address to, uint256 deadline)
+    external
+    virtual
+    //override
+    //ensure(deadline)
+    returns (uint256[] memory amounts)
+    {
+        Route[] memory routes;
+        (amounts, routes) = getAmountsIn(amountOut, path);
+        require(routes[routes.length - 1].to == WETH, 'UniversalRouter: INVALID_PATH');
+        require(amounts[0] <= amountInMax, 'UniversalRouter: EXCESSIVE_INPUT_AMOUNT');
+        GammaSwapLibrary.safeTransferFrom(routes[0].from, msg.sender, routes[0].pair, amounts[0]);
+        _swap(amounts, routes, address(this));
+        IWETH(WETH).withdraw(amounts[amounts.length - 1]);
+        GammaSwapLibrary.safeTransferETH(to, amounts[amounts.length - 1]);
+    }
+    function swapExactTokensForETH(uint256 amountIn, uint256 amountOutMin, bytes calldata path, address to, uint256 deadline)
+    external
+    virtual
+    //override
+    //ensure(deadline)
+    returns (uint256[] memory amounts)
+    {
+        Route[] memory routes;
+        (amounts, routes) = getAmountsOut(amountIn, path);
+        require(routes[routes.length - 1].to == WETH, 'UniversalRouter: INVALID_PATH');
+        require(amounts[amounts.length - 1] >= amountOutMin, 'UniversalRouter: INSUFFICIENT_OUTPUT_AMOUNT');
+        GammaSwapLibrary.safeTransferFrom(routes[0].from, msg.sender, routes[0].pair, amounts[0]);
+        _swap(amounts, routes, address(this));
+        IWETH(WETH).withdraw(amounts[amounts.length - 1]);
+        GammaSwapLibrary.safeTransferETH(to, amounts[amounts.length - 1]);
+    }
+    function swapETHForExactTokens(uint256 amountOut, bytes calldata path, address to, uint256 deadline)
+    external
+    virtual
+    //override
+    payable
+    //ensure(deadline)
+    returns (uint256[] memory amounts)
+    {
+        Route[] memory routes;
+        (amounts, routes) = getAmountsIn(amountOut, path);
+        require(routes[0].from == WETH, 'UniversalRouter: INVALID_PATH');
+        require(amounts[0] <= msg.value, 'UniversalRouter: EXCESSIVE_INPUT_AMOUNT');
+        IWETH(WETH).deposit{value: amounts[0]}();
+        assert(IWETH(WETH).transfer(routes[0].pair, amounts[0]));
+        _swap(amounts, routes, to);
+        if (msg.value > amounts[0]) GammaSwapLibrary.safeTransferETH(msg.sender, msg.value - amounts[0]);// refund dust eth, if any
+    }/**/
 }
 /*
 console.log("tokenA:",tokenA);
