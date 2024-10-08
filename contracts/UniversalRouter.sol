@@ -120,16 +120,17 @@ contract UniversalRouter {
         fee = IDeltaSwapPair(pair).estimateTradingFee(tradeLiquidity);
     }
 
-    function calcOutAmount(uint256 amountIn, address factory, address tokenA, address tokenB, uint16 protocolId, uint256 fee) internal view returns(uint256 amountOut, address pair) {
+    function calcOutAmount(uint256 amountIn, address factory, address tokenA, address tokenB, uint16 protocolId, uint256 fee) internal view returns(uint256 amountOut, address pair, uint24 _fee) {
         uint256 reserveIn;
         uint256 reserveOut;
+        _fee = uint24(fee);
         if(protocolId >= 1 && protocolId <= 3) {
-            fee = 3;
+            _fee = 3;
             (reserveIn, reserveOut, pair) = getReserves(factory, tokenA, tokenB, protocolId);
             if(protocolId == 3) {
-                fee = calcPairTradingFee(amountIn, reserveIn, reserveOut, pair);
+                _fee = uint24(calcPairTradingFee(amountIn, reserveIn, reserveOut, pair));
             }
-            amountOut = getAmountOut(amountIn, reserveIn, reserveOut, fee);
+            amountOut = getAmountOut(amountIn, reserveIn, reserveOut, _fee);
         } else if(protocolId == 4 || protocolId == 5) {
             (pair,,) = pairFor(factory, tokenA, tokenB, protocolId);
             //amountOut = IPool(pair).getAmountOut(amountIn, tokenA); TODO: This is supposed to be the AeroDrome IPool interface
@@ -192,7 +193,7 @@ contract UniversalRouter {
             // only the first pool in the path is necessary
             (routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee) = path.getFirstPool().decodeFirstPool();
 
-            (amounts[i + 1], routes[i].pair) = calcOutAmount(amounts[i], factory, routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee);
+            (amounts[i + 1], routes[i].pair, routes[i].fee) = calcOutAmount(amounts[i], factory, routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee);
 
             // decide whether to continue or terminate
             if (hasMultiplePools) {
@@ -206,7 +207,7 @@ contract UniversalRouter {
         }
     }
 
-    function calcInAmount(uint256 amountOut, address factory, address tokenA, address tokenB, uint16 protocolId, uint256 fee) internal view returns(uint256 amountIn, address pair) {
+    function calcInAmount(uint256 amountOut, address factory, address tokenA, address tokenB, uint16 protocolId, uint256 fee) internal view returns(uint256 amountIn, address pair, uint24 swapFee) {
         uint256 reserveIn;
         uint256 reserveOut;
         if(protocolId >= 1 && protocolId <= 3) {
@@ -220,9 +221,10 @@ contract UniversalRouter {
                     _fee = calcPairTradingFee(amountIn, reserveIn, reserveOut, pair);
                     if(_fee == fee) break;
                 }
+                swapFee = uint24(fee);
             } else {
-                fee = 3;
-                amountIn = getAmountIn(amountOut, reserveIn, reserveOut, fee);
+                swapFee = 3;
+                amountIn = getAmountIn(amountOut, reserveIn, reserveOut, swapFee);
             }
         } else if(protocolId == 4 || protocolId == 5) {
             // TODO: Need to get parameters for AeroDrome function call and update logic for getAmountsIn
@@ -256,7 +258,7 @@ contract UniversalRouter {
             (routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee) = path.getLastPool().decodeFirstPool();
 
             //amounts[i - 1] = calcInAmount(amounts[i], factory, tokenA, tokenB, protocolId, fee);
-            (amounts[i - 1], routes[i].pair) = calcInAmount(amounts[i], factory, routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee);
+            (amounts[i - 1], routes[i].pair, routes[i].fee) = calcInAmount(amounts[i], factory, routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee);
             //(amounts[i + 1], route[i].pair) = calcOutAmount(amounts[i], factory, route[i].from, route[i].to, route[i].protocolId, route[i].fee);
 
             // decide whether to continue or terminate
@@ -444,7 +446,7 @@ contract UniversalRouter {
     virtual
     //override
     payable
-    //ensure(deadline)
+    ensure(deadline)
     returns (uint256[] memory amounts)
     {
         Route[] memory routes;
@@ -459,7 +461,7 @@ contract UniversalRouter {
     external
     virtual
     //override
-    //ensure(deadline)
+    ensure(deadline)
     returns (uint256[] memory amounts)
     {
         Route[] memory routes;
@@ -475,7 +477,7 @@ contract UniversalRouter {
     external
     virtual
     //override
-    //ensure(deadline)
+    ensure(deadline)
     returns (uint256[] memory amounts)
     {
         Route[] memory routes;
@@ -492,7 +494,7 @@ contract UniversalRouter {
     virtual
     //override
     payable
-    //ensure(deadline)
+    ensure(deadline)
     returns (uint256[] memory amounts)
     {
         Route[] memory routes;
@@ -504,6 +506,98 @@ contract UniversalRouter {
         _swap(amounts, routes, to);
         if (msg.value > amounts[0]) GammaSwapLibrary.safeTransferETH(msg.sender, msg.value - amounts[0]);// refund dust eth, if any
     }/**/
+
+    // **** SWAP (supporting fee-on-transfer tokens) ****
+    // requires the initial amount to have already been sent to the first pair
+    function _swapSupportingFeeOnTransferTokens(Route[] memory routes, address _to) internal virtual {
+        for (uint256 i; i < routes.length - 1; i++) {
+            (address input, address output) = (routes[i].from, routes[i].to);
+            (address token0,) = sortTokens(input, output);
+            IDeltaSwapPair pair = IDeltaSwapPair(routes[i].pair);
+            uint256 amountInput;
+            uint256 amountOutput;
+            { // scope to avoid stack too deep errors
+                (uint256 reserveIn, uint256 reserveOut,) = getReserves(factory, routes[i].from, routes[i].to, routes[i].protocolId);
+                amountInput = IERC20(input).balanceOf(address(routes[i].pair)) - reserveIn;
+                if(routes[i].protocolId == 3) {
+                    routes[i].fee = uint24(calcPairTradingFee(amountInput, reserveIn, reserveOut, routes[i].pair));
+                }
+                amountOutput = getAmountOut(amountInput, reserveIn, reserveOut, routes[i].fee);
+            }
+            (uint256 amount0Out, uint256 amount1Out) = input == token0 ? (uint256(0), amountOutput) : (amountOutput, uint256(0));
+            address to = i < routes.length - 2 ? routes[i + 1].pair : _to;
+            pair.swap(amount0Out, amount1Out, to, new bytes(0));
+        }
+    }
+    function swapExactTokensForTokensSupportingFeeOnTransferTokens(
+        uint256 amountIn,
+        uint256 amountOutMin,
+        bytes calldata path,
+        address to,
+        uint256 deadline
+    ) external virtual /*override*/ ensure(deadline) {
+        Route[] memory routes;
+        (,routes) = getAmountsOut(amountIn, path);
+        GammaSwapLibrary.safeTransferFrom(routes[0].from, msg.sender, routes[0].pair, amountIn);
+        uint256 balanceBefore = IERC20(routes[routes.length - 1].to).balanceOf(to);
+        _swapSupportingFeeOnTransferTokens(routes, to);
+        require(
+            IERC20(routes[path.length - 1].to).balanceOf(to) - balanceBefore >= amountOutMin,
+            'UniversalRouter: INSUFFICIENT_OUTPUT_AMOUNT'
+        );
+    }
+    function swapExactETHForTokensSupportingFeeOnTransferTokens(
+        uint256 amountOutMin,
+        bytes calldata path,
+        address to,
+        uint256 deadline
+    )
+    external
+    virtual
+    //override
+    payable
+    ensure(deadline)
+    {
+        uint256 amountIn = msg.value;
+        IWETH(WETH).deposit{value: amountIn}();
+
+        Route[] memory routes;
+        (,routes) = getAmountsOut(amountIn, path);
+        require(routes[0].from == WETH, 'UniversalRouter: INVALID_PATH');
+
+        assert(IWETH(WETH).transfer(routes[0].pair, amountIn));
+        uint256 balanceBefore = IERC20(routes[routes.length - 1].to).balanceOf(to);
+        _swapSupportingFeeOnTransferTokens(routes, to);
+        require(
+            IERC20(routes[routes.length - 1].to).balanceOf(to) - balanceBefore >= amountOutMin,
+            'UniversalRouter: INSUFFICIENT_OUTPUT_AMOUNT'
+        );
+    }
+
+    function swapExactTokensForETHSupportingFeeOnTransferTokens(
+        uint256 amountIn,
+        uint256 amountOutMin,
+        bytes calldata path,
+        address to,
+        uint256 deadline
+    )
+    external
+    virtual
+    //override
+    ensure(deadline)
+    {
+        Route[] memory routes;
+        (,routes) = getAmountsOut(amountIn, path);
+
+        require(routes[routes.length - 1].to == WETH, 'UniversalRouter: INVALID_PATH');
+        GammaSwapLibrary.safeTransferFrom(routes[0].from, msg.sender, routes[0].pair, amountIn);
+        _swapSupportingFeeOnTransferTokens(routes, address(this));
+
+        uint256 amountOut = IERC20(WETH).balanceOf(address(this));
+        require(amountOut >= amountOutMin, 'UniversalRouter: INSUFFICIENT_OUTPUT_AMOUNT');
+        IWETH(WETH).withdraw(amountOut);
+        GammaSwapLibrary.safeTransferETH(to, amountOut);
+    }
 }
 /*
 console.log("tokenA:",tokenA);
