@@ -448,7 +448,7 @@
   dependencies:
     "@gammaswap/v1-core" "^1.1.20"
 
-"@gammaswap/v1-implementations@^1.2.10":
+"@gammaswap/v1-implementations@^1.2.10", "@gammaswap/v1-implementations@^1.2.11":
   version "1.2.11"
   resolved "https://npm.pkg.github.com/download/@gammaswap/v1-implementations/1.2.11/edbb7952f59feb67b665090d1347742e85aa49d3#edbb7952f59feb67b665090d1347742e85aa49d3"
   integrity sha512-NFk6avKZ/oKf5XjDyFkygxYSAiPyMsngdybV8Mv5NIJH0bxWN3zQ++1p7B+bzaFBkGP3aGgOjudsGYC12QobJA==

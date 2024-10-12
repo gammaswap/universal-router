@@ -62,6 +62,7 @@
   "dependencies": {
     "@gammaswap/univ3-rebalancer": "^1.2.1",
     "@gammaswap/v1-core": "^1.2.11",
+    "@gammaswap/v1-implementations": "^1.2.11",
     "@gammaswap/v1-periphery": "^1.2.14"
   }
 }
