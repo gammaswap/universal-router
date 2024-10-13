@@ -49,21 +49,22 @@ contract UniversalRouter is BaseRouter, IUniswapV3SwapCallback {
                 to: address(0),
                 protocolId: 0,
                 fee: 0,
-                dest: _to
+                dest: _to,
+                hop: address(0)
             });
 
             // only the first pool in the path is necessary
             (routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee) = path.getFirstPool().decodeFirstPool();
 
-            // calc pool
-            routes[i].pair = getPair(routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee);
+            routes[i].hop = protocols[routes[i].protocolId];
+            require(routes[i].hop != address(0), "PROTOCOL_NOT_SET");
+
+            address dest;
+            (routes[i].pair, dest) = IProtocolRoute(routes[i].hop).getDestination(routes[i].from,
+                routes[i].to, routes[i].protocolId, routes[i].fee);
 
             if(i > 0) {
-                if(routes[i].protocolId == 6) {
-                    routes[i - 1].dest = address(this);
-                } else {
-                    routes[i - 1].dest = routes[i].pair;
-                }
+                routes[i - 1].dest = dest;
             }
 
             // decide whether to continue or terminate

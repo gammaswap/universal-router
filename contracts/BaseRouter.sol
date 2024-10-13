@@ -27,6 +27,7 @@ abstract contract BaseRouter {
         uint16 protocolId;
         uint24 fee;
         address dest;
+        address hop;
     }
 
     address public immutable uniFactory;

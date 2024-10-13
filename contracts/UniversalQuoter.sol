@@ -32,15 +32,18 @@ contract UniversalQuoter is BaseRouter {
                 to: address(0),
                 protocolId: 0,
                 fee: 0,
-                dest: address(0)
+                dest: address(0),
+                hop: address(0)
             });
+
             // only the first pool in the path is necessary
             (routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee) = path.getFirstPool().decodeFirstPool();
 
-            address route = protocols[routes[i].protocolId];
-            require(route != address(0), "ROUTE_NOT_SET");
+            routes[i].hop = protocols[routes[i].protocolId];
+            require(routes[i].hop != address(0), "PROTOCOL_NOT_SET");
 
-            (amounts[i + 1], routes[i].pair, routes[i].fee) = IProtocolRoute(route).getAmountOut(amounts[i], routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee);
+            (amounts[i + 1], routes[i].pair, routes[i].fee) = IProtocolRoute(routes[i].hop).getAmountOut(amounts[i],
+                routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee);
 
             // decide whether to continue or terminate
             if (hasMultiplePools) {
@@ -70,16 +73,18 @@ contract UniversalQuoter is BaseRouter {
                 to: address(0),
                 protocolId: 0,
                 fee: 0,
-                dest: address(0)
+                dest: address(0),
+                hop: address(0)
             });
 
             // only the first pool in the path is necessary
             (routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee) = path.getLastPool().decodeFirstPool();
 
-            address route = protocols[routes[i].protocolId];
-            require(route != address(0), "ROUTE_NOT_SET");
+            routes[i].hop = protocols[routes[i].protocolId];
+            require(routes[i].hop != address(0), "ROUTE_NOT_SET");
 
-            (amounts[i - 1], routes[i].pair, routes[i].fee) = IProtocolRoute(route).getAmountIn(amounts[i], routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee);
+            (amounts[i - 1], routes[i].pair, routes[i].fee) = IProtocolRoute(routes[i].hop).getAmountIn(amounts[i],
+                routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee);
 
             // decide whether to continue or terminate
             if (hasMultiplePools) {

@@ -9,4 +9,6 @@ interface IProtocolRoute {
 
     function getAmountIn(uint256 amountOut, address tokenA, address tokenB, uint16 protocolId, uint256 fee) external
         returns(uint256 amountIn, address pair, uint24 swapFee);
+
+    function getDestination(address tokenA, address tokenB, uint16 protocolId, uint24 fee) external view returns(address, address);
 }

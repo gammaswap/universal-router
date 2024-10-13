@@ -145,4 +145,10 @@ contract UniswapV3 is CPMMRoute, IProtocolRoute, IUniswapV3SwapCallback {
             (amountIn,,) = handleRevert(reason, pair);
         }
     }
+
+    function getDestination(address tokenA, address tokenB, uint16 protocolId, uint24 fee) external override virtual view
+        returns(address pair, address dest) {
+        (pair,,) = pairFor(tokenA, tokenB, fee);
+        dest = address(this);
+    }
 }

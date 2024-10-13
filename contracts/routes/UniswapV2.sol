@@ -24,11 +24,11 @@ contract UniswapV2 is CPMMRoute, IProtocolRoute {
     function pairFor(address tokenA, address tokenB) internal view returns (address pair, address token0, address token1) {
         (token0, token1) = sortTokens(tokenA, tokenB);
         pair = address(uint160(uint256(keccak256(abi.encodePacked(
-                hex'ff',
-                factory,
-                keccak256(abi.encodePacked(token0, token1)),
-                initCodeHash() // init code hash for V2 type protocols
-            )))));
+            hex'ff',
+            factory,
+            keccak256(abi.encodePacked(token0, token1)),
+            initCodeHash() // init code hash for V2 type protocols
+        )))));
     }
 
     // fetches and sorts the reserves for a pair
@@ -74,5 +74,11 @@ contract UniswapV2 is CPMMRoute, IProtocolRoute {
         uint256 numerator = reserveIn * amountOut * 1000;
         uint256 denominator = (reserveOut - amountOut) * 997;
         amountIn = (numerator / denominator) + 1;
+    }
+
+    function getDestination(address tokenA, address tokenB, uint16 protocolId, uint24 fee) external override virtual view
+        returns(address pair, address dest) {
+        (dest,,) = pairFor(tokenA, tokenB);
+        dest = pair;
     }
 }

@@ -52,4 +52,10 @@ contract Aerodrome is CPMMRoute, IProtocolRoute {
             10**GammaSwapLibrary.decimals(tokenB), isStable, fee);
         swapFee = uint24(fee);
     }
+
+    function getDestination(address tokenA, address tokenB, uint16 protocolId, uint24 fee) external override virtual view
+        returns(address pair, address dest) {
+        (pair,,) = pairFor(tokenA, tokenB);
+        dest = pair;
+    }
 }
