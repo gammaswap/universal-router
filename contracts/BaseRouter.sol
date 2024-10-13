@@ -4,8 +4,6 @@ pragma solidity ^0.8.0;
 import "@gammaswap/v1-deltaswap/contracts/interfaces/IDeltaSwapPair.sol";
 import "@gammaswap/v1-implementations/contracts/interfaces/external/cpmm/ICPMM.sol";
 
-import './libraries/DSLib.sol';
-import './libraries/AeroLib.sol';
 import './libraries/BytesLib2.sol';
 import './libraries/Path2.sol';
 import './interfaces/IProtocolRoute.sol';
