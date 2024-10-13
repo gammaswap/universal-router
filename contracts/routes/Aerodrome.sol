@@ -58,4 +58,17 @@ contract Aerodrome is CPMMRoute, IProtocolRoute {
         (pair,,) = pairFor(tokenA, tokenB);
         dest = pair;
     }
+
+    function swap(address from, address to, uint24 fee, address dest) external override virtual {
+        (address pair, address token0,) = pairFor(from, to);
+        uint256 amountInput;
+        uint256 amountOutput;
+        { // scope to avoid stack too deep errors
+            (uint256 reserveIn, uint256 reserveOut,) = getReserves(from, to);
+            amountInput = GammaSwapLibrary.balanceOf(from, pair) - reserveIn;
+            amountOutput = IAeroPool(pair).getAmountOut(amountInput, from);
+        }
+        (uint256 amount0Out, uint256 amount1Out) = from == token0 ? (uint256(0), amountOutput) : (amountOutput, uint256(0));
+        IAeroPool(pair).swap(amount0Out, amount1Out, dest, new bytes(0));
+    }
 }

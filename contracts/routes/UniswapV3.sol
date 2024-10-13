@@ -3,14 +3,15 @@ pragma solidity ^0.8.0;
 import '@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
 import '@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol';
 import '@uniswap/v3-core/contracts/libraries/SafeCast.sol';
+import '@gammaswap/v1-core/contracts/libraries/GammaSwapLibrary.sol';
+import "@gammaswap/v1-periphery/contracts/interfaces/external/IWETH.sol";
 import '../libraries/CallbackValidation.sol';
 import '../libraries/PoolTicksCounter.sol';
 import '../libraries/TickMath.sol';
-
-import "./CPMMRoute.sol";
-import "../interfaces/IProtocolRoute.sol";
-import "../libraries/BytesLib2.sol";
-import "../libraries/Path2.sol";
+import './CPMMRoute.sol';
+import '../interfaces/IProtocolRoute.sol';
+import '../libraries/BytesLib2.sol';
+import '../libraries/Path2.sol';
 
 contract UniswapV3 is CPMMRoute, IProtocolRoute, IUniswapV3SwapCallback {
 
@@ -28,21 +29,24 @@ contract UniswapV3 is CPMMRoute, IProtocolRoute, IUniswapV3SwapCallback {
     address public immutable factory;
     bytes32 internal constant POOL_INIT_CODE_HASH = 0xe34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54;
 
+    address public immutable WETH;
+
     /// @dev Transient storage variable used to check a safety condition in exact output swaps.
     uint256 private amountOutCached;
 
-    constructor(uint16 _protocolId, address _factory){
+    constructor(uint16 _protocolId, address _factory, address _WETH){
         protocolId = _protocolId;
         factory = _factory;
+        WETH = _WETH;
     }
 
     // calculates the CREATE2 address for a pair without making any external calls
-    function pairFor(address tokenA, address tokenB, uint24 fee) internal view returns (address pair, address token0, address token1) {
-        (token0, token1) = sortTokens(tokenA, tokenB);
+    function pairFor(address tokenA, address tokenB, uint24 fee) internal view returns (address pair) {
+        (tokenA, tokenB) = sortTokens(tokenA, tokenB);
         pair = address(uint160(uint256(keccak256(abi.encodePacked(
             hex'ff',
             factory,
-            keccak256(abi.encodePacked(token0, token1, fee)),
+            keccak256(abi.encodePacked(tokenA, tokenB, fee)),
             POOL_INIT_CODE_HASH // init code hash for V2 type protocols
         )))));
     }
@@ -58,8 +62,7 @@ contract UniswapV3 is CPMMRoute, IProtocolRoute, IUniswapV3SwapCallback {
                 ? (tokenIn < tokenOut, uint256(amount0Delta), uint256(-amount1Delta))
                 : (tokenOut < tokenIn, uint256(amount1Delta), uint256(-amount0Delta));
 
-        (address pair,,) = pairFor(tokenIn, tokenOut, fee);
-        (uint160 sqrtPriceX96After, int24 tickAfter, , , , , ) = IUniswapV3Pool(pair).slot0();
+        (uint160 sqrtPriceX96After, int24 tickAfter, , , , , ) = IUniswapV3Pool(pairFor(tokenIn, tokenOut, fee)).slot0();
 
         if (isExactInput) {
             assembly {
@@ -110,7 +113,7 @@ contract UniswapV3 is CPMMRoute, IProtocolRoute, IUniswapV3SwapCallback {
         virtual returns(uint256 amountOut, address pair, uint24 swapFee) {
         swapFee = uint24(fee);
         bool zeroForOne = tokenIn < tokenOut;
-        (pair,,) = pairFor(tokenIn, tokenOut, swapFee);
+        pair = pairFor(tokenIn, tokenOut, swapFee);
 
         try
             IUniswapV3Pool(pair).swap(
@@ -128,7 +131,7 @@ contract UniswapV3 is CPMMRoute, IProtocolRoute, IUniswapV3SwapCallback {
     function getAmountIn(uint256 amountOut, address tokenIn, address tokenOut, uint16 protocolId, uint256 fee) public
         override virtual returns(uint256 amountIn, address pair, uint24 swapFee) {
         swapFee = uint24(fee);
-        (pair,,) = pairFor(tokenIn, tokenOut, swapFee);
+        pair = pairFor(tokenIn, tokenOut, swapFee);
 
         // if no price limit has been specified, cache the output amount for comparison in the swap callback
         amountOutCached = amountOut;
@@ -148,7 +151,44 @@ contract UniswapV3 is CPMMRoute, IProtocolRoute, IUniswapV3SwapCallback {
 
     function getDestination(address tokenA, address tokenB, uint16 protocolId, uint24 fee) external override virtual view
         returns(address pair, address dest) {
-        (pair,,) = pairFor(tokenA, tokenB, fee);
+        pair = pairFor(tokenA, tokenB, fee);
         dest = address(this);
+    }
+
+    function swap(address from, address to, uint24 fee, address dest) external override virtual {
+        uint256 inputAmount = GammaSwapLibrary.balanceOf(from, address(this));
+        exactInputSwap(inputAmount, from, to, fee, dest);
+    }
+
+    function exactInputSwap(uint256 amountIn, address tokenIn, address tokenOut, uint24 fee, address recipient)
+        private returns (uint256 amountOut) {
+        require(amountIn < 2**255, "Invalid amount");
+        // allow swapping to the router address with address 0
+        if (recipient == address(0)) recipient = address(this);
+
+        IUniswapV3Pool(pairFor(tokenIn, tokenOut, fee)).swap(
+            recipient,
+            tokenIn < tokenOut,
+            int256(amountIn),
+            (tokenIn < tokenOut ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1),
+            abi.encode(SwapCallbackData({
+                path: abi.encodePacked(tokenIn, protocolId, fee, tokenOut),
+                payer: address(this)
+            }))
+        );
+    }
+
+    function pay(address token, address payer, address recipient, uint256 value) internal {
+        if (token == WETH && address(this).balance >= value) {
+            // pay with WETH
+            IWETH(WETH).deposit{value: value}(); // wrap only what is needed to pay
+            IWETH(WETH).transfer(recipient, value);
+        } else if (payer == address(this)) {
+            // pay with tokens already in the contract (for the exact input multihop case)
+            GammaSwapLibrary.safeTransfer(token, recipient, value);
+        } else {
+            // pull payment
+            GammaSwapLibrary.safeTransferFrom(token, payer, recipient, value);
+        }
     }
 }

@@ -83,40 +83,7 @@ contract UniversalRouter is BaseRouter, IUniswapV3SwapCallback {
     // requires the initial amount to have already been sent to the first pair
     function _swapSupportingFeeOnTransferTokens2(Route[] memory routes) internal virtual {
         for (uint256 i; i < routes.length - 1; i++) {
-            if(routes[i].protocolId == 6) {
-                uint256 inputAmount = IERC20(routes[i].from).balanceOf(address(this));
-                bool zeroForOne = routes[i].from < routes[i].to;
-                IUniswapV3Pool(routes[i].pair).swap(
-                    routes[i].dest,
-                    zeroForOne,
-                    int256(inputAmount),
-                    (zeroForOne ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1),
-                    abi.encode(SwapCallbackData({
-                        path: abi.encodePacked(routes[i].from, routes[i].protocolId, routes[i].fee, routes[i].to),
-                        payer: address(this)
-                    }))
-                );
-            } else {
-                (address input, address output) = (routes[i].from, routes[i].to);
-                (address token0,) = sortTokens(input, output);
-                IDeltaSwapPair pair = IDeltaSwapPair(routes[i].pair);
-                uint256 amountInput;
-                uint256 amountOutput;
-                { // scope to avoid stack too deep errors
-                    (uint256 reserveIn, uint256 reserveOut,) = getReserves(routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee);
-                    amountInput = IERC20(input).balanceOf(address(routes[i].pair)) - reserveIn;
-                    if(routes[i].protocolId >=1 && routes[i].protocolId <= 3) {
-                        if(routes[i].protocolId == 3) {
-                            routes[i].fee = uint24(DSLib.calcPairTradingFee(amountInput, reserveIn, reserveOut, routes[i].pair));
-                        }
-                        amountOutput = DSLib.getAmountOut(amountInput, reserveIn, reserveOut, routes[i].fee);
-                    } else if(routes[i].protocolId == 5 || routes[i].protocolId == 6) {
-                        amountOutput = IAeroPool(routes[i].pair).getAmountOut(amountInput, routes[i].from);
-                    }
-                }
-                (uint256 amount0Out, uint256 amount1Out) = input == token0 ? (uint256(0), amountOutput) : (amountOutput, uint256(0));
-                pair.swap(amount0Out, amount1Out, routes[i].dest, new bytes(0));
-            }
+            IProtocolRoute(routes[i].hop).swap(routes[i].from, routes[i].to, routes[i].fee, routes[i].dest);
         }
     }
     /// @dev this is the main function we'll use to swap
@@ -153,35 +120,6 @@ contract UniversalRouter is BaseRouter, IUniswapV3SwapCallback {
                 : (tokenOut < tokenIn, uint256(amount1Delta));
 
         pay(tokenIn, data.payer, msg.sender, amountToPay);
-    }
-
-    /// @dev Performs a single exact input swap
-    function exactInputInternal(
-        uint256 amountIn,
-        address recipient,
-        uint160 sqrtPriceLimitX96,
-        SwapCallbackData memory data
-    ) private returns (uint256 amountOut) {
-        /*require(amountIn < 2**255, "Invalid amount");
-        // allow swapping to the router address with address 0
-        if (recipient == address(0)) recipient = address(this);
-
-        (address tokenIn, address tokenOut,,uint24 fee) = data.path.decodeFirstPool();
-
-        bool zeroForOne = tokenIn < tokenOut;
-
-        (int256 amount0, int256 amount1) =
-        getPool(tokenIn, tokenOut, fee).swap(
-            recipient,
-            zeroForOne,
-            int256(amountIn),
-            sqrtPriceLimitX96 == 0
-            ? (zeroForOne ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1)
-            : sqrtPriceLimitX96,
-            abi.encode(data)
-        );
-
-        return uint256(-(zeroForOne ? amount1 : amount0));/**/
     }
 
     function pay(

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
+import "@gammaswap/v1-core/contracts/libraries/GammaSwapLibrary.sol";
 import "@gammaswap/v1-implementations/contracts/interfaces/external/cpmm/ICPMM.sol";
 
 import '../interfaces/IProtocolRoute.sol';
@@ -80,5 +81,18 @@ contract UniswapV2 is CPMMRoute, IProtocolRoute {
         returns(address pair, address dest) {
         (dest,,) = pairFor(tokenA, tokenB);
         dest = pair;
+    }
+
+    function swap(address from, address to, uint24 fee, address dest) external override virtual {
+        (address pair, address token0,) = pairFor(from, to);
+        uint256 amountInput;
+        uint256 amountOutput;
+        { // scope to avoid stack too deep errors
+            (uint256 reserveIn, uint256 reserveOut,) = getReserves(from, to);
+            amountInput = GammaSwapLibrary.balanceOf(from, pair) - reserveIn;
+            amountOutput = _getAmountOut(amountInput, reserveIn, reserveOut);
+        }
+        (uint256 amount0Out, uint256 amount1Out) = from == token0 ? (uint256(0), amountOutput) : (amountOutput, uint256(0));
+        ICPMM(pair).swap(amount0Out, amount1Out, dest, new bytes(0));
     }
 }

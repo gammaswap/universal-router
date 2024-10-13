@@ -14,4 +14,12 @@ interface IAeroPool {
     /// @param tokenIn  Address of token
     /// @return Amount out
     function getAmountOut(uint256 amountIn, address tokenIn) external view returns (uint256);
+
+    /// @notice Exchange one token for another token, must send token amount to exchange first before calling this function
+    /// @dev The user specifies which token amount to get. Therefore only one token amount parameter is greater than zero
+    /// @param amount0Out - address that will receive reserve tokens
+    /// @param amount1Out - address that will receive reserve tokens
+    /// @param to - address that will receive output token quantity
+    /// @param data - used for flash loan trades
+    function swap(uint256 amount0Out, uint256 amount1Out, address to, bytes calldata data) external;
 }
