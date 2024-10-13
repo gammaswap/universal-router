@@ -3,62 +3,62 @@ pragma solidity ^0.8.0;
 
 library AeroLib {
 
-    function getAmountOut(uint256 amountIn, address tokenIn, address token0, uint256 reserve0, uint256 reserve1,
+    function getAmountOut(uint256 amountIn, uint256 reserve0, uint256 reserve1,
         uint256 decimals0, uint256 decimals1, bool stable, uint256 fee) internal view returns (uint256) {
         (uint256 _reserve0, uint256 _reserve1) = (reserve0, reserve1);
         amountIn -= (amountIn * fee) / 10000; // remove fee from amount received
         if(stable) {
-            return _getAmountOutStable(amountIn, tokenIn, token0, _reserve0, _reserve1, decimals0, decimals1);
+            return _getAmountOutStable(amountIn, _reserve0, _reserve1, decimals0, decimals1);
         } else {
-            return _getAmountOutNonStable(amountIn, tokenIn, token0, _reserve0, _reserve1);
+            return _getAmountOutNonStable(amountIn, _reserve0, _reserve1);
         }
     }
 
-    function getAmountIn(uint256 amountOut, address tokenOut, address token0, uint256 reserve0, uint256 reserve1,
+    function getAmountIn(uint256 amountOut, uint256 reserve0, uint256 reserve1,
         uint256 decimals0, uint256 decimals1, bool stable, uint256 fee) internal view returns (uint256) {
         (uint256 _reserve0, uint256 _reserve1) = (reserve0, reserve1);
         amountOut -= (amountOut * fee) / 10000; //TODO must update logic to account for fee same as in UniswapV2
         if(stable) {
-            return _getAmountInStable(amountOut, tokenOut, token0, _reserve0, _reserve1, decimals0, decimals1);
+            return _getAmountInStable(amountOut, _reserve0, _reserve1, decimals0, decimals1);
         } else {
-            return _getAmountInNonStable(amountOut, tokenOut, token0, _reserve0, _reserve1);
+            return _getAmountInNonStable(amountOut, _reserve0, _reserve1);
         }
     }
 
     // TODO: must make sure decimals match order
-    function _getAmountOutStable(uint256 amountIn, address tokenIn, address token0, uint256 _reserve0, uint256 _reserve1,
+    function _getAmountOutStable(uint256 amountIn, uint256 _reserve0, uint256 _reserve1,
         uint256 decimals0, uint256 decimals1) internal view returns (uint256) {
         uint256 xy = _k(_reserve0, _reserve1, decimals0, decimals1, true);
         _reserve0 = (_reserve0 * 1e18) / decimals0;
         _reserve1 = (_reserve1 * 1e18) / decimals1;
-        (uint256 reserveA, uint256 reserveB) = tokenIn == token0 ? (_reserve0, _reserve1) : (_reserve1, _reserve0);
-        amountIn = tokenIn == token0 ? (amountIn * 1e18) / decimals0 : (amountIn * 1e18) / decimals1;
+        (uint256 reserveA, uint256 reserveB) = (_reserve0, _reserve1);
+        amountIn = (amountIn * 1e18) / decimals0;
         uint256 y = reserveB - _get_y(amountIn + reserveA, xy, reserveB, decimals0, decimals1);
-        return (y * (tokenIn == token0 ? decimals1 : decimals0)) / 1e18;
+        return (y * (decimals1)) / 1e18;
     }
 
-    function _getAmountOutNonStable(uint256 amountIn, address tokenIn, address token0, uint256 _reserve0, uint256 _reserve1
+    function _getAmountOutNonStable(uint256 amountIn, uint256 _reserve0, uint256 _reserve1
     ) internal view returns (uint256) {
-        (uint256 reserveA, uint256 reserveB) = tokenIn == token0 ? (_reserve0, _reserve1) : (_reserve1, _reserve0);
+        (uint256 reserveA, uint256 reserveB) = (_reserve0, _reserve1);
         return (amountIn * reserveB) / (reserveA + amountIn);
     }
 
     // TODO: must make sure decimals match order
-    function _getAmountInStable(uint256 amountOut, address tokenOut, address token0, uint256 _reserve0, uint256 _reserve1,
+    function _getAmountInStable(uint256 amountOut, uint256 _reserve0, uint256 _reserve1,
         uint256 decimals0, uint256 decimals1) internal view returns (uint256) {
         uint256 xy = _k(_reserve0, _reserve1, decimals0, decimals1, true);
         _reserve0 = (_reserve0 * 1e18) / decimals0;
         _reserve1 = (_reserve1 * 1e18) / decimals1;
-        (uint256 reserveA, uint256 reserveB) = tokenOut == token0 ? (_reserve0, _reserve1) : (_reserve1, _reserve0);
-        amountOut = tokenOut == token0 ? (amountOut * 1e18) / decimals0 : (amountOut * 1e18) / decimals1;
+        (uint256 reserveA, uint256 reserveB) = (_reserve0, _reserve1);
+        amountOut = (amountOut * 1e18) / decimals0;
         uint256 y = _get_y(reserveA - amountOut, xy, reserveB, decimals0, decimals1) - reserveB;
-        return (y * (tokenOut == token0 ? decimals1 : decimals0)) / 1e18;
+        return (y * (decimals1)) / 1e18;
     }
 
-    function _getAmountInNonStable(uint256 amountOut, address tokenOut, address token0,
+    function _getAmountInNonStable(uint256 amountOut,
         uint256 _reserve0, uint256 _reserve1
     ) internal view returns (uint256) {
-        (uint256 reserveOut, uint256 reserveIn) = tokenOut == token0 ? (_reserve0, _reserve1) : (_reserve1, _reserve0);
+        (uint256 reserveOut, uint256 reserveIn) = (_reserve0, _reserve1);
         return (amountOut * reserveIn) / (reserveOut - amountOut);
     }
 

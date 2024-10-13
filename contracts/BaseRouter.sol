@@ -3,14 +3,14 @@ pragma solidity ^0.8.0;
 
 import "@gammaswap/v1-deltaswap/contracts/interfaces/IDeltaSwapPair.sol";
 import "@gammaswap/v1-implementations/contracts/interfaces/external/cpmm/ICPMM.sol";
-import '@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol';
 
 import './libraries/DSLib.sol';
 import './libraries/AeroLib.sol';
 import './libraries/BytesLib2.sol';
 import './libraries/Path2.sol';
+import './interfaces/IProtocolRoute.sol';
 
-abstract contract BaseRouter is IUniswapV3SwapCallback {
+abstract contract BaseRouter {
 
     using BytesLib2 for bytes;
     using Path2 for bytes;
@@ -18,7 +18,6 @@ abstract contract BaseRouter is IUniswapV3SwapCallback {
     struct SwapCallbackData {
         bytes path;
         address payer;
-        bool isQuote;
     }
 
     struct Route {
@@ -38,6 +37,8 @@ abstract contract BaseRouter is IUniswapV3SwapCallback {
 
     address public immutable WETH;
 
+    mapping(uint16 => address) public protocols;
+
     constructor(address _uniFactory, address _sushiFactory, address _dsFactory, address _aeroFactory, address _uniV3Factory, address _WETH) {
         uniFactory = _uniFactory;
         sushiFactory = _sushiFactory;
@@ -45,6 +46,13 @@ abstract contract BaseRouter is IUniswapV3SwapCallback {
         aeroFactory = _aeroFactory;
         uniV3Factory = _uniV3Factory;
         WETH = _WETH;
+    }
+
+    function addProtocol(uint16 protocolId, address protocol) external virtual {
+        require(protocolId > 0, "INVALID_PROTOCOL_ID");
+        require(protocolId == IProtocolRoute(protocol).protocolId(), "PROTOCOL_ID_MATCH");
+        protocols[protocolId] = protocol;
+        //TODO: Needs to emit event after adding
     }
 
     function _getTokenOut(bytes memory path) public view returns(address tokenOut) {

@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import "@gammaswap/v1-core/contracts/libraries/GammaSwapLibrary.sol";
 import "@gammaswap/v1-periphery/contracts/interfaces/external/IWETH.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+import '@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol';
 import "@uniswap/v3-core/contracts/libraries/SafeCast.sol";
 
 import './interfaces/IAeroPool.sol';
@@ -14,7 +15,7 @@ import './libraries/RouterLibrary.sol';
 import './libraries/TickMath.sol';
 import './BaseRouter.sol';
 
-contract UniversalRouter is BaseRouter {
+contract UniversalRouter is BaseRouter, IUniswapV3SwapCallback {
 
     using Path2 for bytes;
     using BytesLib2 for bytes;
@@ -91,8 +92,7 @@ contract UniversalRouter is BaseRouter {
                     (zeroForOne ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1),
                     abi.encode(SwapCallbackData({
                         path: abi.encodePacked(routes[i].from, routes[i].protocolId, routes[i].fee, routes[i].to),
-                        payer: address(this),
-                        isQuote: false
+                        payer: address(this)
                     }))
                 );
             } else {
@@ -136,76 +136,51 @@ contract UniversalRouter is BaseRouter {
         );
     }
 
-    /// @inheritdoc IUniswapV3SwapCallback
     function uniswapV3SwapCallback(
         int256 amount0Delta,
         int256 amount1Delta,
-        bytes memory _data
+        bytes calldata _data
     ) external override {
         require(amount0Delta > 0 || amount1Delta > 0); // swaps entirely within 0-liquidity regions are not supported
         SwapCallbackData memory data = abi.decode(_data, (SwapCallbackData));
-        (address tokenIn, address tokenOut, uint16 protocolId, uint24 fee) = data.path.decodeFirstPool();
-        CallbackValidation.verifyCallback(getFactory(protocolId), tokenIn, tokenOut, fee);
+        (address tokenIn, address tokenOut,, uint24 fee) = data.path.decodeFirstPool();
+        CallbackValidation.verifyCallback(uniFactory, tokenIn, tokenOut, fee);
 
-        (bool isExactInput, uint256 amountToPay, uint256 amountReceived) =
-        amount0Delta > 0
-        ? (tokenIn < tokenOut, uint256(amount0Delta), uint256(-amount1Delta))
-        : (tokenOut < tokenIn, uint256(amount1Delta), uint256(-amount0Delta));
+        (bool isExactInput, uint256 amountToPay) =
+            amount0Delta > 0
+                ? (tokenIn < tokenOut, uint256(amount0Delta))
+                : (tokenOut < tokenIn, uint256(amount1Delta));
 
-        if (isExactInput) {
-            pay(tokenIn, data.payer, msg.sender, amountToPay);
-        } else {
-            // either initiate the next swap or pay
-            if (data.path.hasMultiplePools()) {
-                data.path = data.path.skipToken();
-                exactInputInternal(amountToPay, msg.sender, data, true);
-            } else {
-                //amountInCached = amountToPay;
-                amountOutCached = amountToPay;
-                tokenIn = tokenOut; // swap in/out because exact output swaps are reversed
-                pay(tokenIn, data.payer, msg.sender, amountToPay);
-            }
-        }
+        pay(tokenIn, data.payer, msg.sender, amountToPay);
     }
 
     /// @dev Performs a single exact input swap
     function exactInputInternal(
-        uint256 inputAmount,
+        uint256 amountIn,
         address recipient,
-        SwapCallbackData memory data,
-        bool isReverse
-    ) private returns (uint256 outputAmount) {
-        require(inputAmount < 2**255, "Invalid amount");
+        uint160 sqrtPriceLimitX96,
+        SwapCallbackData memory data
+    ) private returns (uint256 amountOut) {
+        /*require(amountIn < 2**255, "Invalid amount");
         // allow swapping to the router address with address 0
         if (recipient == address(0)) recipient = address(this);
 
-        (address tokenIn, address tokenOut, uint16 protocolId, uint24 fee) = data.path.decodeFirstPool();
-
-        if(isReverse) (tokenIn, tokenOut) = (tokenOut, tokenIn);
+        (address tokenIn, address tokenOut,,uint24 fee) = data.path.decodeFirstPool();
 
         bool zeroForOne = tokenIn < tokenOut;
-        //(address pair,,) = pairFor(tokenIn, tokenOut, protocolId, fee);
-        (int256 amount0Delta, int256 amount1Delta) =
-        IUniswapV3Pool(getPair(tokenIn, tokenOut, protocolId, fee)).swap(
+
+        (int256 amount0, int256 amount1) =
+        getPool(tokenIn, tokenOut, fee).swap(
             recipient,
             zeroForOne,
-            isReverse ? -int256(inputAmount) : int256(inputAmount),
-            (zeroForOne ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1),
+            int256(amountIn),
+            sqrtPriceLimitX96 == 0
+            ? (zeroForOne ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1)
+            : sqrtPriceLimitX96,
             abi.encode(data)
         );
 
-        if(isReverse) {
-            uint256 amountOutReceived;
-            (outputAmount, amountOutReceived) = zeroForOne
-            ? (uint256(amount0Delta), uint256(-amount1Delta))
-            : (uint256(amount1Delta), uint256(-amount0Delta));
-            // it's technically possible to not receive the full output amount,
-            // so if no price limit has been specified, require this possibility away
-            //if (sqrtPriceLimitX96 == 0) require(amountOutReceived == outputAmount, "Swap failed");
-            require(amountOutReceived == inputAmount, "Swap failed");
-        } else {
-            return uint256(-(zeroForOne ? amount1Delta : amount0Delta));
-        }
+        return uint256(-(zeroForOne ? amount1 : amount0));/**/
     }
 
     function pay(
@@ -227,12 +202,3 @@ contract UniversalRouter is BaseRouter {
         }
     }
 }
-/*
-console.log("tokenA:",tokenA);
-console.log("tokenB:",tokenB);
-console.log("protocolId:",protocolId);
-console.log("fee:",fee);
-
-console.log("reserveIn:",reserveIn);
-console.log("reserveOut:",reserveOut);
-console.log("pair:",pair);/**/
