@@ -35,14 +35,14 @@ contract Aerodrome is CPMMRoute, IProtocolRoute {
         (reserve0, reserve1,) = IAeroPool(pair).getReserves();
     }
 
-    function getAmountOut(uint256 amountIn, address tokenA, address tokenB, uint16 protocolId, uint256 fee) public override virtual
+    function getAmountOut(uint256 amountIn, address tokenA, address tokenB, uint256 fee) public override virtual
         returns(uint256 amountOut, address pair, uint24 swapFee) {
         (,,pair) = pairFor(tokenA, tokenB);
         swapFee = 3000; // for information purposes only, matches UniV3 format
         amountOut = IAeroPool(pair).getAmountOut(amountIn, tokenA);
     }
 
-    function getAmountIn(uint256 amountOut, address tokenA, address tokenB, uint16 protocolId, uint256 fee) public override virtual
+    function getAmountIn(uint256 amountOut, address tokenA, address tokenB, uint256 fee) public override virtual
         returns(uint256 amountIn, address pair, uint24 swapFee) {
         uint256 reserveIn;
         uint256 reserveOut;
@@ -53,7 +53,7 @@ contract Aerodrome is CPMMRoute, IProtocolRoute {
         swapFee = uint24(fee);
     }
 
-    function getDestination(address tokenA, address tokenB, uint16 protocolId, uint24 fee) external override virtual view
+    function getDestination(address tokenA, address tokenB, uint24 fee) external override virtual view
         returns(address pair, address dest) {
         (pair,,) = pairFor(tokenA, tokenB);
         dest = pair;

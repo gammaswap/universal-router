@@ -14,7 +14,7 @@ contract DeltaSwap is UniswapV2 {
         return 0xa82767a5e39a2e216962a2ebff796dcc37cd05dfd6f7a149e1f8fbb6bf487658;
     }
 
-    function getAmountOut(uint256 amountIn, address tokenA, address tokenB, uint16 protocolId, uint256 fee) public override virtual
+    function getAmountOut(uint256 amountIn, address tokenA, address tokenB, uint256 fee) public override virtual
         returns(uint256 amountOut, address pair, uint24 swapFee) {
         uint256 reserveIn;
         uint256 reserveOut;
@@ -23,7 +23,7 @@ contract DeltaSwap is UniswapV2 {
         amountOut = _getAmountOut(amountIn, reserveIn, reserveOut, swapFee);
     }
 
-    function getAmountIn(uint256 amountOut, address tokenA, address tokenB, uint16 protocolId, uint256 fee) public override virtual
+    function getAmountIn(uint256 amountOut, address tokenA, address tokenB, uint256 fee) public override virtual
         returns(uint256 amountIn, address pair, uint24 swapFee) {
         uint256 reserveIn;
         uint256 reserveOut;

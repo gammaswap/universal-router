@@ -109,7 +109,7 @@ contract UniswapV3 is CPMMRoute, IProtocolRoute, IUniswapV3SwapCallback {
         return (amount, sqrtPriceX96After, initializedTicksCrossed);
     }
 
-    function getAmountOut(uint256 amountIn, address tokenIn, address tokenOut, uint16 protocolId, uint256 fee) public override
+    function getAmountOut(uint256 amountIn, address tokenIn, address tokenOut, uint256 fee) public override
         virtual returns(uint256 amountOut, address pair, uint24 swapFee) {
         swapFee = uint24(fee);
         bool zeroForOne = tokenIn < tokenOut;
@@ -128,7 +128,7 @@ contract UniswapV3 is CPMMRoute, IProtocolRoute, IUniswapV3SwapCallback {
         }
     }
 
-    function getAmountIn(uint256 amountOut, address tokenIn, address tokenOut, uint16 protocolId, uint256 fee) public
+    function getAmountIn(uint256 amountOut, address tokenIn, address tokenOut, uint256 fee) public
         override virtual returns(uint256 amountIn, address pair, uint24 swapFee) {
         swapFee = uint24(fee);
         pair = pairFor(tokenIn, tokenOut, swapFee);
@@ -149,7 +149,7 @@ contract UniswapV3 is CPMMRoute, IProtocolRoute, IUniswapV3SwapCallback {
         }
     }
 
-    function getDestination(address tokenA, address tokenB, uint16 protocolId, uint24 fee) external override virtual view
+    function getDestination(address tokenA, address tokenB, uint24 fee) external override virtual view
         returns(address pair, address dest) {
         pair = pairFor(tokenA, tokenB, fee);
         dest = address(this);
