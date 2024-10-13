@@ -27,6 +27,7 @@ contract Aerodrome is CPMMRoute, IProtocolRoute {
         (token0, token1) = sortTokens(tokenA, tokenB);
         bytes32 salt = keccak256(abi.encodePacked(token0, token1, isStable));
         pair = Clones.predictDeterministicAddress(implementation, salt, factory);
+        require(GammaSwapLibrary.isContract(pair), "AMM_DOES_NOT_EXIST");
     }
 
     // fetches and sorts the reserves for a pair

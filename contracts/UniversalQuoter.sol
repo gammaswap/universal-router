@@ -43,7 +43,7 @@ contract UniversalQuoter is BaseRouter {
             require(routes[i].hop != address(0), "PROTOCOL_NOT_SET");
 
             (amounts[i + 1], routes[i].pair, routes[i].fee) = IProtocolRoute(routes[i].hop).getAmountOut(amounts[i],
-                routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee);
+                routes[i].from, routes[i].to, routes[i].fee);
 
             // decide whether to continue or terminate
             if (hasMultiplePools) {
@@ -84,7 +84,7 @@ contract UniversalQuoter is BaseRouter {
             require(routes[i].hop != address(0), "ROUTE_NOT_SET");
 
             (amounts[i - 1], routes[i].pair, routes[i].fee) = IProtocolRoute(routes[i].hop).getAmountIn(amounts[i],
-                routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee);
+                routes[i].from, routes[i].to, routes[i].fee);
 
             // decide whether to continue or terminate
             if (hasMultiplePools) {

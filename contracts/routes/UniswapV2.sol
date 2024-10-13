@@ -30,6 +30,7 @@ contract UniswapV2 is CPMMRoute, IProtocolRoute {
             keccak256(abi.encodePacked(token0, token1)),
             initCodeHash() // init code hash for V2 type protocols
         )))));
+        require(GammaSwapLibrary.isContract(pair), "AMM_DOES_NOT_EXIST");
     }
 
     // fetches and sorts the reserves for a pair
@@ -40,7 +41,7 @@ contract UniswapV2 is CPMMRoute, IProtocolRoute {
         (reserveA, reserveB) = tokenA == token0 ? (reserve0, reserve1) : (reserve1, reserve0);
     }
 
-    function getAmountOut(uint256 amountIn, address tokenA, address tokenB, uint16 protocolId, uint256 fee) public override virtual
+    function getAmountOut(uint256 amountIn, address tokenA, address tokenB, uint256 fee) public override virtual
         returns(uint256 amountOut, address pair, uint24 swapFee) {
         uint256 reserveIn;
         uint256 reserveOut;
@@ -49,7 +50,7 @@ contract UniswapV2 is CPMMRoute, IProtocolRoute {
         amountOut = _getAmountOut(amountIn, reserveIn, reserveOut);
     }
 
-    function getAmountIn(uint256 amountOut, address tokenA, address tokenB, uint16 protocolId, uint256 fee) public override virtual
+    function getAmountIn(uint256 amountOut, address tokenA, address tokenB, uint256 fee) public override virtual
         returns(uint256 amountIn, address pair, uint24 swapFee) {
         uint256 reserveIn;
         uint256 reserveOut;
@@ -77,7 +78,7 @@ contract UniswapV2 is CPMMRoute, IProtocolRoute {
         amountIn = (numerator / denominator) + 1;
     }
 
-    function getDestination(address tokenA, address tokenB, uint16 protocolId, uint24 fee) external override virtual view
+    function getDestination(address tokenA, address tokenB, uint24 fee) external override virtual view
         returns(address pair, address dest) {
         (dest,,) = pairFor(tokenA, tokenB);
         dest = pair;

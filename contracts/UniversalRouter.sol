@@ -61,7 +61,7 @@ contract UniversalRouter is BaseRouter, IUniswapV3SwapCallback {
 
             address dest;
             (routes[i].pair, dest) = IProtocolRoute(routes[i].hop).getDestination(routes[i].from,
-                routes[i].to, routes[i].protocolId, routes[i].fee);
+                routes[i].to, routes[i].fee);
 
             if(i > 0) {
                 routes[i - 1].dest = dest;
