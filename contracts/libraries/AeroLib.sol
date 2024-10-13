@@ -25,7 +25,6 @@ library AeroLib {
         }
     }
 
-    // TODO: must make sure decimals match order
     function _getAmountOutStable(uint256 amountIn, uint256 _reserve0, uint256 _reserve1,
         uint256 decimals0, uint256 decimals1) internal view returns (uint256) {
         uint256 xy = _k(_reserve0, _reserve1, decimals0, decimals1, true);
@@ -43,7 +42,6 @@ library AeroLib {
         return (amountIn * reserveB) / (reserveA + amountIn);
     }
 
-    // TODO: must make sure decimals match order
     function _getAmountInStable(uint256 amountOut, uint256 _reserve0, uint256 _reserve1,
         uint256 decimals0, uint256 decimals1) internal view returns (uint256) {
         uint256 xy = _k(_reserve0, _reserve1, decimals0, decimals1, true);
