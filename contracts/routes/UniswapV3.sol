@@ -5,15 +5,14 @@ import '@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.so
 import '@uniswap/v3-core/contracts/libraries/SafeCast.sol';
 import '@gammaswap/v1-core/contracts/libraries/GammaSwapLibrary.sol';
 import "@gammaswap/v1-periphery/contracts/interfaces/external/IWETH.sol";
+import '../interfaces/IProtocolRoute.sol';
 import '../libraries/CallbackValidation.sol';
 import '../libraries/PoolTicksCounter.sol';
 import '../libraries/TickMath.sol';
-import './CPMMRoute.sol';
-import '../interfaces/IProtocolRoute.sol';
 import '../libraries/BytesLib2.sol';
 import '../libraries/Path2.sol';
 
-contract UniswapV3 is CPMMRoute, IProtocolRoute, IUniswapV3SwapCallback {
+contract UniswapV3 is IProtocolRoute, IUniswapV3SwapCallback {
 
     using BytesLib2 for bytes;
     using Path2 for bytes;
@@ -27,7 +26,6 @@ contract UniswapV3 is CPMMRoute, IProtocolRoute, IUniswapV3SwapCallback {
 
     uint16 public immutable override protocolId;
     address public immutable factory;
-    bytes32 internal constant POOL_INIT_CODE_HASH = 0xe34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54;
 
     address public immutable WETH;
 
@@ -42,13 +40,7 @@ contract UniswapV3 is CPMMRoute, IProtocolRoute, IUniswapV3SwapCallback {
 
     // calculates the CREATE2 address for a pair without making any external calls
     function pairFor(address tokenA, address tokenB, uint24 fee) internal view returns (address pair) {
-        (tokenA, tokenB) = sortTokens(tokenA, tokenB);
-        pair = address(uint160(uint256(keccak256(abi.encodePacked(
-            hex'ff',
-            factory,
-            keccak256(abi.encodePacked(tokenA, tokenB, fee)),
-            POOL_INIT_CODE_HASH // init code hash for V2 type protocols
-        )))));
+        pair = PoolAddress.computeAddress(factory, PoolAddress.getPoolKey(tokenA, tokenB, fee));
         require(GammaSwapLibrary.isContract(pair), "UniswapV3: AMM_DOES_NOT_EXIST");
     }
 
