@@ -30,6 +30,7 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
 
     // **** SWAP (supports fee-on-transfer tokens) ****
     function _swap(uint256 amountIn, uint256 amountOutMin, Route[] memory routes) internal virtual {
+        require(amountIn > 0, "ZERO_AMOUNT_IN");
         GammaSwapLibrary.safeTransferFrom(routes[0].from, msg.sender, routes[0].dest, amountIn);
         uint256 lastRoute = routes.length - 1;
         address to = routes[lastRoute].dest;
@@ -45,17 +46,17 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
 
     function swapExactETHForTokens(uint256 amountOutMin, bytes calldata path, address to, uint256 deadline)
         public override virtual payable ensure(deadline) {
+        Route[] memory routes = calcRoutes(path, to);
+        require(routes[0].from == WETH, "AMOUNT_IN_NOT_ETH");
         uint256 amountIn = msg.value;
         IWETH(WETH).deposit{value: amountIn}();
-        Route[] memory routes = calcRoutes(amountIn, path, to);
-        require(routes[0].from == WETH, "AMOUNT_IN_NOT_ETH");
         _swap(amountIn, amountOutMin, routes);
     }
 
     /// @dev this is the main function we'll use to swap
     function swapExactTokensForETH(uint256 amountIn, uint256 amountOutMin, bytes calldata path, address to, uint256 deadline)
         public override virtual ensure(deadline) {
-        Route[] memory routes = calcRoutes(amountIn, path, address(this));
+        Route[] memory routes = calcRoutes(path, address(this));
         require(routes[routes.length - 1].to == WETH, "AMOUNT_OUT_NOT_ETH");
         _swap(amountIn, amountOutMin, routes);
         unwrapWETH(0, to);
@@ -64,13 +65,12 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
     /// @dev this is the main function we'll use to swap
     function swapExactTokensForTokens(uint256 amountIn, uint256 amountOutMin, bytes calldata path, address to, uint256 deadline)
         public override virtual  ensure(deadline) {
-        Route[] memory routes = calcRoutes(amountIn, path, to);
+        Route[] memory routes = calcRoutes(path, to);
         _swap(amountIn, amountOutMin, routes);
     }
 
     /// @dev this supports transfer fees tokens too
-    function calcRoutes(uint256 amountIn, bytes memory path, address _to) public override virtual view returns (Route[] memory routes) {
-        require(amountIn > 0, "ZERO_AMOUNT_IN");
+    function calcRoutes(bytes memory path, address _to) public override virtual view returns (Route[] memory routes) {
         require(path.length >= 45 && (path.length - 20) % 25 == 0, "INVALID_PATH");
         routes = new Route[](path.numPools() + 1);
         uint256 i = 0;

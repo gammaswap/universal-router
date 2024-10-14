@@ -25,7 +25,7 @@ interface IUniversalRouter {
 
     function swapExactTokensForTokens(uint256 amountIn, uint256 amountOutMin, bytes calldata path, address to, uint256 deadline) external;
 
-    function calcRoutes(uint256 amountIn, bytes memory path, address _to) external view returns (Route[] memory routes);
+    function calcRoutes(bytes memory path, address to) external view returns (Route[] memory routes);
 
     function getAmountsOut(uint256 amountIn, bytes memory path) external returns (uint256[] memory amounts, Route[] memory routes);
 
