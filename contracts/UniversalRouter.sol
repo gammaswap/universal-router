@@ -19,11 +19,51 @@ contract UniversalRouter is BaseRouter, Ownable2Step {
         _;
     }
 
+    // **** SWAP (supports fee-on-transfer tokens) ****
+    function _swap(uint256 amountIn, uint256 amountOutMin, Route[] memory routes) internal virtual {
+        GammaSwapLibrary.safeTransferFrom(routes[0].from, msg.sender, routes[0].dest, amountIn);
+        uint256 lastRoute = routes.length - 1;
+        address to = routes[lastRoute].dest;
+        uint256 balanceBefore = IERC20(routes[lastRoute].to).balanceOf(to);
+        for (uint256 i; i < lastRoute; i++) {
+            IProtocolRoute(routes[i].hop).swap(routes[i].from, routes[i].to, routes[i].fee, routes[i].dest);
+        }
+        require(
+            IERC20(routes[lastRoute].to).balanceOf(to) - balanceBefore >= amountOutMin,
+            'UniversalRouter: INSUFFICIENT_OUTPUT_AMOUNT'
+        );
+    }
+
+    function swapExactETHForTokens(uint256 amountOutMin, bytes calldata path, address to, uint256 deadline)
+        external virtual payable /*override*/ ensure(deadline) {
+        uint256 amountIn = msg.value;
+        IWETH(WETH).deposit{value: amountIn}();
+        Route[] memory routes = calcRoutes(amountIn, path, to);
+        require(routes[0].from == WETH, "AMOUNT_IN_NOT_ETH");
+        _swap(amountIn, amountOutMin, routes);
+    }
+
+    /// @dev this is the main function we'll use to swap
+    function swapExactTokensForETH(uint256 amountIn, uint256 amountOutMin, bytes calldata path, address to, uint256 deadline)
+        public virtual /*override*/ ensure(deadline) {
+        Route[] memory routes = calcRoutes(amountIn, path, address(this));
+        require(routes[routes.length - 1].to == WETH, "AMOUNT_OUT_NOT_ETH");
+        _swap(amountIn, amountOutMin, routes);
+        unwrapWETH(0, to);
+    }
+
+    /// @dev this is the main function we'll use to swap
+    function swapExactTokensForTokens(uint256 amountIn, uint256 amountOutMin, bytes calldata path, address to, uint256 deadline)
+        public virtual /*override*/ ensure(deadline) {
+        Route[] memory routes = calcRoutes(amountIn, path, to);
+        _swap(amountIn, amountOutMin, routes);
+    }
+
     /// @dev this supports transfer fees tokens too
     function calcRoutes(uint256 amountIn, bytes memory path, address _to) public virtual view returns (Route[] memory routes) {
+        require(amountIn > 0, "ZERO_AMOUNT_IN");
         require(path.length >= 45 && (path.length - 20) % 25 == 0, "INVALID_PATH");
         routes = new Route[](path.numPools() + 1);
-        // transferFrom here first
         uint256 i = 0;
         while (true) {
             bool hasMultiplePools = path.hasMultiplePools();
@@ -60,31 +100,7 @@ contract UniversalRouter is BaseRouter, Ownable2Step {
                 ++i;
             }
         }
-    }
-
-    // **** SWAP (supporting fee-on-transfer tokens) ****
-    // requires the initial amount to have already been sent to the first pair
-    function _swapSupportingFeeOnTransferTokens2(Route[] memory routes) internal virtual {
-        for (uint256 i; i < routes.length - 1; i++) {
-            IProtocolRoute(routes[i].hop).swap(routes[i].from, routes[i].to, routes[i].fee, routes[i].dest);
-        }
-    }
-    /// @dev this is the main function we'll use to swap
-    function swapExactTokensForTokensSupportingFeeOnTransferTokens2(
-        uint256 amountIn,
-        uint256 amountOutMin,
-        bytes calldata path,
-        address to,
-        uint256 deadline
-    ) external virtual /*override*/ ensure(deadline) {
-        Route[] memory routes = calcRoutes(amountIn, path, to);
-        GammaSwapLibrary.safeTransferFrom(routes[0].from, msg.sender, routes[0].dest, amountIn);
-        uint256 balanceBefore = IERC20(routes[routes.length - 1].to).balanceOf(to);
-        _swapSupportingFeeOnTransferTokens2(routes);
-        require(
-            IERC20(routes[path.length - 1].to).balanceOf(to) - balanceBefore >= amountOutMin,
-            'UniversalRouter: INSUFFICIENT_OUTPUT_AMOUNT'
-        );
+        require(routes[i].dest == _to);
     }
 
     function getAmountsOut(uint256 amountIn, bytes memory path) public virtual returns (uint256[] memory amounts, Route[] memory routes) {
