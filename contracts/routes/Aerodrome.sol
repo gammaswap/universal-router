@@ -30,7 +30,7 @@ contract Aerodrome is CPMMRoute {
         require(GammaSwapLibrary.isContract(pair), "Aerodrome: AMM_DOES_NOT_EXIST");
     }
 
-    function quote(uint256 amountIn, address tokenIn, address tokenOut, uint24 fee) public view returns (uint256 amountOut) {
+    function quote(uint256 amountIn, address tokenIn, address tokenOut, uint24 fee) public override virtual view returns (uint256 amountOut) {
         if(isStable) {
             // TODO: add logic for when stable token
         } else {

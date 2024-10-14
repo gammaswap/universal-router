@@ -4,6 +4,8 @@ pragma solidity ^0.8.0;
 interface IProtocolRoute {
     function protocolId() external view returns(uint16);
 
+    function quote(uint256 amountIn, address tokenIn, address tokenOut, uint24 fee) external view returns (uint256 amountOut);
+
     function getAmountOut(uint256 amountIn, address tokenA, address tokenB, uint256 fee) external
         returns(uint256 amountOut, address pair, uint24 swapFee);
 

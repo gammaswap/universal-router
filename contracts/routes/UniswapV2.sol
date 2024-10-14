@@ -18,7 +18,7 @@ contract UniswapV2 is CPMMRoute {
         return 0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f;
     }
 
-    function quote(uint256 amountIn, address tokenIn, address tokenOut, uint24 fee) public view returns (uint256 amountOut) {
+    function quote(uint256 amountIn, address tokenIn, address tokenOut, uint24 fee) public override virtual view returns (uint256 amountOut) {
         (uint256 reserveIn, uint256 reserveOut,) = getReserves(tokenIn, tokenOut);
         amountOut = _quote(amountIn, reserveIn, reserveOut);
     }

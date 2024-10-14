@@ -44,6 +44,28 @@ contract UniswapV3 is CPMMRoute, IUniswapV3SwapCallback {
         factory = _factory;
     }
 
+    function quote(uint256 amountIn, address tokenIn, address tokenOut, uint24 fee) public override virtual view returns (uint256 amountOut) {
+        address pair = pairFor(tokenIn, tokenOut, fee);
+        (uint256 sqrtPriceX96,,,,,,) = IUniswapV3Pool(pair).slot0();
+        uint256 price = decodePrice(sqrtPriceX96);
+        if(tokenIn < tokenOut) {
+            uint256 decimals = 10**GammaSwapLibrary.decimals(tokenIn);
+            amountOut = amountIn * price / decimals;
+        } else {
+            uint256 decimals = 10**GammaSwapLibrary.decimals(tokenOut);
+            amountOut = amountIn * decimals / price;
+        }
+    }
+
+    // Assume sqrtPriceX96 is given as input
+    function decodePrice(uint256 sqrtPriceX96) internal pure returns (uint256 price) {
+        // Step 1: Convert sqrtPriceX96 to price ratio
+        uint256 sqrtPrice = sqrtPriceX96 * sqrtPriceX96;
+
+        // Step 2: Divide by 2^192 (since sqrtPriceX96 was scaled by 2^96, we need to square that scale factor)
+        price = sqrtPrice / (2**192);
+    }
+
     // calculates the CREATE2 address for a pair without making any external calls
     function pairFor(address tokenA, address tokenB, uint24 fee) internal view returns (address pair) {
         pair = PoolAddress.computeAddress(factory, POOL_INIT_CODE_HASH, PoolAddress.getPoolKey(tokenA, tokenB, fee));
