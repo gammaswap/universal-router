@@ -30,10 +30,21 @@ contract Aerodrome is CPMMRoute {
         require(GammaSwapLibrary.isContract(pair), "Aerodrome: AMM_DOES_NOT_EXIST");
     }
 
+    function quote(uint256 amountIn, address tokenIn, address tokenOut, uint24 fee) public view returns (uint256 amountOut) {
+        if(isStable) {
+            // TODO: add logic for when stable token
+        } else {
+            (uint256 reserveIn, uint256 reserveOut,) = getReserves(tokenIn, tokenOut);
+            amountOut = _quote(amountIn, reserveIn, reserveOut);
+        }
+    }
+
     // fetches and sorts the reserves for a pair
-    function getReserves(address tokenA, address tokenB) internal view returns (uint256 reserve0, uint256 reserve1, address pair) {
-        (pair,,) = pairFor(tokenA, tokenB);
-        (reserve0, reserve1,) = IAeroPool(pair).getReserves();
+    function getReserves(address tokenA, address tokenB) internal view returns (uint256 reserveA, uint256 reserveB, address pair) {
+        address token0;
+        (pair, token0,) = pairFor(tokenA, tokenB);
+        (uint256 reserve0, uint256 reserve1,) = IAeroPool(pair).getReserves();
+        (reserveA, reserveB) = tokenA == token0 ? (reserve0, reserve1) : (reserve1, reserve0);
     }
 
     function getAmountOut(uint256 amountIn, address tokenA, address tokenB, uint256 fee) public override virtual

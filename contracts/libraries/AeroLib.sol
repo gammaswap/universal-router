@@ -5,58 +5,49 @@ library AeroLib {
 
     function getAmountOut(uint256 amountIn, uint256 reserve0, uint256 reserve1,
         uint256 decimals0, uint256 decimals1, bool stable, uint256 fee) internal view returns (uint256) {
-        (uint256 _reserve0, uint256 _reserve1) = (reserve0, reserve1);
         amountIn -= (amountIn * fee) / 10000; // remove fee from amount received
         if(stable) {
-            return _getAmountOutStable(amountIn, _reserve0, _reserve1, decimals0, decimals1);
+            return _getAmountOutStable(amountIn, reserve0, reserve1, decimals0, decimals1);
         } else {
-            return _getAmountOutNonStable(amountIn, _reserve0, _reserve1);
+            return _getAmountOutNonStable(amountIn, reserve0, reserve1);
         }
     }
 
     function getAmountIn(uint256 amountOut, uint256 reserve0, uint256 reserve1,
         uint256 decimals0, uint256 decimals1, bool stable, uint256 fee) internal view returns (uint256) {
-        (uint256 _reserve0, uint256 _reserve1) = (reserve0, reserve1);
         amountOut -= (amountOut * fee) / 10000; //TODO must update logic to account for fee same as in UniswapV2
         if(stable) {
-            return _getAmountInStable(amountOut, _reserve0, _reserve1, decimals0, decimals1);
+            return _getAmountInStable(amountOut, reserve0, reserve1, decimals0, decimals1);
         } else {
-            return _getAmountInNonStable(amountOut, _reserve0, _reserve1);
+            return _getAmountInNonStable(amountOut, reserve0, reserve1);
         }
     }
 
-    function _getAmountOutStable(uint256 amountIn, uint256 _reserve0, uint256 _reserve1,
+    function _getAmountOutStable(uint256 amountIn, uint256 reserve0, uint256 reserve1,
         uint256 decimals0, uint256 decimals1) internal view returns (uint256) {
-        uint256 xy = _k(_reserve0, _reserve1, decimals0, decimals1, true);
-        _reserve0 = (_reserve0 * 1e18) / decimals0;
-        _reserve1 = (_reserve1 * 1e18) / decimals1;
-        (uint256 reserveA, uint256 reserveB) = (_reserve0, _reserve1);
+        uint256 xy = _k(reserve0, reserve1, decimals0, decimals1, true);
+        reserve0 = (reserve0 * 1e18) / decimals0;
+        reserve1 = (reserve1 * 1e18) / decimals1;
         amountIn = (amountIn * 1e18) / decimals0;
-        uint256 y = reserveB - _get_y(amountIn + reserveA, xy, reserveB, decimals0, decimals1);
+        uint256 y = reserve1 - _get_y(amountIn + reserve0, xy, reserve1, decimals0, decimals1);
         return (y * (decimals1)) / 1e18;
     }
 
-    function _getAmountOutNonStable(uint256 amountIn, uint256 _reserve0, uint256 _reserve1
-    ) internal view returns (uint256) {
-        (uint256 reserveA, uint256 reserveB) = (_reserve0, _reserve1);
-        return (amountIn * reserveB) / (reserveA + amountIn);
+    function _getAmountOutNonStable(uint256 amountIn, uint256 reserveIn, uint256 reserveOut) internal view returns (uint256) {
+        return (amountIn * reserveOut) / (reserveIn + amountIn);
     }
 
-    function _getAmountInStable(uint256 amountOut, uint256 _reserve0, uint256 _reserve1,
+    function _getAmountInStable(uint256 amountOut, uint256 reserve0, uint256 reserve1,
         uint256 decimals0, uint256 decimals1) internal view returns (uint256) {
-        uint256 xy = _k(_reserve0, _reserve1, decimals0, decimals1, true);
-        _reserve0 = (_reserve0 * 1e18) / decimals0;
-        _reserve1 = (_reserve1 * 1e18) / decimals1;
-        (uint256 reserveA, uint256 reserveB) = (_reserve0, _reserve1);
+        uint256 xy = _k(reserve0, reserve1, decimals0, decimals1, true);
+        reserve0 = (reserve0 * 1e18) / decimals0;
+        reserve1 = (reserve1 * 1e18) / decimals1;
         amountOut = (amountOut * 1e18) / decimals0;
-        uint256 y = _get_y(reserveA - amountOut, xy, reserveB, decimals0, decimals1) - reserveB;
+        uint256 y = _get_y(reserve0 - amountOut, xy, reserve1, decimals0, decimals1) - reserve1;
         return (y * (decimals1)) / 1e18;
     }
 
-    function _getAmountInNonStable(uint256 amountOut,
-        uint256 _reserve0, uint256 _reserve1
-    ) internal view returns (uint256) {
-        (uint256 reserveOut, uint256 reserveIn) = (_reserve0, _reserve1);
+    function _getAmountInNonStable(uint256 amountOut, uint256 reserveOut, uint256 reserveIn) internal view returns (uint256) {
         return (amountOut * reserveIn) / (reserveOut - amountOut);
     }
 
