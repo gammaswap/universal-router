@@ -23,6 +23,14 @@ contract UniswapV3 is CPMMRoute, IUniswapV3SwapCallback {
         address payer;
     }
 
+    struct SwapParams {
+        address tokenIn;
+        address tokenOut;
+        uint24 fee;
+        uint256 amount;
+        address recipient;
+    }
+
     uint16 public immutable override protocolId;
     address public immutable factory;
 
@@ -168,24 +176,35 @@ contract UniswapV3 is CPMMRoute, IUniswapV3SwapCallback {
 
     function swap(address from, address to, uint24 fee, address dest) external override virtual {
         uint256 inputAmount = GammaSwapLibrary.balanceOf(from, address(this));
-        exactInputSwap(inputAmount, from, to, fee, dest);
+        require(inputAmount > 0, "ZERO_AMOUNT");
+
+        exactInputSwap(SwapParams({
+            tokenIn: from,
+            tokenOut: to,
+            fee: fee,
+            amount: inputAmount,
+            recipient: dest
+        }));
     }
 
-    function exactInputSwap(uint256 amountIn, address tokenIn, address tokenOut, uint24 fee, address recipient)
-        private returns (uint256 amountOut) {
-        require(amountIn < 2**255, "Invalid amount");
-        // allow swapping to the router address with address 0
-        if (recipient == address(0)) recipient = address(this);
+    function exactInputSwap(SwapParams memory params) private returns (uint256) {
+        require(params.amount < 2**255, "INVALID_AMOUNT");
+        require(params.recipient == address(0), "INVALID_RECIPIENT");
 
-        IUniswapV3Pool(pairFor(tokenIn, tokenOut, fee)).swap(
-            recipient,
-            tokenIn < tokenOut,
-            int256(amountIn),
-            (tokenIn < tokenOut ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1),
-            abi.encode(SwapCallbackData({
-                path: abi.encodePacked(tokenIn, protocolId, fee, tokenOut),
-                payer: address(this)
-            }))
-        );
+        bool zeroForOne = params.tokenIn < params.tokenOut;
+
+        (int256 amount0, int256 amount1) =
+            IUniswapV3Pool(pairFor(params.tokenIn, params.tokenOut, params.fee)).swap(
+                params.recipient,
+                zeroForOne,
+                int256(params.amount),
+                (zeroForOne ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1),
+                abi.encode(SwapCallbackData({
+                    path: abi.encodePacked(params.tokenIn, protocolId, params.fee, params.tokenOut),
+                    payer: address(this)
+                }))
+            );
+
+        return uint256(-(zeroForOne ? amount1 : amount0));
     }
 }

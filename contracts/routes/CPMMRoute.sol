@@ -20,7 +20,7 @@ abstract contract CPMMRoute is IProtocolRoute, Transfers {
         amountB = amountA * reserveB / reserveA;
     }
 
-    function getGammaPoolAddress(address cfmm, uint16 protocolId) internal override virtual view returns(address) {
+    function getGammaPoolAddress(address, uint16) internal override virtual view returns(address) {
         return address(0);
     }
 
