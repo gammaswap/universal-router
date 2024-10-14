@@ -21,7 +21,7 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
         _;
     }
 
-    function addProtocol(uint16 protocolId, address protocol) external virtual override {
+    function addProtocol(uint16 protocolId, address protocol) external virtual override onlyOwner {
         require(protocolId > 0, "INVALID_PROTOCOL_ID");
         require(protocolId == IProtocolRoute(protocol).protocolId(), "PROTOCOL_ID_MATCH");
         protocols[protocolId] = protocol;
@@ -35,7 +35,7 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
         uint256 lastRoute = routes.length - 1;
         address to = routes[lastRoute].destination;
         uint256 balanceBefore = IERC20(routes[lastRoute].to).balanceOf(to);
-        for (uint256 i; i < lastRoute; i++) {
+        for (uint256 i; i <= lastRoute; i++) {
             IProtocolRoute(routes[i].hop).swap(routes[i].from, routes[i].to, routes[i].fee, routes[i].destination);
         }
         require(
@@ -64,9 +64,17 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
 
     /// @dev this is the main function we'll use to swap
     function swapExactTokensForTokens(uint256 amountIn, uint256 amountOutMin, bytes calldata path, address to, uint256 deadline)
-        public override virtual  ensure(deadline) {
+        public override virtual ensure(deadline) {
         Route[] memory routes = calcRoutes(path, to);
         _swap(amountIn, amountOutMin, routes);
+    }
+
+    function quote(uint256 amountIn, bytes calldata path) public override virtual view returns(uint256 amountOut) {
+        Route[] memory routes = calcRoutes(path, address(this));
+        for (uint256 i; i < routes.length; i++) {
+            amountIn = IProtocolRoute(routes[i].hop).quote(amountIn, routes[i].from, routes[i].to, routes[i].fee);
+        }
+        amountOut = amountIn;
     }
 
     /// @dev this supports transfer fees tokens too

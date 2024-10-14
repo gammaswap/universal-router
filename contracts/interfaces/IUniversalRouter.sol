@@ -28,6 +28,8 @@ interface IUniversalRouter {
 
     function calcRoutes(bytes memory path, address to) external view returns (Route[] memory routes);
 
+    function quote(uint256 amountIn, bytes calldata path) external view returns(uint256 amountOut);
+
     function getAmountsOut(uint256 amountIn, bytes memory path) external returns (uint256[] memory amounts, Route[] memory routes);
 
     function getAmountsIn(uint256 amountOut, bytes memory path) external returns (uint256[] memory amounts, Route[] memory routes);
