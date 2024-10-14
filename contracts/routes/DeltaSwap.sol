@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
 import "@gammaswap/v1-deltaswap/contracts/libraries/DSMath.sol";
@@ -7,7 +8,7 @@ import "./UniswapV2.sol";
 
 contract DeltaSwap is UniswapV2 {
 
-    constructor(uint16 _protocolId, address _factory) UniswapV2(_protocolId, _factory) {
+    constructor(uint16 _protocolId, address _factory, address _WETH) UniswapV2(_protocolId, _factory, _WETH) {
     }
 
     function initCodeHash() internal override pure returns(bytes32) {

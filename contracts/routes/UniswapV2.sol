@@ -1,18 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
-import "@gammaswap/v1-core/contracts/libraries/GammaSwapLibrary.sol";
 import "@gammaswap/v1-implementations/contracts/interfaces/external/cpmm/ICPMM.sol";
-
-import '../interfaces/IProtocolRoute.sol';
 import './CPMMRoute.sol';
 
-contract UniswapV2 is CPMMRoute, IProtocolRoute {
+contract UniswapV2 is CPMMRoute {
 
     uint16 public immutable override protocolId;
     address public immutable factory;
 
-    constructor(uint16 _protocolId, address _factory){
+    constructor(uint16 _protocolId, address _factory, address _WETH) Transfers(_WETH) {
         protocolId = _protocolId;
         factory = _factory;
     }

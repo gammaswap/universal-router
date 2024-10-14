@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
-import '@gammaswap/v1-core/contracts/libraries/GammaSwapLibrary.sol';
 import "@openzeppelin/contracts/proxy/Clones.sol";
 import "../interfaces/IAeroPool.sol";
 import "../interfaces/IAeroPoolFactory.sol";
@@ -8,14 +8,14 @@ import "../interfaces/IProtocolRoute.sol";
 import "../libraries/AeroLib.sol";
 import "./CPMMRoute.sol";
 
-contract Aerodrome is CPMMRoute, IProtocolRoute {
+contract Aerodrome is CPMMRoute {
 
     uint16 public immutable protocolId;
     address public immutable factory;
     address public immutable implementation;
     bool public immutable isStable;
 
-    constructor(uint16 _protocolId, address _factory, address _implementation, bool _isStable) {
+    constructor(uint16 _protocolId, address _factory, address _implementation, bool _isStable, address _WETH) Transfers(_WETH) {
         protocolId = _protocolId;
         factory = _factory;
         implementation = _implementation;

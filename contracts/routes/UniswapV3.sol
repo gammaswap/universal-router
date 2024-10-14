@@ -1,18 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
 import '@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
 import '@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol';
 import '@uniswap/v3-core/contracts/libraries/SafeCast.sol';
-import '@gammaswap/v1-core/contracts/libraries/GammaSwapLibrary.sol';
-import "@gammaswap/v1-periphery/contracts/interfaces/external/IWETH.sol";
-import '../interfaces/IProtocolRoute.sol';
 import '../libraries/CallbackValidation.sol';
 import '../libraries/PoolTicksCounter.sol';
 import '../libraries/TickMath.sol';
 import '../libraries/BytesLib2.sol';
 import '../libraries/Path2.sol';
+import './CPMMRoute.sol';
 
-contract UniswapV3 is IProtocolRoute, IUniswapV3SwapCallback {
+contract UniswapV3 is CPMMRoute, IUniswapV3SwapCallback {
 
     using BytesLib2 for bytes;
     using Path2 for bytes;
@@ -27,15 +26,12 @@ contract UniswapV3 is IProtocolRoute, IUniswapV3SwapCallback {
     uint16 public immutable override protocolId;
     address public immutable factory;
 
-    address public immutable WETH;
-
     /// @dev Transient storage variable used to check a safety condition in exact output swaps.
     uint256 private amountOutCached;
 
-    constructor(uint16 _protocolId, address _factory, address _WETH){
+    constructor(uint16 _protocolId, address _factory, address _WETH) Transfers(_WETH) {
         protocolId = _protocolId;
         factory = _factory;
-        WETH = _WETH;
     }
 
     // calculates the CREATE2 address for a pair without making any external calls
@@ -60,7 +56,7 @@ contract UniswapV3 is IProtocolRoute, IUniswapV3SwapCallback {
 
         if (isExactInput) {
             if(data.payer != address(0)) {
-                pay(tokenIn, data.payer, msg.sender, amountToPay);
+                send(tokenIn, data.payer, msg.sender, amountToPay);
             } else {
                 assembly {
                     let ptr := mload(0x40)
@@ -191,19 +187,5 @@ contract UniswapV3 is IProtocolRoute, IUniswapV3SwapCallback {
                 payer: address(this)
             }))
         );
-    }
-
-    function pay(address token, address payer, address recipient, uint256 value) internal {
-        if (token == WETH && address(this).balance >= value) {
-            // pay with WETH
-            IWETH(WETH).deposit{value: value}(); // wrap only what is needed to pay
-            IWETH(WETH).transfer(recipient, value);
-        } else if (payer == address(this)) {
-            // pay with tokens already in the contract (for the exact input multihop case)
-            GammaSwapLibrary.safeTransfer(token, recipient, value);
-        } else {
-            // pull payment
-            GammaSwapLibrary.safeTransferFrom(token, payer, recipient, value);
-        }
     }
 }
