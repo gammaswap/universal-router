@@ -31,6 +31,8 @@ contract UniswapV3 is CPMMRoute, IUniswapV3SwapCallback {
         address recipient;
     }
 
+    bytes32 internal constant POOL_INIT_CODE_HASH = 0xe34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54;
+
     uint16 public immutable override protocolId;
     address public immutable factory;
 
@@ -44,7 +46,7 @@ contract UniswapV3 is CPMMRoute, IUniswapV3SwapCallback {
 
     // calculates the CREATE2 address for a pair without making any external calls
     function pairFor(address tokenA, address tokenB, uint24 fee) internal view returns (address pair) {
-        pair = PoolAddress.computeAddress(factory, PoolAddress.getPoolKey(tokenA, tokenB, fee));
+        pair = PoolAddress.computeAddress(factory, POOL_INIT_CODE_HASH, PoolAddress.getPoolKey(tokenA, tokenB, fee));
         require(GammaSwapLibrary.isContract(pair), "UniswapV3: AMM_DOES_NOT_EXIST");
     }
 
@@ -53,7 +55,7 @@ contract UniswapV3 is CPMMRoute, IUniswapV3SwapCallback {
         require(amount0Delta > 0 || amount1Delta > 0); // swaps entirely within 0-liquidity regions are not supported
         SwapCallbackData memory data = abi.decode(_data, (SwapCallbackData));
         (address tokenIn, address tokenOut,,uint24 fee) = data.path.decodeFirstPool();
-        CallbackValidation.verifyCallback(factory, tokenIn, tokenOut, fee);
+        CallbackValidation.verifyCallback(factory, tokenIn, tokenOut, fee, POOL_INIT_CODE_HASH);
 
         (bool isExactInput, uint256 amountToPay, uint256 amountReceived) =
             amount0Delta > 0
