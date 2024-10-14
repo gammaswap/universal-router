@@ -3,13 +3,15 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@gammaswap/v1-core/contracts/libraries/GammaSwapLibrary.sol";
-
+import "./interfaces/IUniversalRouter.sol";
 import './BaseRouter.sol';
 
-contract UniversalRouter is BaseRouter, Ownable2Step {
+contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
 
     using Path2 for bytes;
     using BytesLib2 for bytes;
+
+    mapping(uint16 => address) public override protocols;
 
     constructor(address _WETH) BaseRouter(_WETH) {
     }
@@ -17,6 +19,13 @@ contract UniversalRouter is BaseRouter, Ownable2Step {
     modifier ensure(uint256 deadline) {
         require(deadline >= block.timestamp, 'UniversalRouter: EXPIRED');
         _;
+    }
+
+    function addProtocol(uint16 protocolId, address protocol) external virtual override {
+        require(protocolId > 0, "INVALID_PROTOCOL_ID");
+        require(protocolId == IProtocolRoute(protocol).protocolId(), "PROTOCOL_ID_MATCH");
+        protocols[protocolId] = protocol;
+        emit ProtocolRegistered(protocolId, protocol);
     }
 
     // **** SWAP (supports fee-on-transfer tokens) ****
@@ -35,7 +44,7 @@ contract UniversalRouter is BaseRouter, Ownable2Step {
     }
 
     function swapExactETHForTokens(uint256 amountOutMin, bytes calldata path, address to, uint256 deadline)
-        external virtual payable /*override*/ ensure(deadline) {
+        public override virtual payable ensure(deadline) {
         uint256 amountIn = msg.value;
         IWETH(WETH).deposit{value: amountIn}();
         Route[] memory routes = calcRoutes(amountIn, path, to);
@@ -45,7 +54,7 @@ contract UniversalRouter is BaseRouter, Ownable2Step {
 
     /// @dev this is the main function we'll use to swap
     function swapExactTokensForETH(uint256 amountIn, uint256 amountOutMin, bytes calldata path, address to, uint256 deadline)
-        public virtual /*override*/ ensure(deadline) {
+        public override virtual ensure(deadline) {
         Route[] memory routes = calcRoutes(amountIn, path, address(this));
         require(routes[routes.length - 1].to == WETH, "AMOUNT_OUT_NOT_ETH");
         _swap(amountIn, amountOutMin, routes);
@@ -54,13 +63,13 @@ contract UniversalRouter is BaseRouter, Ownable2Step {
 
     /// @dev this is the main function we'll use to swap
     function swapExactTokensForTokens(uint256 amountIn, uint256 amountOutMin, bytes calldata path, address to, uint256 deadline)
-        public virtual /*override*/ ensure(deadline) {
+        public override virtual  ensure(deadline) {
         Route[] memory routes = calcRoutes(amountIn, path, to);
         _swap(amountIn, amountOutMin, routes);
     }
 
     /// @dev this supports transfer fees tokens too
-    function calcRoutes(uint256 amountIn, bytes memory path, address _to) public virtual view returns (Route[] memory routes) {
+    function calcRoutes(uint256 amountIn, bytes memory path, address _to) public override virtual view returns (Route[] memory routes) {
         require(amountIn > 0, "ZERO_AMOUNT_IN");
         require(path.length >= 45 && (path.length - 20) % 25 == 0, "INVALID_PATH");
         routes = new Route[](path.numPools() + 1);
@@ -103,7 +112,7 @@ contract UniversalRouter is BaseRouter, Ownable2Step {
         require(routes[i].dest == _to);
     }
 
-    function getAmountsOut(uint256 amountIn, bytes memory path) public virtual returns (uint256[] memory amounts, Route[] memory routes) {
+    function getAmountsOut(uint256 amountIn, bytes memory path) public override virtual returns (uint256[] memory amounts, Route[] memory routes) {
         require(path.length >= 45 && (path.length - 20) % 25 == 0, "INVALID_PATH");
         routes = new Route[](path.numPools() + 1);
         amounts = new uint256[](path.numPools() + 1);
@@ -143,8 +152,7 @@ contract UniversalRouter is BaseRouter, Ownable2Step {
         }
     }
 
-    // path is assumed to be reversed from the one in getAmountsOut. In original getAmountsOut it is not reversed
-    function getAmountsIn(uint256 amountOut, bytes memory path) public virtual returns (uint256[] memory amounts, Route[] memory routes) {
+    function getAmountsIn(uint256 amountOut, bytes memory path) public override virtual returns (uint256[] memory amounts, Route[] memory routes) {
         require(path.length >= 45 && (path.length - 20) % 25 == 0, "INVALID_PATH");
         routes = new Route[](path.numPools() + 1);
         amounts = new uint256[](path.numPools() + 1);

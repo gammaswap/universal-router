@@ -12,33 +12,7 @@ abstract contract BaseRouter is Transfers {
     using BytesLib2 for bytes;
     using Path2 for bytes;
 
-    event ProtocolRegistered(uint16 indexed protocolId, address protocol);
-
-    struct SwapCallbackData {
-        bytes path;
-        address payer;
-    }
-
-    struct Route {
-        address pair;
-        address from;
-        address to;
-        uint16 protocolId;
-        uint24 fee;
-        address dest;
-        address hop;
-    }
-
-    mapping(uint16 => address) public protocols;
-
     constructor(address _WETH) Transfers(_WETH) {
-    }
-
-    function addProtocol(uint16 protocolId, address protocol) external virtual {
-        require(protocolId > 0, "INVALID_PROTOCOL_ID");
-        require(protocolId == IProtocolRoute(protocol).protocolId(), "PROTOCOL_ID_MATCH");
-        protocols[protocolId] = protocol;
-        emit ProtocolRegistered(protocolId, protocol);
     }
 
     function _getTokenOut(bytes memory path) public view returns(address tokenOut) {
@@ -51,5 +25,8 @@ abstract contract BaseRouter is Transfers {
 
     function getGammaPoolAddress(address cfmm, uint16 protocolId) internal override virtual view returns(address) {
         return address(0);
+    }
+
+    function sendTokensCallback(address[] calldata tokens, uint256[] calldata amounts, address payee, bytes calldata data) external virtual override {
     }
 }
