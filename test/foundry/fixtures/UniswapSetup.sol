@@ -11,7 +11,7 @@ import "@gammaswap/v1-deltaswap/contracts/interfaces/IDeltaSwapFactory.sol";
 import "@gammaswap/v1-deltaswap/contracts/interfaces/IDeltaSwapPair.sol";
 import "@gammaswap/v1-deltaswap/contracts/interfaces/IDeltaSwapRouter02.sol";
 
-import "../../../contracts/interfaces/IPositionManagerMintable.sol";
+import "../../../contracts/test/IPositionManagerMintable.sol";
 import "./TokensSetup.sol";
 
 contract UniswapSetup is TokensSetup {
