@@ -3,26 +3,34 @@ pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
 import "./fixtures/TestBed.sol";
-import "../../contracts/UniversalRouter.sol";
+import "../../contracts/test/TestUniversalRouter.sol";
+import "../../contracts/routes/UniswapV2.sol";
 
 contract UniversalRouterTest is TestBed {
 
-    UniversalRouter router;
     address owner;
+
+    TestUniversalRouter router;
+    UniswapV2 uniV2Route;
 
     function setUp() public {
         owner = vm.addr(1);
         initSetup(owner);
-        router = new UniversalRouter(address(uniFactory));
+        router = new TestUniversalRouter(address(weth));
+
+        uniV2Route = new UniswapV2(1, address(uniFactory), address(weth));
+
+        // set up routes
+        router.addProtocol(1, address(uniV2Route));
     }
 
     function createBytes(
-        address addr1,
-        address addr2,
-        uint24 uint24Value,
-        uint16 uint16Value
+        address tokenIn,
+        address tokenOut,
+        uint24 fee,
+        uint16 protocolId
     ) internal pure returns (bytes memory) {
-        return abi.encodePacked(addr1, uint16Value, uint24Value, addr2);
+        return abi.encodePacked(tokenIn, protocolId, fee, tokenOut);
     }
 
     function testThisFunc2() public {

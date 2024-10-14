@@ -15,14 +15,6 @@ abstract contract BaseRouter is Transfers {
     constructor(address _WETH) Transfers(_WETH) {
     }
 
-    function _getTokenOut(bytes memory path) internal virtual pure returns(address tokenOut) {
-        bytes memory _path = path;
-        while (_path.hasMultiplePools()) {
-            _path = _path.skipToken();
-        }
-        tokenOut = _path.skipToken().toAddress(0);
-    }
-
     function getGammaPoolAddress(address, uint16) internal override virtual view returns(address) {
         return address(0);
     }
