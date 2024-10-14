@@ -114,29 +114,4 @@ library AeroLib {
             return x * y; // xy >= k
         }
     }
-
-    /// TODO: Must incorporate this logic in the quoting logic for AeroDrome stable pools
-    function quoteStableLiquidityRatio(
-        address tokenA,
-        address tokenB,
-        address _factory
-    ) external view returns (uint256 ratio) {
-        /*IPool pool = IPool(poolFor(tokenA, tokenB, true, _factory));
-
-        uint256 decimalsA = 10 ** IERC20Metadata(tokenA).decimals();
-        uint256 decimalsB = 10 ** IERC20Metadata(tokenB).decimals();
-
-        uint256 investment = decimalsA;
-        uint256 out = pool.getAmountOut(investment, tokenA);
-        (uint256 amountA, uint256 amountB, ) = quoteAddLiquidity(tokenA, tokenB, true, _factory, investment, out);
-
-        amountA = (amountA * 1e18) / decimalsA;
-        amountB = (amountB * 1e18) / decimalsB;
-        out = (out * 1e18) / decimalsB;
-        investment = (investment * 1e18) / decimalsA;
-
-        ratio = (((out * 1e18) / investment) * amountA) / amountB;
-
-        return (investment * 1e18) / (ratio + 1e18);/**/
-    }
 }

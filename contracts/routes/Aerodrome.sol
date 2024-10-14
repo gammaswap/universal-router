@@ -31,12 +31,8 @@ contract Aerodrome is CPMMRoute {
     }
 
     function quote(uint256 amountIn, address tokenIn, address tokenOut, uint24 fee) public override virtual view returns (uint256 amountOut) {
-        if(isStable) {
-            // TODO: add logic for when stable token
-        } else {
-            (uint256 reserveIn, uint256 reserveOut,) = getReserves(tokenIn, tokenOut);
-            amountOut = _quote(amountIn, reserveIn, reserveOut);
-        }
+        (uint256 reserveIn, uint256 reserveOut,) = getReserves(tokenIn, tokenOut);
+        amountOut = _quote(amountIn, reserveIn, reserveOut);
     }
 
     // fetches and sorts the reserves for a pair
