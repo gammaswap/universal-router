@@ -24,7 +24,7 @@ contract Aerodrome is CPMMRoute {
 
     // calculates the CREATE2 address for a pair without making any external calls
     function pairFor(address tokenA, address tokenB) internal view returns (address pair, address token0, address token1) {
-        (token0, token1) = sortTokens(tokenA, tokenB);
+        (token0, token1) = _sortTokens(tokenA, tokenB);
         bytes32 salt = keccak256(abi.encodePacked(token0, token1, isStable));
         pair = Clones.predictDeterministicAddress(implementation, salt, factory);
         require(GammaSwapLibrary.isContract(pair), "Aerodrome: AMM_DOES_NOT_EXIST");
