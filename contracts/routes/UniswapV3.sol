@@ -53,9 +53,10 @@ contract UniswapV3 is CPMMRoute, IProtocolRoute, IUniswapV3SwapCallback {
     }
 
     /// @inheritdoc IUniswapV3SwapCallback
-    function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes memory path) external view override {
+    function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes memory _data) external override {
         require(amount0Delta > 0 || amount1Delta > 0); // swaps entirely within 0-liquidity regions are not supported
-        (address tokenIn, address tokenOut,,uint24 fee) = path.decodeFirstPool();
+        SwapCallbackData memory data = abi.decode(_data, (SwapCallbackData));
+        (address tokenIn, address tokenOut,,uint24 fee) = data.path.decodeFirstPool();
         CallbackValidation.verifyCallback(factory, tokenIn, tokenOut, fee);
 
         (bool isExactInput, uint256 amountToPay, uint256 amountReceived) =
@@ -66,12 +67,16 @@ contract UniswapV3 is CPMMRoute, IProtocolRoute, IUniswapV3SwapCallback {
         (uint160 sqrtPriceX96After, int24 tickAfter, , , , , ) = IUniswapV3Pool(pairFor(tokenIn, tokenOut, fee)).slot0();
 
         if (isExactInput) {
-            assembly {
-                let ptr := mload(0x40)
-                mstore(ptr, amountReceived)
-                mstore(add(ptr, 0x20), sqrtPriceX96After)
-                mstore(add(ptr, 0x40), tickAfter)
-                revert(ptr, 96)
+            if(data.payer != address(0)) {
+                pay(tokenIn, data.payer, msg.sender, amountToPay);
+            } else {
+                assembly {
+                    let ptr := mload(0x40)
+                    mstore(ptr, amountReceived)
+                    mstore(add(ptr, 0x20), sqrtPriceX96After)
+                    mstore(add(ptr, 0x40), tickAfter)
+                    revert(ptr, 96)
+                }
             }
         } else {
             // if the cache has been populated, ensure that the full output amount has been received
@@ -113,8 +118,14 @@ contract UniswapV3 is CPMMRoute, IProtocolRoute, IUniswapV3SwapCallback {
     function getAmountOut(uint256 amountIn, address tokenIn, address tokenOut, uint256 fee) public override
         virtual returns(uint256 amountOut, address pair, uint24 swapFee) {
         swapFee = uint24(fee);
+        (amountOut, pair) = _quoteAmountOut(amountIn, tokenIn, tokenOut, swapFee);
+    }
+
+    function _quoteAmountOut(uint256 amountIn, address tokenIn, address tokenOut, uint24 fee) internal virtual
+        returns(uint256 amountOut, address pair) {
+
         bool zeroForOne = tokenIn < tokenOut;
-        pair = pairFor(tokenIn, tokenOut, swapFee);
+        pair = pairFor(tokenIn, tokenOut, fee);
 
         try
             IUniswapV3Pool(pair).swap(
@@ -122,7 +133,10 @@ contract UniswapV3 is CPMMRoute, IProtocolRoute, IUniswapV3SwapCallback {
                 zeroForOne,
                 amountIn.toInt256(),
                 zeroForOne ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1,
-                abi.encodePacked(tokenIn, protocolId, fee, tokenOut)
+                abi.encode(SwapCallbackData({
+                    path: abi.encodePacked(tokenIn, protocolId, fee, tokenOut),
+                    payer: address(0)
+                }))
             )
         {} catch (bytes memory reason) {
             (amountOut,,) = handleRevert(reason, pair);
@@ -132,7 +146,12 @@ contract UniswapV3 is CPMMRoute, IProtocolRoute, IUniswapV3SwapCallback {
     function getAmountIn(uint256 amountOut, address tokenIn, address tokenOut, uint256 fee) public
         override virtual returns(uint256 amountIn, address pair, uint24 swapFee) {
         swapFee = uint24(fee);
-        pair = pairFor(tokenIn, tokenOut, swapFee);
+        (amountIn, pair) = _quoteAmountIn(amountOut, tokenIn, tokenOut, swapFee);
+    }
+
+    function _quoteAmountIn(uint256 amountOut, address tokenIn, address tokenOut, uint24 fee) internal virtual
+        returns(uint256 amountIn, address pair) {
+        pair = pairFor(tokenIn, tokenOut, fee);
 
         // if no price limit has been specified, cache the output amount for comparison in the swap callback
         amountOutCached = amountOut;
@@ -142,7 +161,10 @@ contract UniswapV3 is CPMMRoute, IProtocolRoute, IUniswapV3SwapCallback {
                 tokenIn < tokenOut, // zeroForOne
                 -amountOut.toInt256(),
                 tokenIn < tokenOut ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1,
-                abi.encodePacked(tokenOut, protocolId, fee, tokenIn)
+                abi.encode(SwapCallbackData({
+                    path: abi.encodePacked(tokenOut, protocolId, fee, tokenIn),
+                    payer: address(0)
+                }))
             )
         {} catch (bytes memory reason) {
             delete amountOutCached; // clear cache

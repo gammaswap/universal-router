@@ -4,26 +4,14 @@ pragma solidity ^0.8.0;
 import "@gammaswap/v1-core/contracts/libraries/GammaSwapLibrary.sol";
 import "@gammaswap/v1-periphery/contracts/interfaces/external/IWETH.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-import '@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol';
-import "@uniswap/v3-core/contracts/libraries/SafeCast.sol";
 
 import './interfaces/IAeroPool.sol';
-import './libraries/CallbackValidation.sol';
-import './libraries/PoolAddress.sol';
-import './libraries/PoolTicksCounter.sol';
-import './libraries/RouterLibrary.sol';
-import './libraries/TickMath.sol';
 import './BaseRouter.sol';
 
-contract UniversalRouter is BaseRouter, IUniswapV3SwapCallback {
+contract UniversalRouter is BaseRouter {
 
     using Path2 for bytes;
     using BytesLib2 for bytes;
-    using SafeCast for uint256;
-    using PoolTicksCounter for IUniswapV3Pool;
-
-    /// @dev Transient storage variable used to check a safety condition in exact output swaps.
-    uint256 private amountOutCached;
 
     constructor(address _uniFactory, address _sushiFactory, address _dsFactory, address _aeroFactory, address _uniV3Factory, address _WETH)
         BaseRouter(_uniFactory, _sushiFactory, _dsFactory, _aeroFactory, _uniV3Factory, _WETH) {
@@ -102,24 +90,6 @@ contract UniversalRouter is BaseRouter, IUniswapV3SwapCallback {
             IERC20(routes[path.length - 1].to).balanceOf(to) - balanceBefore >= amountOutMin,
             'UniversalRouter: INSUFFICIENT_OUTPUT_AMOUNT'
         );
-    }
-
-    function uniswapV3SwapCallback(
-        int256 amount0Delta,
-        int256 amount1Delta,
-        bytes calldata _data
-    ) external override {
-        require(amount0Delta > 0 || amount1Delta > 0); // swaps entirely within 0-liquidity regions are not supported
-        SwapCallbackData memory data = abi.decode(_data, (SwapCallbackData));
-        (address tokenIn, address tokenOut,, uint24 fee) = data.path.decodeFirstPool();
-        CallbackValidation.verifyCallback(uniFactory, tokenIn, tokenOut, fee);
-
-        (bool isExactInput, uint256 amountToPay) =
-            amount0Delta > 0
-                ? (tokenIn < tokenOut, uint256(amount0Delta))
-                : (tokenOut < tokenIn, uint256(amount1Delta));
-
-        pay(tokenIn, data.payer, msg.sender, amountToPay);
     }
 
     function pay(
