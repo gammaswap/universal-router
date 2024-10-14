@@ -2,8 +2,8 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/proxy/Clones.sol";
-import "../interfaces/IAeroPool.sol";
-import "../interfaces/IAeroPoolFactory.sol";
+import "../interfaces/external/IAeroPool.sol";
+import "../interfaces/external/IAeroPoolFactory.sol";
 import "../interfaces/IProtocolRoute.sol";
 import "../libraries/AeroLib.sol";
 import "./CPMMRoute.sol";
