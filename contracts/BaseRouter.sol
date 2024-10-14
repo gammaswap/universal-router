@@ -30,22 +30,11 @@ abstract contract BaseRouter {
         address hop;
     }
 
-    address public immutable uniFactory;
-    address public immutable sushiFactory;
-    address public immutable dsFactory;
-    address public immutable aeroFactory;
-    address public immutable uniV3Factory;
-
     address public immutable WETH;
 
     mapping(uint16 => address) public protocols;
 
-    constructor(address _uniFactory, address _sushiFactory, address _dsFactory, address _aeroFactory, address _uniV3Factory, address _WETH) {
-        uniFactory = _uniFactory;
-        sushiFactory = _sushiFactory;
-        dsFactory = _dsFactory;
-        aeroFactory = _aeroFactory;
-        uniV3Factory = _uniV3Factory;
+    constructor(address _WETH) {
         WETH = _WETH;
     }
 

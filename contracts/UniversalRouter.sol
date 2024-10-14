@@ -13,8 +13,7 @@ contract UniversalRouter is BaseRouter {
     using Path2 for bytes;
     using BytesLib2 for bytes;
 
-    constructor(address _uniFactory, address _sushiFactory, address _dsFactory, address _aeroFactory, address _uniV3Factory, address _WETH)
-        BaseRouter(_uniFactory, _sushiFactory, _dsFactory, _aeroFactory, _uniV3Factory, _WETH) {
+    constructor(address _WETH) BaseRouter(_WETH) {
     }
 
     modifier ensure(uint256 deadline) {
