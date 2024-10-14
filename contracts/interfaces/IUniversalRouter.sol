@@ -11,7 +11,8 @@ interface IUniversalRouter {
         address to;
         uint16 protocolId;
         uint24 fee;
-        address dest;
+        address destination;
+        address origin;
         address hop;
     }
 

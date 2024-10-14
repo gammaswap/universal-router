@@ -31,12 +31,12 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
     // **** SWAP (supports fee-on-transfer tokens) ****
     function _swap(uint256 amountIn, uint256 amountOutMin, Route[] memory routes) internal virtual {
         require(amountIn > 0, "ZERO_AMOUNT_IN");
-        GammaSwapLibrary.safeTransferFrom(routes[0].from, msg.sender, routes[0].dest, amountIn);
+        GammaSwapLibrary.safeTransferFrom(routes[0].from, msg.sender, routes[0].origin, amountIn);
         uint256 lastRoute = routes.length - 1;
-        address to = routes[lastRoute].dest;
+        address to = routes[lastRoute].destination;
         uint256 balanceBefore = IERC20(routes[lastRoute].to).balanceOf(to);
         for (uint256 i; i < lastRoute; i++) {
-            IProtocolRoute(routes[i].hop).swap(routes[i].from, routes[i].to, routes[i].fee, routes[i].dest);
+            IProtocolRoute(routes[i].hop).swap(routes[i].from, routes[i].to, routes[i].fee, routes[i].destination);
         }
         require(
             IERC20(routes[lastRoute].to).balanceOf(to) - balanceBefore >= amountOutMin,
@@ -83,7 +83,8 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
                 to: address(0),
                 protocolId: 0,
                 fee: 0,
-                dest: _to,
+                destination: _to,
+                origin: address(0),
                 hop: address(0)
             });
 
@@ -93,11 +94,10 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
             routes[i].hop = protocols[routes[i].protocolId];
             require(routes[i].hop != address(0), "PROTOCOL_NOT_SET");
 
-            address dest;
-            (routes[i].pair, dest) = IProtocolRoute(routes[i].hop).getDestination(routes[i].from,
+            (routes[i].pair, routes[i].origin) = IProtocolRoute(routes[i].hop).getOrigin(routes[i].from,
                 routes[i].to, routes[i].fee);
 
-            if(i > 0) routes[i - 1].dest = dest;
+            if(i > 0) routes[i - 1].destination = routes[i].origin;
 
             // decide whether to continue or terminate
             if (hasMultiplePools) {
@@ -109,7 +109,7 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
                 ++i;
             }
         }
-        require(routes[i].dest == _to);
+        require(routes[i].destination == _to);
     }
 
     function getAmountsOut(uint256 amountIn, bytes memory path) public override virtual returns (uint256[] memory amounts, Route[] memory routes) {
@@ -127,7 +127,8 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
                 to: address(0),
                 protocolId: 0,
                 fee: 0,
-                dest: address(0),
+                destination: address(0),
+                origin: address(0),
                 hop: address(0)
             });
 
@@ -167,7 +168,8 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
                 to: address(0),
                 protocolId: 0,
                 fee: 0,
-                dest: address(0),
+                destination: address(0),
+                origin: address(0),
                 hop: address(0)
             });
 

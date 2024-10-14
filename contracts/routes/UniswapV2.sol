@@ -75,10 +75,10 @@ contract UniswapV2 is CPMMRoute {
         amountIn = (numerator / denominator) + 1;
     }
 
-    function getDestination(address tokenA, address tokenB, uint24 fee) external override virtual view
-        returns(address pair, address dest) {
-        (dest,,) = pairFor(tokenA, tokenB);
-        dest = pair;
+    function getOrigin(address tokenA, address tokenB, uint24 fee) external override virtual view
+        returns(address pair, address origin) {
+        (pair,,) = pairFor(tokenA, tokenB);
+        origin = pair;
     }
 
     function swap(address from, address to, uint24 fee, address dest) external override virtual {

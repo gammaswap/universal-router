@@ -54,10 +54,10 @@ contract Aerodrome is CPMMRoute {
         swapFee = uint24(fee);
     }
 
-    function getDestination(address tokenA, address tokenB, uint24 fee) external override virtual view
-        returns(address pair, address dest) {
+    function getOrigin(address tokenA, address tokenB, uint24 fee) external override virtual view
+        returns(address pair, address origin) {
         (pair,,) = pairFor(tokenA, tokenB);
-        dest = pair;
+        origin = pair;
     }
 
     function swap(address from, address to, uint24 fee, address dest) external override virtual {
