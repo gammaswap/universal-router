@@ -21,7 +21,7 @@ contract UniversalRouterTest is TestBed {
         uniV2Route = new UniswapV2(1, address(uniFactory), address(weth));
 
         // set up routes
-        router.addProtocol(1, address(uniV2Route));
+        router.addProtocol(address(uniV2Route));
     }
 
     function createBytes(

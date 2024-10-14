@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 interface IUniversalRouter {
 
     event ProtocolRegistered(uint16 indexed protocolId, address protocol);
+    event ProtocolUnregistered(uint16 indexed protocolId, address protocol);
 
     struct Route {
         address pair;
@@ -18,7 +19,9 @@ interface IUniversalRouter {
 
     function protocols(uint16 protocolId) external view returns(address);
 
-    function addProtocol(uint16 protocolId, address protocol) external;
+    function addProtocol(address protocol) external;
+
+    function removeProtocol(uint16 protocolId) external;
 
     function swapExactETHForTokens(uint256 amountOutMin, bytes calldata path, address to, uint256 deadline) external payable;
 

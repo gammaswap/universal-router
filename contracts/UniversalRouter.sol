@@ -21,11 +21,21 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
         _;
     }
 
-    function addProtocol(uint16 protocolId, address protocol) external virtual override onlyOwner {
+    function addProtocol(address protocol) external virtual override onlyOwner {
+        require(protocol != address(0), "ZERO_ADDRESS");
+        uint16 protocolId = IProtocolRoute(protocol).protocolId();
         require(protocolId > 0, "INVALID_PROTOCOL_ID");
-        require(protocolId == IProtocolRoute(protocol).protocolId(), "PROTOCOL_ID_MATCH");
+        require(protocols[protocolId] == address(0), "PROTOCOL_ID_USED");
         protocols[protocolId] = protocol;
         emit ProtocolRegistered(protocolId, protocol);
+    }
+
+    function removeProtocol(uint16 protocolId) external virtual override onlyOwner {
+        require(protocolId > 0, "INVALID_PROTOCOL_ID");
+        require(protocols[protocolId] != address(0), "PROTOCOL_ID_UNUSED");
+        address protocol = protocols[protocolId];
+        protocols[protocolId] = address(0);
+        emit ProtocolUnregistered(protocolId, protocol);
     }
 
     // **** SWAP (supports fee-on-transfer tokens) ****
