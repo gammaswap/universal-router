@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@gammaswap/v1-core/contracts/libraries/GammaSwapLibrary.sol";
-import "@gammaswap/v1-periphery/contracts/interfaces/external/IWETH.sol";
 
 import './BaseRouter.sol';
 
-contract UniversalRouter is BaseRouter {
+contract UniversalRouter is BaseRouter, Ownable2Step {
 
     using Path2 for bytes;
     using BytesLib2 for bytes;
@@ -15,7 +15,7 @@ contract UniversalRouter is BaseRouter {
     }
 
     modifier ensure(uint256 deadline) {
-        require(deadline >= block.timestamp, 'DeltaSwapRouter: EXPIRED');
+        require(deadline >= block.timestamp, 'UniversalRouter: EXPIRED');
         _;
     }
 

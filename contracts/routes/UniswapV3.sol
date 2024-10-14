@@ -49,7 +49,7 @@ contract UniswapV3 is CPMMRoute, IProtocolRoute, IUniswapV3SwapCallback {
             keccak256(abi.encodePacked(tokenA, tokenB, fee)),
             POOL_INIT_CODE_HASH // init code hash for V2 type protocols
         )))));
-        require(GammaSwapLibrary.isContract(pair), "AMM_DOES_NOT_EXIST");
+        require(GammaSwapLibrary.isContract(pair), "UniswapV3: AMM_DOES_NOT_EXIST");
     }
 
     /// @inheritdoc IUniswapV3SwapCallback
