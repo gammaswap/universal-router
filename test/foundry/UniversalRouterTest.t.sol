@@ -37,6 +37,17 @@ contract UniversalRouterTest is TestBed {
         bytes memory val = createBytes(address(weth), address(usdc), 5, 1);
         console.logBytes(val);
         router.getAmountsOut(1e18, val);
+
+        /*uint256 sqrtPriceX96 = 3984769773545821863947016;
+        uint256 sqrtPrice = sqrtPriceX96 * sqrtPriceX96 * (10**18);// * (10**6);
+        console.log("sqrtPrice");
+        console.log(sqrtPrice);
+        console.log("(2**192)");
+        uint256 num = 2**192;
+        console.log(num);
+        uint256 price = sqrtPrice / (2**192);
+        console.log("price");
+        console.log(price);/**/
     }
 
     function testThisFunc3() public {
