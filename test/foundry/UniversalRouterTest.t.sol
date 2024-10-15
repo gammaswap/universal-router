@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import "forge-std/Test.sol";
 import "./fixtures/TestBed.sol";
 import "../../contracts/test/TestUniversalRouter.sol";
 import "../../contracts/routes/UniswapV2.sol";
@@ -31,6 +30,46 @@ contract UniversalRouterTest is TestBed {
         uint16 protocolId
     ) internal pure returns (bytes memory) {
         return abi.encodePacked(tokenIn, protocolId, fee, tokenOut);
+    }
+
+    function testAddRemoveProtocol() public {
+        vm.expectRevert("ZERO_ADDRESS");
+        router.addProtocol(address(0));
+
+        UniswapV2 route0 = new UniswapV2(0, address(uniFactory), address(weth));
+        vm.expectRevert("INVALID_PROTOCOL_ID");
+        router.addProtocol(address(route0));
+
+        UniswapV2 route2 = new UniswapV2(2, address(uniFactory), address(weth));
+
+        assertEq(router.protocols(2),address(0));
+
+        assertEq(router.owner(), address(this));
+
+        address userX = vm.addr(12345);
+        vm.prank(userX);
+        vm.expectRevert("Ownable: caller is not the owner");
+        router.addProtocol(address(route2));
+
+        router.addProtocol(address(route2));
+        assertEq(router.protocols(2),address(route2));
+
+        UniswapV2 route2a = new UniswapV2(2, address(uniFactory), address(weth));
+        vm.expectRevert("PROTOCOL_ID_USED");
+        router.addProtocol(address(route2a));
+
+        vm.prank(userX);
+        vm.expectRevert("Ownable: caller is not the owner");
+        router.removeProtocol(0);
+
+        vm.expectRevert("INVALID_PROTOCOL_ID");
+        router.removeProtocol(0);
+
+        vm.expectRevert("PROTOCOL_ID_UNUSED");
+        router.removeProtocol(3);
+
+        router.removeProtocol(2);
+        assertEq(router.protocols(2),address(0));
     }
 
     function testThisFunc2() public {
