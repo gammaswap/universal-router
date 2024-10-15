@@ -214,7 +214,7 @@ contract UniswapV3 is CPMMRoute, IUniswapV3SwapCallback {
 
     function exactInputSwap(SwapParams memory params) private returns (uint256) {
         require(params.amount < 2**255, "INVALID_AMOUNT");
-        require(params.recipient == address(0), "INVALID_RECIPIENT");
+        require(params.recipient != address(0), "INVALID_RECIPIENT");
 
         bool zeroForOne = params.tokenIn < params.tokenOut;
 
