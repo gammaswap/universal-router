@@ -68,6 +68,12 @@ contract UniversalRouterTest is TestBed {
         assertEq(router.protocols(2),address(0));
     }
 
+    function testCalcRoutes() public {
+        //function calcRoutes(bytes memory path, address _to) public
+        //virtual view returns (Route[] memory routes)
+
+    }
+
     function testThisFunc2() public {
         bytes memory val = createBytes(address(weth), address(usdc), 5, 1);
         console.logBytes(val);

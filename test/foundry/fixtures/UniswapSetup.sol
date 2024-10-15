@@ -26,17 +26,22 @@ contract UniswapSetup is TokensSetup {
     bytes32 public cfmmHash;
     address public cfmmFactory;
 
+    IDeltaSwapFactory public sushiFactory;
+    IDeltaSwapRouter02 public sushiRouter;
+    IDeltaSwapPair public sushiWethUsdcPool;
+    IDeltaSwapPair public sushiWethUsdtPool;
+
+    bytes32 public sushiCfmmHash; // DeltaSwapPair init_code_hash
+    address public sushiCfmmFactory;
+
     GammaPoolFactory public gsFactory;
     IDeltaSwapFactory public dsFactory;
     IDeltaSwapRouter02 public dsRouter;
-
-    bytes32 public dsCfmmHash; // DeltaSwapPair init_code_hash
-    address public dsCfmmFactory;
-
-
     IDeltaSwapPair public dsWethUsdcPool;
     IDeltaSwapPair public dsWethUsdtPool;
 
+    bytes32 public dsCfmmHash; // DeltaSwapPair init_code_hash
+    address public dsCfmmFactory;
 
     IUniswapV3Factory public uniFactoryV3;
     IUniswapV3Pool public wethUsdcPoolV3;
@@ -46,6 +51,10 @@ contract UniswapSetup is TokensSetup {
     uint24 public immutable poolFee1 = 10000;    // fee 1%
     uint24 public immutable poolFee2 = 500;    // fee 0.05%
     uint160 public immutable sqrtPriceX96 = 4339505179874779489431521;  // 1 WETH = 3000 USDC
+
+    function addLiquidity(address token0, address token1, uint256 amount0, uint256 amount1, address to) public returns (uint256 amountA, uint256 amountB, uint256 liquidity) {
+        (amountA, amountB, liquidity) = uniRouter.addLiquidity(token0, token1, amount0, amount1, 0, 0, to, type(uint256).max);
+    }
 
     function initUniswapV3(address owner) public {
         bytes memory factoryBytecode = abi.encodePacked(vm.getCode("./node_modules/@uniswap/v3-core/artifacts/contracts/UniswapV3Factory.sol/UniswapV3Factory.json"));
@@ -179,8 +188,47 @@ contract UniswapSetup is TokensSetup {
         vm.stopPrank();
     }
 
-    function addLiquidity(address token0, address token1, uint256 amount0, uint256 amount1, address to) public returns (uint256 amountA, uint256 amountB, uint256 liquidity) {
-        (amountA, amountB, liquidity) = uniRouter.addLiquidity(token0, token1, amount0, amount1, 0, 0, to, type(uint256).max);
+    function initSushiswap(address owner) public {
+        // Let's do the same thing with `getCode`
+        //bytes memory args = abi.encode(arg1, arg2);
+        bytes memory factoryArgs = abi.encode(owner);
+        bytes memory factoryBytecode = abi.encodePacked(vm.getCode("./test/foundry/bytecodes/SushiswapV2Factory.json"), factoryArgs);
+        address factoryAddress;
+        assembly {
+            factoryAddress := create(0, add(factoryBytecode, 0x20), mload(factoryBytecode))
+        }
+
+        bytes memory routerArgs = abi.encode(factoryAddress, weth);
+        bytes memory routerBytecode = abi.encodePacked(vm.getCode("./test/foundry/bytecodes/SushiswapV2Router02.json"), routerArgs);
+        address routerAddress;
+        assembly {
+            routerAddress := create(0, add(routerBytecode, 0x20), mload(routerBytecode))
+        }
+
+        sushiFactory = IDeltaSwapFactory(factoryAddress);
+        sushiRouter = IDeltaSwapRouter02(routerAddress);
+
+        sushiCfmmHash = hex'e18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303'; // UniV2Pair init_code_hash
+        sushiCfmmFactory = address(0);
+
+
+        sushiWethUsdcPool = IDeltaSwapPair(sushiFactory.createPair(address(weth), address(usdc)));
+        sushiWethUsdtPool = IDeltaSwapPair(sushiFactory.createPair(address(weth), address(usdt)));
+
+        weth.mint(owner, 120);
+        usdt.mint(owner, 350_000);
+        weth.mint(owner, 890);
+        usdc.mint(owner, 2_700_000);
+
+        vm.startPrank(owner);
+
+        weth.approve(address(sushiRouter), type(uint256).max);
+        usdc.approve(address(sushiRouter), type(uint256).max);
+        usdt.approve(address(sushiRouter), type(uint256).max);
+
+        sushiRouter.addLiquidity(address(usdc), address(weth), 2680657431182, 887209737429288199534, 0, 0, owner, type(uint256).max);
+        sushiRouter.addLiquidity(address(usdt), address(weth), 345648123455, 115594502247137145239, 0, 0, owner, type(uint256).max);
+        vm.stopPrank();
     }
 
     function initDeltaSwap(address owner) public {
