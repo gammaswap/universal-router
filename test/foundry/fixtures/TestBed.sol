@@ -54,6 +54,7 @@ contract TestBed is UniswapSetup {
         initTokens();
         initUniswapV3(owner);
         initUniswap(owner);
+        initDeltaSwap(owner);
         router = new TestUniversalRouter(address(weth));
     }
 }

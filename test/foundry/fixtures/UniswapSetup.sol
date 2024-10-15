@@ -10,6 +10,7 @@ import "@uniswap/swap-router-contracts/contracts/interfaces/IQuoterV2.sol";
 import "@gammaswap/v1-deltaswap/contracts/interfaces/IDeltaSwapFactory.sol";
 import "@gammaswap/v1-deltaswap/contracts/interfaces/IDeltaSwapPair.sol";
 import "@gammaswap/v1-deltaswap/contracts/interfaces/IDeltaSwapRouter02.sol";
+import "@gammaswap/v1-core/contracts/GammaPoolFactory.sol";
 
 import "../../../contracts/test/IPositionManagerMintable.sol";
 import "./TokensSetup.sol";
@@ -24,6 +25,18 @@ contract UniswapSetup is TokensSetup {
 
     bytes32 public cfmmHash;
     address public cfmmFactory;
+
+    GammaPoolFactory public gsFactory;
+    IDeltaSwapFactory public dsFactory;
+    IDeltaSwapRouter02 public dsRouter;
+
+    bytes32 public dsCfmmHash; // DeltaSwapPair init_code_hash
+    address public dsCfmmFactory;
+
+
+    IDeltaSwapPair public dsWethUsdcPool;
+    IDeltaSwapPair public dsWethUsdtPool;
+
 
     IUniswapV3Factory public uniFactoryV3;
     IUniswapV3Pool public wethUsdcPoolV3;
@@ -173,7 +186,10 @@ contract UniswapSetup is TokensSetup {
     function initDeltaSwap(address owner) public {
         // Let's do the same thing with `getCode`
         //bytes memory args = abi.encode(arg1, arg2);
-        bytes memory factoryArgs = abi.encode(owner, owner, vm.addr(0x6666666666)); // gsFactory
+
+        gsFactory = new GammaPoolFactory(owner);
+
+        bytes memory factoryArgs = abi.encode(owner, owner, address(gsFactory)); // gsFactory
         bytes memory factoryBytecode = abi.encodePacked(vm.getCode("./test/foundry/bytecodes/DeltaSwapFactory.json"), factoryArgs);
         address factoryAddress;
         assembly {
@@ -187,11 +203,36 @@ contract UniswapSetup is TokensSetup {
             routerAddress := create(0, add(routerBytecode, 0x20), mload(routerBytecode))
         }
 
-        uniFactory = IDeltaSwapFactory(factoryAddress);
-        uniRouter = IDeltaSwapRouter02(routerAddress);
-        uniFactory.setGSProtocolId(1);
+        dsFactory = IDeltaSwapFactory(factoryAddress);
+        dsRouter = IDeltaSwapRouter02(routerAddress);
 
-        cfmmHash = hex'a82767a5e39a2e216962a2ebff796dcc37cd05dfd6f7a149e1f8fbb6bf487658'; // DeltaSwapPair init_code_hash
-        cfmmFactory = address(uniFactory);
+        vm.prank(owner);
+        dsFactory.setGSProtocolId(1);
+
+        dsCfmmHash = hex'a82767a5e39a2e216962a2ebff796dcc37cd05dfd6f7a149e1f8fbb6bf487658'; // DeltaSwapPair init_code_hash
+        dsCfmmFactory = address(dsFactory);
+
+
+        dsWethUsdcPool = IDeltaSwapPair(dsFactory.createPair(address(weth), address(usdc)));
+        dsWethUsdtPool = IDeltaSwapPair(dsFactory.createPair(address(weth), address(usdt)));
+
+        weth.mint(owner, 120);
+        usdt.mint(owner, 350_000);
+        weth.mint(owner, 890);
+        usdc.mint(owner, 2_700_000);
+
+        vm.startPrank(owner);
+
+        dsFactory.setDSFee(2);
+        dsFactory.setDSFeeThreshold(0);
+
+        weth.approve(address(dsRouter), type(uint256).max);
+        usdc.approve(address(dsRouter), type(uint256).max);
+        usdt.approve(address(dsRouter), type(uint256).max);
+
+        dsRouter.addLiquidity(address(usdc), address(weth), 2680657431182, 887209737429288199534, 0, 0, owner, type(uint256).max);
+        dsRouter.addLiquidity(address(usdt), address(weth), 345648123455, 115594502247137145239, 0, 0, owner, type(uint256).max);
+
+        vm.stopPrank();
     }
 }
