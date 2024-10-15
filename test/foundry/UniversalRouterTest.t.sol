@@ -1,21 +1,17 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: GPL-v3
 pragma solidity ^0.8.0;
 
 import "./fixtures/TestBed.sol";
-import "../../contracts/test/TestUniversalRouter.sol";
 import "../../contracts/routes/UniswapV2.sol";
 
 contract UniversalRouterTest is TestBed {
 
     address owner;
-
-    TestUniversalRouter router;
     UniswapV2 uniV2Route;
 
     function setUp() public {
         owner = vm.addr(1);
         initSetup(owner);
-        router = new TestUniversalRouter(address(weth));
 
         uniV2Route = new UniswapV2(1, address(uniFactory), address(weth));
 

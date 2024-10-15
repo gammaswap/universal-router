@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-v3
 pragma solidity ^0.8.0;
 
+import "../../../contracts/test/TestUniversalRouter.sol";
 import "./UniswapSetup.sol";
 
 contract TestBed is UniswapSetup {
@@ -47,9 +48,12 @@ contract TestBed is UniswapSetup {
         bool isBuy;
     }
 
+    TestUniversalRouter router;
+
     function initSetup(address owner) public {
         initTokens();
         initUniswapV3(owner);
         initUniswap(owner);
+        router = new TestUniversalRouter(address(weth));
     }
 }
