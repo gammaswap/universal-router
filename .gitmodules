@@ -1,3 +1,0 @@
-#[submodule "lib/ds-std"]
-#	path = lib/ds-std
-#	url = https://github.com/dapphub/ds-test
