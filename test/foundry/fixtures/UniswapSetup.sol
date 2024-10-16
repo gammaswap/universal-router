@@ -12,6 +12,10 @@ import "@gammaswap/v1-deltaswap/contracts/interfaces/IDeltaSwapPair.sol";
 import "@gammaswap/v1-deltaswap/contracts/interfaces/IDeltaSwapRouter02.sol";
 import "@gammaswap/v1-core/contracts/GammaPoolFactory.sol";
 
+import "../../../contracts/interfaces/external/IAeroPoolFactory.sol";
+import "../../../contracts/interfaces/external/IAeroPool.sol";
+import "../../../contracts/test/IAeroRouter.sol";
+import "../../../contracts/test/IAeroToken.sol";
 import "../../../contracts/test/IPositionManagerMintable.sol";
 import "./TokensSetup.sol";
 
@@ -51,6 +55,13 @@ contract UniswapSetup is TokensSetup {
     uint24 public immutable poolFee1 = 10000;    // fee 1%
     uint24 public immutable poolFee2 = 500;    // fee 0.05%
     uint160 public immutable sqrtPriceX96 = 4339505179874779489431521;  // 1 WETH = 3000 USDC
+
+    IAeroPoolFactory public aeroFactory;
+    IAeroRouter public aeroRouter;
+
+    IAeroPool public aeroWethUsdcPool;
+    IAeroPool public aeroWethUsdtPool;
+    IAeroPool public aeroUsdcUsdtPool;
 
     function addLiquidity(address token0, address token1, uint256 amount0, uint256 amount1, address to) public returns (uint256 amountA, uint256 amountB, uint256 liquidity) {
         (amountA, amountB, liquidity) = uniRouter.addLiquidity(token0, token1, amount0, amount1, 0, 0, to, type(uint256).max);
@@ -280,6 +291,111 @@ contract UniswapSetup is TokensSetup {
 
         dsRouter.addLiquidity(address(usdc), address(weth), 2680657431182, 887209737429288199534, 0, 0, owner, type(uint256).max);
         dsRouter.addLiquidity(address(usdt), address(weth), 345648123455, 115594502247137145239, 0, 0, owner, type(uint256).max);
+
+        vm.stopPrank();
+    }
+
+    function createContractFromBytecode(string memory bytecodePath) internal virtual returns(address addr) {
+        bytes memory bytecode = abi.encodePacked(vm.getCode(bytecodePath));
+        assembly {
+            addr := create(0, add(bytecode, 0x20), mload(bytecode))
+        }
+    }
+
+    function initAerodrome(address owner) public {
+        // Let's do the same thing with `getCode`
+        {
+            address poolAddress = createContractFromBytecode("./test/foundry/bytecodes/aerodrome/Pool.json");
+            {
+                address factoryAddress;
+                bytes memory factoryBytecode = abi.encodePacked(vm.getCode("./test/foundry/bytecodes/aerodrome/PoolFactory.json"), abi.encode(poolAddress));
+                assembly {
+                    factoryAddress := create(0, add(factoryBytecode, 0x20), mload(factoryBytecode))
+                }
+                aeroFactory = IAeroPoolFactory(factoryAddress);
+            }
+            address managedRewardsFactoryAddress = createContractFromBytecode("./test/foundry/bytecodes/aerodrome/ManagedRewardsFactory.json");
+            address gaugeFactoryAddress = createContractFromBytecode("./test/foundry/bytecodes/aerodrome/GaugeFactory.json");
+            address votingRewardsFactoryAddress = createContractFromBytecode("./test/foundry/bytecodes/aerodrome/VotingRewardsFactory.json");
+            address forwarderAddress = createContractFromBytecode("./test/foundry/bytecodes/aerodrome/Forwarder.json");
+            address factoryRegistryAddress;
+            {
+                bytes memory factoryRegistryBytecode = abi.encodePacked(vm.getCode("./test/foundry/bytecodes/aerodrome/FactoryRegistry.json"),
+                    abi.encode(address(aeroFactory),votingRewardsFactoryAddress,gaugeFactoryAddress,managedRewardsFactoryAddress));
+                assembly {
+                    factoryRegistryAddress := create(0, add(factoryRegistryBytecode, 0x20), mload(factoryRegistryBytecode))
+                }
+            }
+            address aeroAddress = createContractFromBytecode("./test/foundry/bytecodes/aerodrome/Aero.json");
+            address votingEscrowAddress;
+            {
+                bytes memory votingEscrowBytecode = abi.encodePacked(vm.getCode("./test/foundry/bytecodes/aerodrome/VotingEscrow.json"),
+                    abi.encode(forwarderAddress,aeroAddress,factoryRegistryAddress));
+                assembly {
+                    votingEscrowAddress := create(0, add(votingEscrowBytecode, 0x20), mload(votingEscrowBytecode))
+                }
+            }
+            address voterAddress;
+            {
+                bytes memory voterBytecode = abi.encodePacked(vm.getCode("./test/foundry/bytecodes/aerodrome/Voter.json"),
+                    abi.encode(forwarderAddress,votingEscrowAddress,factoryRegistryAddress));
+                assembly {
+                    voterAddress := create(0, add(voterBytecode, 0x20), mload(voterBytecode))
+                }
+            }
+
+            address rewardsDistributorAddress;
+            {
+                bytes memory rewardsDistributorBytecode = abi.encodePacked(vm.getCode("./test/foundry/bytecodes/aerodrome/RewardsDistributor.json"),
+                    abi.encode(votingEscrowAddress));
+                assembly {
+                    rewardsDistributorAddress := create(0, add(rewardsDistributorBytecode, 0x20), mload(rewardsDistributorBytecode))
+                }
+            }
+
+            {
+                address routerAddress;
+                bytes memory routerBytecode = abi.encodePacked(vm.getCode("./test/foundry/bytecodes/aerodrome/Router.json"),
+                    abi.encode(forwarderAddress,factoryRegistryAddress,address(aeroFactory),votingEscrowAddress,voterAddress,address(weth)));
+                assembly {
+                    routerAddress := create(0, add(routerBytecode, 0x20), mload(routerBytecode))
+                }
+                aeroRouter = IAeroRouter(routerAddress);
+            }
+
+            address minterAddress;
+            {
+                bytes memory minterBytecode = abi.encodePacked(vm.getCode("./test/foundry/bytecodes/aerodrome/Minter.json"),
+                    abi.encode(voterAddress,votingEscrowAddress,rewardsDistributorAddress));
+                assembly {
+                    minterAddress := create(0, add(minterBytecode, 0x20), mload(minterBytecode))
+                }
+            }
+
+            IAeroToken(aeroAddress).setMinter(minterAddress);
+        }
+
+        aeroWethUsdcPool = IAeroPool(aeroFactory.createPool(address(weth), address(usdc), false));
+        aeroWethUsdtPool = IAeroPool(aeroFactory.createPool(address(weth), address(usdt), false));
+        aeroUsdcUsdtPool = IAeroPool(aeroFactory.createPool(address(usdc), address(usdt), true));
+
+        weth.mint(owner, 120);
+        usdt.mint(owner, 350_000);
+        weth.mint(owner, 890);
+        usdc.mint(owner, 2_700_000);
+
+        usdt.mint(owner, 250_000);
+        usdc.mint(owner, 250_000);
+
+        vm.startPrank(owner);
+
+        weth.approve(address(aeroRouter), type(uint256).max);
+        usdc.approve(address(aeroRouter), type(uint256).max);
+        usdt.approve(address(aeroRouter), type(uint256).max);
+
+        aeroRouter.addLiquidity(address(usdc), address(weth), false, 2680657431182, 887209737429288199534, 0, 0, owner, type(uint256).max);
+        aeroRouter.addLiquidity(address(usdt), address(weth), false, 345648123455, 115594502247137145239, 0, 0, owner, type(uint256).max);
+        aeroRouter.addLiquidity(address(usdt), address(usdc), true, 245648123455, 245648123455, 0, 0, owner, type(uint256).max);
 
         vm.stopPrank();
     }
