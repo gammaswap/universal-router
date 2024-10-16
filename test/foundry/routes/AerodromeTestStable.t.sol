@@ -193,8 +193,4 @@ contract AerodromeTestStable is TestBed {
 
         vm.stopPrank();
     }
-
-    function createBytes(address tokenIn, address tokenOut, uint24 fee, uint16 protocolId) internal pure returns (bytes memory) {
-        return abi.encodePacked(tokenIn, protocolId, fee, tokenOut);
-    }
 }

@@ -5,7 +5,7 @@ import "../fixtures/TestBed.sol";
 import "../../../contracts/test/TestUniversalRouter.sol";
 import "../../../contracts/test/routes/TestAerodrome.sol";
 
-contract AerodromTest is TestBed {
+contract AerodromeTest is TestBed {
 
     address owner;
     TestAerodrome route;
@@ -192,9 +192,5 @@ contract AerodromTest is TestBed {
         assertApproxEqRel(amountOut, balanceB1 - balanceB0, 1e10);
 
         vm.stopPrank();
-    }
-
-    function createBytes(address tokenIn, address tokenOut, uint24 fee, uint16 protocolId) internal pure returns (bytes memory) {
-        return abi.encodePacked(tokenIn, protocolId, fee, tokenOut);
     }
 }
