@@ -15,10 +15,10 @@ contract Aerodrome is CPMMRoute {
     address public immutable implementation;
     bool public immutable isStable;
 
-    constructor(uint16 _protocolId, address _factory, address _implementation, bool _isStable, address _WETH) Transfers(_WETH) {
+    constructor(uint16 _protocolId, address _factory, bool _isStable, address _WETH) Transfers(_WETH) {
         protocolId = _protocolId;
         factory = _factory;
-        implementation = _implementation;
+        implementation = IAeroPoolFactory(_factory).implementation();
         isStable = _isStable;
     }
 
@@ -45,8 +45,8 @@ contract Aerodrome is CPMMRoute {
 
     function getAmountOut(uint256 amountIn, address tokenA, address tokenB, uint256 fee) public override virtual
         returns(uint256 amountOut, address pair, uint24 swapFee) {
-        (,,pair) = pairFor(tokenA, tokenB);
-        swapFee = 3000; // for information purposes only, matches UniV3 format
+        (pair,,) = pairFor(tokenA, tokenB);
+        swapFee = uint24(IAeroPoolFactory(factory).getFee(pair, isStable));
         amountOut = IAeroPool(pair).getAmountOut(amountIn, tokenA);
     }
 

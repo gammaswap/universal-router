@@ -13,14 +13,12 @@ library AeroLib {
         }
     }
 
-    function getAmountIn(uint256 amountOut, uint256 reserveOut, uint256 reserveIn,
-        uint256 decimalsOut, uint256 decimalsIn, bool stable, uint256 fee) internal view returns (uint256) {
-        amountOut -= (amountOut * fee) / 10000;
-        reserveOut -= (reserveOut * fee) / 10000;
+    function getAmountIn(uint256 amountOut, uint256 reserveIn, uint256 reserveOut,
+        uint256 decimalsIn, uint256 decimalsOut, bool stable, uint256 fee) internal view returns (uint256) {
         if(stable) {
-            return _getAmountInStable(amountOut, reserveOut, reserveIn, decimalsOut, decimalsIn);
+            return _getAmountInStable(amountOut, reserveOut, reserveIn, decimalsOut, decimalsIn) * 10000 / (10000 - fee) + 1;
         } else {
-            return _getAmountInNonStable(amountOut, reserveOut, reserveIn);
+            return _getAmountInNonStable(amountOut, reserveOut, reserveIn) * 10000 / (10000 - fee) + 1;
         }
     }
 
