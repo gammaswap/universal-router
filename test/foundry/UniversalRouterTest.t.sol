@@ -69,6 +69,8 @@ contract UniversalRouterTest is TestBed {
     }
 
     function testCalcRoutes() public {
+        //TODO: Build function to create combination of possible paths depending on protocols and pools created
+        // and add a fuzzing test to test the path creation is what we expect
         //function calcRoutes(bytes memory path, address _to) public
         //virtual view returns (Route[] memory routes)
 
