@@ -2,16 +2,29 @@
 pragma solidity ^0.8.0;
 
 import "./fixtures/TestBed.sol";
+import "./utils/Random.sol";
 import "../../contracts/routes/UniswapV2.sol";
 
 contract UniversalRouterTest is TestBed {
 
     address owner;
     UniswapV2 uniV2Route;
+    Random random;
+    address[] tokens;
+
+    uint256 constant PROTOCOL_ROUTES_COUNT = 6;
 
     function setUp() public {
+        random = new Random();
         owner = vm.addr(1);
         initSetup(owner);
+
+        tokens = new address[](5);
+        tokens[0] = address(weth);
+        tokens[1] = address(usdc);
+        tokens[2] = address(usdt);
+        tokens[3] = address(dai);
+        tokens[4] = address(wbtc);
 
         uniV2Route = new UniswapV2(1, address(uniFactory), address(weth));
 
@@ -68,12 +81,61 @@ contract UniversalRouterTest is TestBed {
         assertEq(router.protocols(2),address(0));
     }
 
-    function testCalcRoutes() public {
-        //TODO: Build function to create combination of possible paths depending on protocols and pools created
-        // and add a fuzzing test to test the path creation is what we expect
-        //function calcRoutes(bytes memory path, address _to) public
-        //virtual view returns (Route[] memory routes)
+    function testCalcRoutes(uint8 tokenChoices, uint128 seed) public {
+        bytes memory path = createPath(tokenChoices, seed);
+    }
 
+    function createPath(uint8 tokenChoices, uint128 seed) internal view returns(bytes memory) {
+        address[] memory _tokens = tokens;
+        _tokens = random.shuffleAddresses(_tokens, seed);
+        _tokens = getTokens(tokenChoices, _tokens);
+
+        bytes memory _path = abi.encodePacked(_tokens[0]);
+
+        for(uint256 i = 1; i < _tokens.length; i++) {
+            uint16 protocolId = uint16(random.getRandomNumber(PROTOCOL_ROUTES_COUNT + 1, seed + i + 10));
+            uint24 fee = protocolId == 6 ? poolFee1 : 0;
+            _path = abi.encodePacked(_path, protocolId, fee, _tokens[i]);
+        }
+        return _path;
+    }
+
+    function getTokens(uint8 tokenChoices, address[] memory _tokens) internal pure returns (address[] memory) {
+        // Count the number of set bits to allocate the output array size
+        uint8 count = 0;
+        uint8 mask = 0x1F; // Mask for the first 5 bits (0b00011111)
+        uint8 maskedChoices = tokenChoices & mask;
+
+        for (uint8 i = 0; i < 5; i++) {
+            if (maskedChoices & (uint8(1) << i) != 0) {
+                count++;
+            }
+        }
+
+        // If fewer than 2 bits are set, set additional bits
+        if (count < 2) {
+            // Set the missing bits to ensure at least 2 bits are set
+            for (uint8 i = 0; i < 5 && count < 2; i++) {
+                if (maskedChoices & (uint8(1) << i) == 0) {
+                    maskedChoices |= (uint8(1) << i); // Set the bit
+                    count++;
+                }
+            }
+        }
+
+        // Initialize the result array with size of `count`
+        address[] memory selectedTokens = new address[](count);
+        uint8 index = 0;
+
+        // Collect values from tokens array where bits are set
+        for (uint8 i = 0; i < 5; i++) {
+            if (maskedChoices & (uint8(1) << i) != 0) {
+                selectedTokens[index] = _tokens[i];
+                index++;
+            }
+        }
+
+        return selectedTokens;
     }
 
     function testThisFunc2() public {

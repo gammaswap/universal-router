@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-v3
 pragma solidity ^0.8.0;
 
-import "forge-std/Test.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/IPoolInitializer.sol";
@@ -64,10 +63,6 @@ contract UniswapSetup is TokensSetup {
     IAeroPool public aeroUsdcUsdtPool;
     IAeroPool public aeroUsdcDaiPool;
 
-    function addLiquidity(address token0, address token1, uint256 amount0, uint256 amount1, address to) public returns (uint256 amountA, uint256 amountB, uint256 liquidity) {
-        (amountA, amountB, liquidity) = uniRouter.addLiquidity(token0, token1, amount0, amount1, 0, 0, to, type(uint256).max);
-    }
-
     function initUniswapV3(address owner) public {
         bytes memory factoryBytecode = abi.encodePacked(vm.getCode("./node_modules/@uniswap/v3-core/artifacts/contracts/UniswapV3Factory.sol/UniswapV3Factory.json"));
         assembly {
@@ -105,7 +100,7 @@ contract UniswapSetup is TokensSetup {
 
         // Deploy Weth/Usdt pool
         wethUsdtPoolV3 = IUniswapV3Pool(
-            IPoolInitializer(nftPositionManager).createAndInitializePoolIfNecessary(address(weth), address(usdt), poolFee2, sqrtPriceX96)
+            IPoolInitializer(nftPositionManager).createAndInitializePoolIfNecessary(address(weth), address(usdt), poolFee1, sqrtPriceX96)
         );
 
         weth.mint(owner, 120);
@@ -141,7 +136,7 @@ contract UniswapSetup is TokensSetup {
         mintParams = IPositionManagerMintable.MintParams({
             token0: address(weth),
             token1: address(usdt),
-            fee: poolFee2,
+            fee: poolFee1,
             tickLower: -887200,
             tickUpper: 887200,
             amount0Desired: 887209737429288199534,  // 887.2 WETH
@@ -296,13 +291,6 @@ contract UniswapSetup is TokensSetup {
         vm.stopPrank();
     }
 
-    function createContractFromBytecode(string memory bytecodePath) internal virtual returns(address addr) {
-        bytes memory bytecode = abi.encodePacked(vm.getCode(bytecodePath));
-        assembly {
-            addr := create(0, add(bytecode, 0x20), mload(bytecode))
-        }
-    }
-
     function initAerodrome(address owner) public {
         // Let's do the same thing with `getCode`
         {
@@ -404,5 +392,16 @@ contract UniswapSetup is TokensSetup {
         aeroRouter.addLiquidity(address(usdc), address(dai), true, 245648123455, 245648123455000000000000, 0, 0, owner, type(uint256).max);
 
         vm.stopPrank();
+    }
+
+    function addLiquidity(address token0, address token1, uint256 amount0, uint256 amount1, address to) public returns (uint256 amountA, uint256 amountB, uint256 liquidity) {
+        (amountA, amountB, liquidity) = uniRouter.addLiquidity(token0, token1, amount0, amount1, 0, 0, to, type(uint256).max);
+    }
+
+    function createContractFromBytecode(string memory bytecodePath) internal virtual returns(address addr) {
+        bytes memory bytecode = abi.encodePacked(vm.getCode(bytecodePath));
+        assembly {
+            addr := create(0, add(bytecode, 0x20), mload(bytecode))
+        }
     }
 }
