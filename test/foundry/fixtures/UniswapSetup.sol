@@ -62,6 +62,7 @@ contract UniswapSetup is TokensSetup {
     IAeroPool public aeroWethUsdcPool;
     IAeroPool public aeroWethUsdtPool;
     IAeroPool public aeroUsdcUsdtPool;
+    IAeroPool public aeroUsdcDaiPool;
 
     function addLiquidity(address token0, address token1, uint256 amount0, uint256 amount1, address to) public returns (uint256 amountA, uint256 amountB, uint256 liquidity) {
         (amountA, amountB, liquidity) = uniRouter.addLiquidity(token0, token1, amount0, amount1, 0, 0, to, type(uint256).max);
@@ -378,6 +379,7 @@ contract UniswapSetup is TokensSetup {
         aeroWethUsdcPool = IAeroPool(aeroFactory.createPool(address(weth), address(usdc), false));
         aeroWethUsdtPool = IAeroPool(aeroFactory.createPool(address(weth), address(usdt), false));
         aeroUsdcUsdtPool = IAeroPool(aeroFactory.createPool(address(usdc), address(usdt), true));
+        aeroUsdcDaiPool = IAeroPool(aeroFactory.createPool(address(usdc), address(dai), true));
 
         weth.mint(owner, 120);
         usdt.mint(owner, 350_000);
@@ -386,16 +388,20 @@ contract UniswapSetup is TokensSetup {
 
         usdt.mint(owner, 250_000);
         usdc.mint(owner, 250_000);
+        usdc.mint(owner, 250_000);
+        dai.mint(owner, 250_000);
 
         vm.startPrank(owner);
 
         weth.approve(address(aeroRouter), type(uint256).max);
         usdc.approve(address(aeroRouter), type(uint256).max);
         usdt.approve(address(aeroRouter), type(uint256).max);
+        dai.approve(address(aeroRouter), type(uint256).max);
 
         aeroRouter.addLiquidity(address(usdc), address(weth), false, 2680657431182, 887209737429288199534, 0, 0, owner, type(uint256).max);
         aeroRouter.addLiquidity(address(usdt), address(weth), false, 345648123455, 115594502247137145239, 0, 0, owner, type(uint256).max);
         aeroRouter.addLiquidity(address(usdt), address(usdc), true, 245648123455, 245648123455, 0, 0, owner, type(uint256).max);
+        aeroRouter.addLiquidity(address(usdc), address(dai), true, 245648123455, 245648123455000000000000, 0, 0, owner, type(uint256).max);
 
         vm.stopPrank();
     }

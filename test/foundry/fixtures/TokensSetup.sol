@@ -9,11 +9,13 @@ contract TokensSetup is Test {
     Token weth;
     Token usdc;
     Token usdt;
+    Token dai;
 
     function initTokens() public {
         weth = new Token("Wrapped ETH", "WETH", 18);
         usdc = new Token("USD Coin", "USDC", 6);
         usdt = new Token("Tether USD", "USDT", 6);
+        dai = new Token("DAI", "DAI", 18);
 
         if (weth > usdc) {
             (weth, usdc) = (usdc, weth);
