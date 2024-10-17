@@ -84,10 +84,11 @@ contract UniswapSetup is TokensSetup {
 
     uint24 public immutable poolFee1 = 10000;    // fee 1%
     uint24 public immutable poolFee2 = 500;    // fee 0.05%
-    uint160 public immutable wethUsdcSqrtPriceX96 = 4339505179874779489431521;  // 1 WETH = 3000 USDC
+    uint160 public immutable wethUsdcSqrtPriceX96 = 4339505179874779489431521;  // 1 WETH ~ 3000 USDC
+    uint160 public immutable wethDaiSqrtPriceX96 = 4332395497648170000000000000000;  // 1 WETH ~ 3000 DAI
     uint160 public immutable wbtcWethSqrtPriceX96 = 36694310972870000000000000000000000;
-    uint160 public immutable wbtcUsdcSqrtPriceX96 = 2018932870620950000000000000000;
-    uint160 public immutable wbtcDaiSqrtPriceX96 = 2017398273592530000000000000000000000;
+    uint160 public immutable wbtcUsdcSqrtPriceX96 = 2018932870620950000000000000000; // 1 WBTC ~ 65000 USDC
+    uint160 public immutable wbtcDaiSqrtPriceX96 = 2017398273592530000000000000000000000; // 1 WBTC ~ 65000 DAI
     uint160 public immutable usdtUsdcSqrtPriceX96 = 79288338342225900000000000000;
     uint160 public immutable daiUsdcSqrtPriceX96 = 79288429891486500000000;
 
@@ -141,7 +142,7 @@ contract UniswapSetup is TokensSetup {
             IPoolInitializer(nftPositionManager).createAndInitializePoolIfNecessary(address(weth), address(usdt), poolFee1, wethUsdcSqrtPriceX96)
         );
         wethDaiPoolV3 = IUniswapV3Pool(
-            IPoolInitializer(nftPositionManager).createAndInitializePoolIfNecessary(address(weth), address(dai), poolFee1, wethUsdcSqrtPriceX96)
+            IPoolInitializer(nftPositionManager).createAndInitializePoolIfNecessary(address(weth), address(dai), poolFee1, wethDaiSqrtPriceX96)
         );
         wethWbtcPoolV3 = IUniswapV3Pool(
             IPoolInitializer(nftPositionManager).createAndInitializePoolIfNecessary(address(wbtc), address(weth), poolFee1, wbtcWethSqrtPriceX96)

@@ -44,7 +44,7 @@ contract UniswapV3Test is TestBed {
         (uint256 sqrtPriceX96,,,,,,) = wethUsdcPoolV3.slot0();
         uint8 decimals = GammaSwapLibrary.decimals(wethUsdcPoolV3.token0());
         uint256 price = route.getDecodedPrice(sqrtPriceX96,10**decimals);
-        assertEq(price,2999999999);
+        assertApproxEqRel(price,2999999999,1e14);
     }
 
     function testQuote() public {

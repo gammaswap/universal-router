@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import '@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
 import '@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol';
 import '@uniswap/v3-core/contracts/libraries/SafeCast.sol';
+import "@gammaswap/v1-core/contracts/libraries/GSMath.sol";
 import '../libraries/CallbackValidation.sol';
 import '../libraries/PoolTicksCounter.sol';
 import '../libraries/TickMath.sol';
@@ -61,10 +62,10 @@ contract UniswapV3 is CPMMRoute, IUniswapV3SwapCallback {
     // Assume sqrtPriceX96 is given as input
     function decodePrice(uint256 sqrtPriceX96, uint256 decimals) internal pure returns (uint256 price) {
         // Step 1: Convert sqrtPriceX96 to price ratio
-        uint256 sqrtPrice = sqrtPriceX96 * sqrtPriceX96 * decimals;
+        uint256 sqrtPrice = sqrtPriceX96 * GSMath.sqrt(decimals) / (2**96);
 
         // Step 2: Divide by 2^192 (since sqrtPriceX96 was scaled by 2^96, we need to square that scale factor)
-        price = sqrtPrice / (2**192);
+        price = sqrtPrice * sqrtPrice;
     }
 
     // calculates the CREATE2 address for a pair without making any external calls
