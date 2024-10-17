@@ -25,13 +25,13 @@ contract UniswapSetup is TokensSetup {
     IDeltaSwapPair public wethUsdcPool;
     IDeltaSwapPair public wethUsdtPool;
     IDeltaSwapPair public wethDaiPool;
-    IDeltaSwapPair public wethWbtcPool;
+    IDeltaSwapPair public wbtcWethPool;
     IDeltaSwapPair public wbtcUsdcPool;
     IDeltaSwapPair public wbtcUsdtPool;
     IDeltaSwapPair public wbtcDaiPool;
-    IDeltaSwapPair public usdcUsdtPool;
-    IDeltaSwapPair public usdcDaiPool;
-    IDeltaSwapPair public usdtDaiPool;
+    IDeltaSwapPair public usdtUsdcPool;
+    IDeltaSwapPair public daiUsdcPool;
+    IDeltaSwapPair public daiUsdtPool;
 
     bytes32 public cfmmHash;
     address public cfmmFactory;
@@ -41,13 +41,13 @@ contract UniswapSetup is TokensSetup {
     IDeltaSwapPair public sushiWethUsdcPool;
     IDeltaSwapPair public sushiWethUsdtPool;
     IDeltaSwapPair public sushiWethDaiPool;
-    IDeltaSwapPair public sushiWethWbtcPool;
+    IDeltaSwapPair public sushiWbtcWethPool;
     IDeltaSwapPair public sushiWbtcUsdcPool;
     IDeltaSwapPair public sushiWbtcUsdtPool;
     IDeltaSwapPair public sushiWbtcDaiPool;
-    IDeltaSwapPair public sushiUsdcUsdtPool;
-    IDeltaSwapPair public sushiUsdcDaiPool;
-    IDeltaSwapPair public sushiUsdtDaiPool;
+    IDeltaSwapPair public sushiUsdtUsdcPool;
+    IDeltaSwapPair public sushiDaiUsdcPool;
+    IDeltaSwapPair public sushiDaiUsdtPool;
 
     bytes32 public sushiCfmmHash; // DeltaSwapPair init_code_hash
     address public sushiCfmmFactory;
@@ -58,13 +58,13 @@ contract UniswapSetup is TokensSetup {
     IDeltaSwapPair public dsWethUsdcPool;
     IDeltaSwapPair public dsWethUsdtPool;
     IDeltaSwapPair public dsWethDaiPool;
-    IDeltaSwapPair public dsWethWbtcPool;
+    IDeltaSwapPair public dsWbtcWethPool;
     IDeltaSwapPair public dsWbtcUsdcPool;
     IDeltaSwapPair public dsWbtcUsdtPool;
     IDeltaSwapPair public dsWbtcDaiPool;
-    IDeltaSwapPair public dsUsdcUsdtPool;
-    IDeltaSwapPair public dsUsdcDaiPool;
-    IDeltaSwapPair public dsUsdtDaiPool;
+    IDeltaSwapPair public dsUsdtUsdcPool;
+    IDeltaSwapPair public dsDaiUsdcPool;
+    IDeltaSwapPair public dsDaiUsdtPool;
 
     bytes32 public dsCfmmHash; // DeltaSwapPair init_code_hash
     address public dsCfmmFactory;
@@ -96,13 +96,13 @@ contract UniswapSetup is TokensSetup {
     IAeroPool public aeroWethUsdcPool;
     IAeroPool public aeroWethUsdtPool;
     IAeroPool public aeroWethDaiPool;
-    IAeroPool public aeroWethWbtcPool;
+    IAeroPool public aeroWbtcWethPool;
     IAeroPool public aeroWbtcUsdcPool;
     IAeroPool public aeroWbtcUsdtPool;
     IAeroPool public aeroWbtcDaiPool;
-    IAeroPool public aeroUsdcUsdtPool;
-    IAeroPool public aeroUsdcDaiPool;
-    IAeroPool public aeroUsdtDaiPool;
+    IAeroPool public aeroUsdtUsdcPool;
+    IAeroPool public aeroDaiUsdcPool;
+    IAeroPool public aeroDaiUsdtPool;
 
     function initUniswapV3(address owner) public {
         bytes memory factoryBytecode = abi.encodePacked(vm.getCode("./node_modules/@uniswap/v3-core/artifacts/contracts/UniswapV3Factory.sol/UniswapV3Factory.json"));
@@ -171,10 +171,8 @@ contract UniswapSetup is TokensSetup {
         usdt.mint(owner, 2_700_000);
         weth.mint(owner, 120);
         dai.mint(owner, 350_000);
-
         weth.mint(owner, 220);
         wbtc.mint(owner, 11);
-
         wbtc.mint(owner, 11);
         usdc.mint(owner, 660_000);
         wbtc.mint(owner, 11);
@@ -198,7 +196,7 @@ contract UniswapSetup is TokensSetup {
 
         addLiquidityV3(nftPositionManager, address(weth), address(usdc), poolFee1, 115594502247137145239, 345648123455);
         addLiquidityV3(nftPositionManager, address(weth), address(usdt), poolFee1, 887209737429288199534, 2680657431182);
-        addLiquidityV3(nftPositionManager, address(weth), address(dai), poolFee1, 115594502247137145239, 345648123455);
+        addLiquidityV3(nftPositionManager, address(weth), address(dai), poolFee1, 115594502247137145239, 345648123455000000000000);
         addLiquidityV3(nftPositionManager, address(wbtc), address(weth), poolFee1, 1012393293, 217378372286812000000);
         addLiquidityV3(nftPositionManager, address(wbtc), address(usdc), poolFee1, 1012393293, 658055640487);
         addLiquidityV3(nftPositionManager, address(wbtc), address(usdt), poolFee1, 1013393293, 659055640487);
@@ -233,23 +231,56 @@ contract UniswapSetup is TokensSetup {
         cfmmHash = hex'96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f'; // UniV2Pair init_code_hash
         cfmmFactory = address(0);
 
-
         wethUsdcPool = IDeltaSwapPair(uniFactory.createPair(address(weth), address(usdc)));
         wethUsdtPool = IDeltaSwapPair(uniFactory.createPair(address(weth), address(usdt)));
+        wethDaiPool = IDeltaSwapPair(uniFactory.createPair(address(weth), address(dai)));
+        wbtcWethPool = IDeltaSwapPair(uniFactory.createPair(address(wbtc), address(weth)));
+        wbtcUsdcPool = IDeltaSwapPair(uniFactory.createPair(address(wbtc), address(usdc)));
+        wbtcUsdtPool = IDeltaSwapPair(uniFactory.createPair(address(wbtc), address(usdt)));
+        wbtcDaiPool = IDeltaSwapPair(uniFactory.createPair(address(wbtc), address(dai)));
+        usdtUsdcPool = IDeltaSwapPair(uniFactory.createPair(address(usdt), address(usdc)));
+        daiUsdcPool = IDeltaSwapPair(uniFactory.createPair(address(dai), address(usdc)));
+        daiUsdtPool = IDeltaSwapPair(uniFactory.createPair(address(dai), address(usdt)));
 
         weth.mint(owner, 120);
-        usdt.mint(owner, 350_000);
+        usdc.mint(owner, 350_000);
         weth.mint(owner, 890);
-        usdc.mint(owner, 2_700_000);
+        usdt.mint(owner, 2_700_000);
+        weth.mint(owner, 120);
+        dai.mint(owner, 350_000);
+        weth.mint(owner, 220);
+        wbtc.mint(owner, 11);
+        wbtc.mint(owner, 11);
+        usdc.mint(owner, 660_000);
+        wbtc.mint(owner, 11);
+        usdt.mint(owner, 660_000);
+        wbtc.mint(owner, 11);
+        dai.mint(owner, 660_000);
+        usdc.mint(owner, 660_000);
+        usdt.mint(owner, 660_000);
+        usdc.mint(owner, 660_000);
+        dai.mint(owner, 660_000);
+        usdt.mint(owner, 660_000);
+        dai.mint(owner, 660_000);
 
         vm.startPrank(owner);
 
         weth.approve(address(uniRouter), type(uint256).max);
         usdc.approve(address(uniRouter), type(uint256).max);
         usdt.approve(address(uniRouter), type(uint256).max);
+        wbtc.approve(address(uniRouter), type(uint256).max);
+        dai.approve(address(uniRouter), type(uint256).max);
 
-        uniRouter.addLiquidity(address(usdc), address(weth), 2680657431182, 887209737429288199534, 0, 0, owner, type(uint256).max);
-        uniRouter.addLiquidity(address(usdt), address(weth), 345648123455, 115594502247137145239, 0, 0, owner, type(uint256).max);
+        uniRouter.addLiquidity(address(weth), address(usdc), 115594502247137145239, 345648123455, 0, 0, owner, type(uint256).max);
+        uniRouter.addLiquidity(address(weth), address(usdt), 887209737429288199534, 2680657431182, 0, 0, owner, type(uint256).max);
+        uniRouter.addLiquidity(address(weth), address(dai), 115594502247137145239, 345648123455000000000000, 0, 0, owner, type(uint256).max);
+        uniRouter.addLiquidity(address(wbtc), address(weth), 1012393293, 217378372286812000000, 0, 0, owner, type(uint256).max);
+        uniRouter.addLiquidity(address(wbtc), address(usdc), 1012393293, 658055640487, 0, 0, owner, type(uint256).max);
+        uniRouter.addLiquidity(address(wbtc), address(usdt), 1013393293, 659055640487, 0, 0, owner, type(uint256).max);
+        uniRouter.addLiquidity(address(wbtc), address(dai), 1011393293, 657055640487000000000000, 0, 0, owner, type(uint256).max);
+        uniRouter.addLiquidity(address(usdt), address(usdc), 658055640487, 659055640487, 0, 0, owner, type(uint256).max);
+        uniRouter.addLiquidity(address(dai), address(usdc), 657055640487000000000000, 658055640487, 0, 0, owner, type(uint256).max);
+        uniRouter.addLiquidity(address(dai), address(usdt), 657055640487000000000000, 656055640487, 0, 0, owner, type(uint256).max);
 
         vm.stopPrank();
     }
@@ -280,20 +311,55 @@ contract UniswapSetup is TokensSetup {
 
         sushiWethUsdcPool = IDeltaSwapPair(sushiFactory.createPair(address(weth), address(usdc)));
         sushiWethUsdtPool = IDeltaSwapPair(sushiFactory.createPair(address(weth), address(usdt)));
+        sushiWethDaiPool = IDeltaSwapPair(sushiFactory.createPair(address(weth), address(dai)));
+        sushiWbtcWethPool = IDeltaSwapPair(sushiFactory.createPair(address(wbtc), address(weth)));
+        sushiWbtcUsdcPool = IDeltaSwapPair(sushiFactory.createPair(address(wbtc), address(usdc)));
+        sushiWbtcUsdtPool = IDeltaSwapPair(sushiFactory.createPair(address(wbtc), address(usdt)));
+        sushiWbtcDaiPool = IDeltaSwapPair(sushiFactory.createPair(address(wbtc), address(dai)));
+        sushiUsdtUsdcPool = IDeltaSwapPair(sushiFactory.createPair(address(usdt), address(usdc)));
+        sushiDaiUsdcPool = IDeltaSwapPair(sushiFactory.createPair(address(dai), address(usdc)));
+        sushiDaiUsdtPool = IDeltaSwapPair(sushiFactory.createPair(address(dai), address(usdt)));
 
         weth.mint(owner, 120);
-        usdt.mint(owner, 350_000);
+        usdc.mint(owner, 350_000);
         weth.mint(owner, 890);
-        usdc.mint(owner, 2_700_000);
+        usdt.mint(owner, 2_700_000);
+        weth.mint(owner, 120);
+        dai.mint(owner, 350_000);
+        weth.mint(owner, 220);
+        wbtc.mint(owner, 11);
+        wbtc.mint(owner, 11);
+        usdc.mint(owner, 660_000);
+        wbtc.mint(owner, 11);
+        usdt.mint(owner, 660_000);
+        wbtc.mint(owner, 11);
+        dai.mint(owner, 660_000);
+        usdc.mint(owner, 660_000);
+        usdt.mint(owner, 660_000);
+        usdc.mint(owner, 660_000);
+        dai.mint(owner, 660_000);
+        usdt.mint(owner, 660_000);
+        dai.mint(owner, 660_000);
 
         vm.startPrank(owner);
 
         weth.approve(address(sushiRouter), type(uint256).max);
         usdc.approve(address(sushiRouter), type(uint256).max);
         usdt.approve(address(sushiRouter), type(uint256).max);
+        wbtc.approve(address(sushiRouter), type(uint256).max);
+        dai.approve(address(sushiRouter), type(uint256).max);
 
-        sushiRouter.addLiquidity(address(usdc), address(weth), 2680657431182, 887209737429288199534, 0, 0, owner, type(uint256).max);
-        sushiRouter.addLiquidity(address(usdt), address(weth), 345648123455, 115594502247137145239, 0, 0, owner, type(uint256).max);
+        sushiRouter.addLiquidity(address(weth), address(usdc), 115594502247137145239, 345648123455, 0, 0, owner, type(uint256).max);
+        sushiRouter.addLiquidity(address(weth), address(usdt), 887209737429288199534, 2680657431182, 0, 0, owner, type(uint256).max);
+        sushiRouter.addLiquidity(address(weth), address(dai), 115594502247137145239, 345648123455000000000000, 0, 0, owner, type(uint256).max);
+        sushiRouter.addLiquidity(address(wbtc), address(weth), 1012393293, 217378372286812000000, 0, 0, owner, type(uint256).max);
+        sushiRouter.addLiquidity(address(wbtc), address(usdc), 1012393293, 658055640487, 0, 0, owner, type(uint256).max);
+        sushiRouter.addLiquidity(address(wbtc), address(usdt), 1013393293, 659055640487, 0, 0, owner, type(uint256).max);
+        sushiRouter.addLiquidity(address(wbtc), address(dai), 1011393293, 657055640487000000000000, 0, 0, owner, type(uint256).max);
+        sushiRouter.addLiquidity(address(usdt), address(usdc), 658055640487, 659055640487, 0, 0, owner, type(uint256).max);
+        sushiRouter.addLiquidity(address(dai), address(usdc), 657055640487000000000000, 658055640487, 0, 0, owner, type(uint256).max);
+        sushiRouter.addLiquidity(address(dai), address(usdt), 657055640487000000000000, 656055640487, 0, 0, owner, type(uint256).max);
+
         vm.stopPrank();
     }
 
@@ -326,14 +392,37 @@ contract UniswapSetup is TokensSetup {
         dsCfmmHash = hex'a82767a5e39a2e216962a2ebff796dcc37cd05dfd6f7a149e1f8fbb6bf487658'; // DeltaSwapPair init_code_hash
         dsCfmmFactory = address(dsFactory);
 
-
         dsWethUsdcPool = IDeltaSwapPair(dsFactory.createPair(address(weth), address(usdc)));
         dsWethUsdtPool = IDeltaSwapPair(dsFactory.createPair(address(weth), address(usdt)));
+        dsWethDaiPool = IDeltaSwapPair(dsFactory.createPair(address(weth), address(dai)));
+        dsWbtcWethPool = IDeltaSwapPair(dsFactory.createPair(address(wbtc), address(weth)));
+        dsWbtcUsdcPool = IDeltaSwapPair(dsFactory.createPair(address(wbtc), address(usdc)));
+        dsWbtcUsdtPool = IDeltaSwapPair(dsFactory.createPair(address(wbtc), address(usdt)));
+        dsWbtcDaiPool = IDeltaSwapPair(dsFactory.createPair(address(wbtc), address(dai)));
+        dsUsdtUsdcPool = IDeltaSwapPair(dsFactory.createPair(address(usdt), address(usdc)));
+        dsDaiUsdcPool = IDeltaSwapPair(dsFactory.createPair(address(dai), address(usdc)));
+        dsDaiUsdtPool = IDeltaSwapPair(dsFactory.createPair(address(dai), address(usdt)));
 
         weth.mint(owner, 120);
-        usdt.mint(owner, 350_000);
+        usdc.mint(owner, 350_000);
         weth.mint(owner, 890);
-        usdc.mint(owner, 2_700_000);
+        usdt.mint(owner, 2_700_000);
+        weth.mint(owner, 120);
+        dai.mint(owner, 350_000);
+        weth.mint(owner, 220);
+        wbtc.mint(owner, 11);
+        wbtc.mint(owner, 11);
+        usdc.mint(owner, 660_000);
+        wbtc.mint(owner, 11);
+        usdt.mint(owner, 660_000);
+        wbtc.mint(owner, 11);
+        dai.mint(owner, 660_000);
+        usdc.mint(owner, 660_000);
+        usdt.mint(owner, 660_000);
+        usdc.mint(owner, 660_000);
+        dai.mint(owner, 660_000);
+        usdt.mint(owner, 660_000);
+        dai.mint(owner, 660_000);
 
         vm.startPrank(owner);
 
@@ -343,9 +432,19 @@ contract UniswapSetup is TokensSetup {
         weth.approve(address(dsRouter), type(uint256).max);
         usdc.approve(address(dsRouter), type(uint256).max);
         usdt.approve(address(dsRouter), type(uint256).max);
+        wbtc.approve(address(dsRouter), type(uint256).max);
+        dai.approve(address(dsRouter), type(uint256).max);
 
-        dsRouter.addLiquidity(address(usdc), address(weth), 2680657431182, 887209737429288199534, 0, 0, owner, type(uint256).max);
-        dsRouter.addLiquidity(address(usdt), address(weth), 345648123455, 115594502247137145239, 0, 0, owner, type(uint256).max);
+        dsRouter.addLiquidity(address(weth), address(usdc), 115594502247137145239, 345648123455, 0, 0, owner, type(uint256).max);
+        dsRouter.addLiquidity(address(weth), address(usdt), 887209737429288199534, 2680657431182, 0, 0, owner, type(uint256).max);
+        dsRouter.addLiquidity(address(weth), address(dai), 115594502247137145239, 345648123455000000000000, 0, 0, owner, type(uint256).max);
+        dsRouter.addLiquidity(address(wbtc), address(weth), 1012393293, 217378372286812000000, 0, 0, owner, type(uint256).max);
+        dsRouter.addLiquidity(address(wbtc), address(usdc), 1012393293, 658055640487, 0, 0, owner, type(uint256).max);
+        dsRouter.addLiquidity(address(wbtc), address(usdt), 1013393293, 659055640487, 0, 0, owner, type(uint256).max);
+        dsRouter.addLiquidity(address(wbtc), address(dai), 1011393293, 657055640487000000000000, 0, 0, owner, type(uint256).max);
+        dsRouter.addLiquidity(address(usdt), address(usdc), 658055640487, 659055640487, 0, 0, owner, type(uint256).max);
+        dsRouter.addLiquidity(address(dai), address(usdc), 657055640487000000000000, 658055640487, 0, 0, owner, type(uint256).max);
+        dsRouter.addLiquidity(address(dai), address(usdt), 657055640487000000000000, 656055640487, 0, 0, owner, type(uint256).max);
 
         vm.stopPrank();
     }
@@ -425,18 +524,35 @@ contract UniswapSetup is TokensSetup {
 
         aeroWethUsdcPool = IAeroPool(aeroFactory.createPool(address(weth), address(usdc), false));
         aeroWethUsdtPool = IAeroPool(aeroFactory.createPool(address(weth), address(usdt), false));
-        aeroUsdcUsdtPool = IAeroPool(aeroFactory.createPool(address(usdc), address(usdt), true));
-        aeroUsdcDaiPool = IAeroPool(aeroFactory.createPool(address(usdc), address(dai), true));
+        aeroWethDaiPool = IAeroPool(aeroFactory.createPool(address(weth), address(dai), false));
+        aeroWbtcWethPool = IAeroPool(aeroFactory.createPool(address(wbtc), address(weth), false));
+        aeroWbtcUsdcPool = IAeroPool(aeroFactory.createPool(address(wbtc), address(usdc), false));
+        aeroWbtcUsdtPool = IAeroPool(aeroFactory.createPool(address(wbtc), address(usdt), false));
+        aeroWbtcDaiPool = IAeroPool(aeroFactory.createPool(address(wbtc), address(dai), false));
+        aeroUsdtUsdcPool = IAeroPool(aeroFactory.createPool(address(usdt), address(usdc), true));
+        aeroDaiUsdcPool = IAeroPool(aeroFactory.createPool(address(dai), address(usdc), true));
+        aeroDaiUsdtPool = IAeroPool(aeroFactory.createPool(address(dai), address(usdt), true));
 
         weth.mint(owner, 120);
         usdt.mint(owner, 350_000);
         weth.mint(owner, 890);
         usdc.mint(owner, 2_700_000);
-
-        usdt.mint(owner, 250_000);
-        usdc.mint(owner, 250_000);
-        usdc.mint(owner, 250_000);
-        dai.mint(owner, 250_000);
+        weth.mint(owner, 120);
+        dai.mint(owner, 350_000);
+        weth.mint(owner, 220);
+        wbtc.mint(owner, 11);
+        wbtc.mint(owner, 11);
+        usdc.mint(owner, 660_000);
+        wbtc.mint(owner, 11);
+        usdt.mint(owner, 660_000);
+        wbtc.mint(owner, 11);
+        dai.mint(owner, 660_000);
+        usdc.mint(owner, 660_000);
+        usdt.mint(owner, 660_000);
+        usdc.mint(owner, 660_000);
+        dai.mint(owner, 660_000);
+        usdt.mint(owner, 660_000);
+        dai.mint(owner, 660_000);
 
         vm.startPrank(owner);
 
@@ -444,7 +560,14 @@ contract UniswapSetup is TokensSetup {
         usdc.approve(address(aeroRouter), type(uint256).max);
         usdt.approve(address(aeroRouter), type(uint256).max);
         dai.approve(address(aeroRouter), type(uint256).max);
+        wbtc.approve(address(aeroRouter), type(uint256).max);
 
+        aeroRouter.addLiquidity(address(weth), address(dai), false, 115594502247137145239, 345648123455000000000000, 0, 0, owner, type(uint256).max);
+        aeroRouter.addLiquidity(address(wbtc), address(weth), false, 1012393293, 217378372286812000000, 0, 0, owner, type(uint256).max);
+        aeroRouter.addLiquidity(address(wbtc), address(usdc), false, 1012393293, 658055640487, 0, 0, owner, type(uint256).max);
+        aeroRouter.addLiquidity(address(wbtc), address(usdt), false, 1013393293, 659055640487, 0, 0, owner, type(uint256).max);
+        aeroRouter.addLiquidity(address(wbtc), address(dai), false, 1011393293, 657055640487000000000000, 0, 0, owner, type(uint256).max);
+        aeroRouter.addLiquidity(address(dai), address(usdt), true, 656055640487000000000000, 656055640487, 0, 0, owner, type(uint256).max);
         aeroRouter.addLiquidity(address(usdc), address(weth), false, 2680657431182, 887209737429288199534, 0, 0, owner, type(uint256).max);
         aeroRouter.addLiquidity(address(usdt), address(weth), false, 345648123455, 115594502247137145239, 0, 0, owner, type(uint256).max);
         aeroRouter.addLiquidity(address(usdt), address(usdc), true, 245648123455, 245648123455, 0, 0, owner, type(uint256).max);

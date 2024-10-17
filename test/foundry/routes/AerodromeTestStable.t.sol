@@ -27,7 +27,7 @@ contract AerodromeTestStable is TestBed {
 
     function testPairFor() public {
         (address pair, address token0, address token1) = route.getPairFor(address(usdc), address(usdt));
-        assertEq(pair, address(aeroUsdcUsdtPool));
+        assertEq(pair, address(aeroUsdtUsdcPool));
         if(address(usdc) < address(usdt)) {
             assertEq(token0, address(usdc));
             assertEq(token1, address(usdt));
@@ -37,7 +37,7 @@ contract AerodromeTestStable is TestBed {
         }
 
         (pair, token0, token1) = route.getPairFor(address(usdt), address(usdc));
-        assertEq(pair, address(aeroUsdcUsdtPool));
+        assertEq(pair, address(aeroUsdtUsdcPool));
         if(address(usdc) < address(usdt)) {
             assertEq(token0, address(usdc));
             assertEq(token1, address(usdt));
@@ -57,12 +57,12 @@ contract AerodromeTestStable is TestBed {
 
     function testGetReserves() public {
         (uint256 reserveA0, uint256 reserveB0, address pair0) = route.getPairReserves(address(dai), address(usdc));
-        assertEq(pair0, address(aeroUsdcDaiPool));
+        assertEq(pair0, address(aeroDaiUsdcPool));
         assertGt(reserveA0, 0);
         assertGt(reserveB0, 0);
         assertNotEq(reserveA0, reserveB0);
         (uint256 reserveA1, uint256 reserveB1, address pair1) = route.getPairReserves(address(usdc), address(dai));
-        assertEq(pair1, address(aeroUsdcDaiPool));
+        assertEq(pair1, address(aeroDaiUsdcPool));
         assertEq(reserveA0, reserveB1);
         assertEq(reserveB0, reserveA1);
     }
@@ -78,19 +78,19 @@ contract AerodromeTestStable is TestBed {
 
     function testGetOrigin() public {
         (address pair, address origin) = route.getOrigin(address(usdt), address(usdc), 0);
-        assertEq(pair, address(aeroUsdcUsdtPool));
-        assertEq(origin, address(aeroUsdcUsdtPool));
+        assertEq(pair, address(aeroUsdtUsdcPool));
+        assertEq(origin, address(aeroUsdtUsdcPool));
 
         (pair, origin) = route.getOrigin(address(usdc), address(usdt), 0);
-        assertEq(pair, address(aeroUsdcUsdtPool));
-        assertEq(origin, address(aeroUsdcUsdtPool));
+        assertEq(pair, address(aeroUsdtUsdcPool));
+        assertEq(origin, address(aeroUsdtUsdcPool));
     }
 
     function testGetAmountOut1() public {
         uint256 amountIn = 1e18;
         (uint256 amountOut, address pair, uint24 swapFee) = route.getAmountOut(amountIn, address(dai), address(usdc), 0);
         assertEq(swapFee, 5);
-        assertEq(pair, address(aeroUsdcDaiPool));
+        assertEq(pair, address(aeroDaiUsdcPool));
         assertGt(amountOut, 0);
 
         vm.startPrank(owner);
@@ -117,7 +117,7 @@ contract AerodromeTestStable is TestBed {
         uint256 amountIn = 1e6;
         (uint256 amountOut, address pair, uint24 swapFee) = route.getAmountOut(amountIn, address(usdc), address(dai), 0);
         assertEq(swapFee, 5);
-        assertEq(pair, address(aeroUsdcDaiPool));
+        assertEq(pair, address(aeroDaiUsdcPool));
         assertGt(amountOut, 0);
 
         vm.startPrank(owner);
@@ -144,7 +144,7 @@ contract AerodromeTestStable is TestBed {
         uint256 amountOut = 1e6;
         (uint256 amountIn, address pair, uint24 swapFee) = route.getAmountIn(amountOut, address(dai), address(usdc), 0);
         assertEq(swapFee, 5);
-        assertEq(pair, address(aeroUsdcDaiPool));
+        assertEq(pair, address(aeroDaiUsdcPool));
         assertGt(amountIn, 0);
 
         vm.startPrank(owner);
@@ -171,7 +171,7 @@ contract AerodromeTestStable is TestBed {
         uint256 amountOut = 1e18;
         (uint256 amountIn, address pair, uint24 swapFee) = route.getAmountIn(amountOut, address(usdc), address(dai), 0);
         assertEq(swapFee, 5);
-        assertEq(pair, address(aeroUsdcDaiPool));
+        assertEq(pair, address(aeroDaiUsdcPool));
         assertGt(amountIn, 0);
 
         vm.startPrank(owner);
