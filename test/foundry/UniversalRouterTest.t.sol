@@ -4,11 +4,20 @@ pragma solidity ^0.8.0;
 import "./fixtures/TestBed.sol";
 import "./utils/Random.sol";
 import "../../contracts/routes/UniswapV2.sol";
+import "../../contracts/routes/SushiswapV2.sol";
+import "../../contracts/routes/DeltaSwap.sol";
+import "../../contracts/routes/Aerodrome.sol";
+import "../../contracts/routes/UniswapV3.sol";
 
 contract UniversalRouterTest is TestBed {
 
     address owner;
     UniswapV2 uniV2Route;
+    SushiswapV2 sushiV2Route;
+    DeltaSwap dsRoute;
+    Aerodrome aeroRoute;
+    Aerodrome aeroStableRoute;
+    UniswapV3 uniV3Route;
     Random random;
     address[] tokens;
 
@@ -27,9 +36,19 @@ contract UniversalRouterTest is TestBed {
         tokens[4] = address(wbtc);
 
         uniV2Route = new UniswapV2(1, address(uniFactory), address(weth));
+        sushiV2Route = new SushiswapV2(2, address(sushiFactory), address(weth));
+        dsRoute = new DeltaSwap(3, address(dsFactory), address(weth));
+        aeroRoute = new Aerodrome(4, address(aeroFactory), false, address(weth));
+        aeroStableRoute = new Aerodrome(5, address(aeroFactory), true, address(weth));
+        uniV3Route = new UniswapV3(6, address(uniFactoryV3), address(weth));
 
         // set up routes
         router.addProtocol(address(uniV2Route));
+        router.addProtocol(address(sushiV2Route));
+        router.addProtocol(address(dsRoute));
+        router.addProtocol(address(aeroRoute));
+        router.addProtocol(address(aeroStableRoute));
+        router.addProtocol(address(uniV3Route));
     }
 
     function createBytes(
