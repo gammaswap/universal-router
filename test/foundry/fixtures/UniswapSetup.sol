@@ -22,9 +22,16 @@ contract UniswapSetup is TokensSetup {
 
     IDeltaSwapFactory public uniFactory;
     IDeltaSwapRouter02 public uniRouter;
-    IDeltaSwapPair public uniPair;
     IDeltaSwapPair public wethUsdcPool;
     IDeltaSwapPair public wethUsdtPool;
+    IDeltaSwapPair public wethDaiPool;
+    IDeltaSwapPair public wethWbtcPool;
+    IDeltaSwapPair public wbtcUsdcPool;
+    IDeltaSwapPair public wbtcUsdtPool;
+    IDeltaSwapPair public wbtcDaiPool;
+    IDeltaSwapPair public usdcUsdtPool;
+    IDeltaSwapPair public usdcDaiPool;
+    IDeltaSwapPair public usdtDaiPool;
 
     bytes32 public cfmmHash;
     address public cfmmFactory;
@@ -33,6 +40,14 @@ contract UniswapSetup is TokensSetup {
     IDeltaSwapRouter02 public sushiRouter;
     IDeltaSwapPair public sushiWethUsdcPool;
     IDeltaSwapPair public sushiWethUsdtPool;
+    IDeltaSwapPair public sushiWethDaiPool;
+    IDeltaSwapPair public sushiWethWbtcPool;
+    IDeltaSwapPair public sushiWbtcUsdcPool;
+    IDeltaSwapPair public sushiWbtcUsdtPool;
+    IDeltaSwapPair public sushiWbtcDaiPool;
+    IDeltaSwapPair public sushiUsdcUsdtPool;
+    IDeltaSwapPair public sushiUsdcDaiPool;
+    IDeltaSwapPair public sushiUsdtDaiPool;
 
     bytes32 public sushiCfmmHash; // DeltaSwapPair init_code_hash
     address public sushiCfmmFactory;
@@ -42,26 +57,52 @@ contract UniswapSetup is TokensSetup {
     IDeltaSwapRouter02 public dsRouter;
     IDeltaSwapPair public dsWethUsdcPool;
     IDeltaSwapPair public dsWethUsdtPool;
+    IDeltaSwapPair public dsWethDaiPool;
+    IDeltaSwapPair public dsWethWbtcPool;
+    IDeltaSwapPair public dsWbtcUsdcPool;
+    IDeltaSwapPair public dsWbtcUsdtPool;
+    IDeltaSwapPair public dsWbtcDaiPool;
+    IDeltaSwapPair public dsUsdcUsdtPool;
+    IDeltaSwapPair public dsUsdcDaiPool;
+    IDeltaSwapPair public dsUsdtDaiPool;
 
     bytes32 public dsCfmmHash; // DeltaSwapPair init_code_hash
     address public dsCfmmFactory;
 
     IUniswapV3Factory public uniFactoryV3;
+    IQuoterV2 public quoter;
     IUniswapV3Pool public wethUsdcPoolV3;
     IUniswapV3Pool public wethUsdtPoolV3;
-    IQuoterV2 public quoter;
+    IUniswapV3Pool public wethDaiPoolV3;
+    IUniswapV3Pool public wethWbtcPoolV3;
+    IUniswapV3Pool public usdcWbtcPoolV3;
+    IUniswapV3Pool public wbtcUsdtPoolV3;
+    IUniswapV3Pool public wbtcDaiPoolV3;
+    IUniswapV3Pool public usdtUsdcPoolV3;
+    IUniswapV3Pool public daiUsdcPoolV3;
+    IUniswapV3Pool public daiUsdtPoolV3;
 
     uint24 public immutable poolFee1 = 10000;    // fee 1%
     uint24 public immutable poolFee2 = 500;    // fee 0.05%
-    uint160 public immutable sqrtPriceX96 = 4339505179874779489431521;  // 1 WETH = 3000 USDC
+    uint160 public immutable wethUsdcSqrtPriceX96 = 4339505179874779489431521;  // 1 WETH = 3000 USDC
+    uint160 public immutable wbtcWethSqrtPriceX96 = 36694310972870000000000000000000000;
+    uint160 public immutable wbtcUsdcSqrtPriceX96 = 2018932870620950000000000000000;
+    uint160 public immutable wbtcDaiSqrtPriceX96 = 2017398273592530000000000000000000000;
+    uint160 public immutable usdtUsdcSqrtPriceX96 = 79288338342225900000000000000;
+    uint160 public immutable daiUsdcSqrtPriceX96 = 79288429891486500000000;
 
     IAeroPoolFactory public aeroFactory;
     IAeroRouter public aeroRouter;
-
     IAeroPool public aeroWethUsdcPool;
     IAeroPool public aeroWethUsdtPool;
+    IAeroPool public aeroWethDaiPool;
+    IAeroPool public aeroWethWbtcPool;
+    IAeroPool public aeroWbtcUsdcPool;
+    IAeroPool public aeroWbtcUsdtPool;
+    IAeroPool public aeroWbtcDaiPool;
     IAeroPool public aeroUsdcUsdtPool;
     IAeroPool public aeroUsdcDaiPool;
+    IAeroPool public aeroUsdtDaiPool;
 
     function initUniswapV3(address owner) public {
         bytes memory factoryBytecode = abi.encodePacked(vm.getCode("./node_modules/@uniswap/v3-core/artifacts/contracts/UniswapV3Factory.sol/UniswapV3Factory.json"));
@@ -93,60 +134,78 @@ contract UniswapSetup is TokensSetup {
             sstore(quoter.slot, create(0, add(quoterBytecode, 0x20), mload(quoterBytecode)))
         }
 
-        // Deploy Weth/Usdc pool
         wethUsdcPoolV3 = IUniswapV3Pool(
-            IPoolInitializer(nftPositionManager).createAndInitializePoolIfNecessary(address(weth), address(usdc), poolFee1, sqrtPriceX96)
+            IPoolInitializer(nftPositionManager).createAndInitializePoolIfNecessary(address(weth), address(usdc), poolFee1, wethUsdcSqrtPriceX96)
         );
-
-        // Deploy Weth/Usdt pool
         wethUsdtPoolV3 = IUniswapV3Pool(
-            IPoolInitializer(nftPositionManager).createAndInitializePoolIfNecessary(address(weth), address(usdt), poolFee1, sqrtPriceX96)
+            IPoolInitializer(nftPositionManager).createAndInitializePoolIfNecessary(address(weth), address(usdt), poolFee1, wethUsdcSqrtPriceX96)
+        );
+        wethDaiPoolV3 = IUniswapV3Pool(
+            IPoolInitializer(nftPositionManager).createAndInitializePoolIfNecessary(address(weth), address(dai), poolFee1, wethUsdcSqrtPriceX96)
+        );
+        wethWbtcPoolV3 = IUniswapV3Pool(
+            IPoolInitializer(nftPositionManager).createAndInitializePoolIfNecessary(address(wbtc), address(weth), poolFee1, wbtcWethSqrtPriceX96)
+        );
+        usdcWbtcPoolV3 = IUniswapV3Pool(
+            IPoolInitializer(nftPositionManager).createAndInitializePoolIfNecessary(address(wbtc), address(usdc), poolFee1, wbtcUsdcSqrtPriceX96)
+        );
+        wbtcUsdtPoolV3 = IUniswapV3Pool(
+            IPoolInitializer(nftPositionManager).createAndInitializePoolIfNecessary(address(wbtc), address(usdt), poolFee1, wbtcUsdcSqrtPriceX96)
+        );
+        wbtcDaiPoolV3 = IUniswapV3Pool(
+            IPoolInitializer(nftPositionManager).createAndInitializePoolIfNecessary(address(wbtc), address(dai), poolFee1, wbtcDaiSqrtPriceX96)
+        );
+        usdtUsdcPoolV3 = IUniswapV3Pool(
+            IPoolInitializer(nftPositionManager).createAndInitializePoolIfNecessary(address(usdt), address(usdc), poolFee1, usdtUsdcSqrtPriceX96)
+        );
+        daiUsdcPoolV3 = IUniswapV3Pool(
+            IPoolInitializer(nftPositionManager).createAndInitializePoolIfNecessary(address(dai), address(usdc), poolFee1, daiUsdcSqrtPriceX96)
+        );
+        daiUsdtPoolV3 = IUniswapV3Pool(
+            IPoolInitializer(nftPositionManager).createAndInitializePoolIfNecessary(address(dai), address(usdt), poolFee1, daiUsdcSqrtPriceX96)
         );
 
         weth.mint(owner, 120);
         usdc.mint(owner, 350_000);
         weth.mint(owner, 890);
         usdt.mint(owner, 2_700_000);
+        weth.mint(owner, 120);
+        dai.mint(owner, 350_000);
+
+        weth.mint(owner, 220);
+        wbtc.mint(owner, 11);
+
+        wbtc.mint(owner, 11);
+        usdc.mint(owner, 660_000);
+        wbtc.mint(owner, 11);
+        usdt.mint(owner, 660_000);
+        wbtc.mint(owner, 11);
+        dai.mint(owner, 660_000);
+        usdc.mint(owner, 660_000);
+        usdt.mint(owner, 660_000);
+        usdc.mint(owner, 660_000);
+        dai.mint(owner, 660_000);
+        usdt.mint(owner, 660_000);
+        dai.mint(owner, 660_000);
 
         vm.startPrank(owner);
 
         weth.approve(nftPositionManager, type(uint256).max);
         usdc.approve(nftPositionManager, type(uint256).max);
         usdt.approve(nftPositionManager, type(uint256).max);
+        wbtc.approve(nftPositionManager, type(uint256).max);
+        dai.approve(nftPositionManager, type(uint256).max);
 
-        // Add liquidity to WETH-USDC pool
-        IPositionManagerMintable.MintParams memory mintParams = IPositionManagerMintable.MintParams({
-            token0: address(weth),
-            token1: address(usdc),
-            fee: poolFee1,
-            tickLower: -887200,
-            tickUpper: 887200,
-            // tickLower: -216200,
-            // tickUpper: -176200,
-            amount0Desired: 115594502247137145239,  // 115.5 WETH
-            amount1Desired: 345648123455,   // 345648 USDC
-            amount0Min: 0,
-            amount1Min: 0,
-            recipient: msg.sender,
-            deadline: type(uint256).max
-        });
-        IPositionManagerMintable(nftPositionManager).mint(mintParams);
-
-        // Add liquidity to WETH-USDT pool
-        mintParams = IPositionManagerMintable.MintParams({
-            token0: address(weth),
-            token1: address(usdt),
-            fee: poolFee1,
-            tickLower: -887200,
-            tickUpper: 887200,
-            amount0Desired: 887209737429288199534,  // 887.2 WETH
-            amount1Desired: 2680657431182,   // 2680657 USDT
-            amount0Min: 0,
-            amount1Min: 0,
-            recipient: msg.sender,
-            deadline: type(uint256).max
-        });
-        IPositionManagerMintable(nftPositionManager).mint(mintParams);
+        addLiquidityV3(nftPositionManager, address(weth), address(usdc), poolFee1, 115594502247137145239, 345648123455);
+        addLiquidityV3(nftPositionManager, address(weth), address(usdt), poolFee1, 887209737429288199534, 2680657431182);
+        addLiquidityV3(nftPositionManager, address(weth), address(dai), poolFee1, 115594502247137145239, 345648123455);
+        addLiquidityV3(nftPositionManager, address(wbtc), address(weth), poolFee1, 1012393293, 217378372286812000000);
+        addLiquidityV3(nftPositionManager, address(wbtc), address(usdc), poolFee1, 1012393293, 658055640487);
+        addLiquidityV3(nftPositionManager, address(wbtc), address(usdt), poolFee1, 1013393293, 659055640487);
+        addLiquidityV3(nftPositionManager, address(wbtc), address(dai), poolFee1, 1011393293, 657055640487000000000000);
+        addLiquidityV3(nftPositionManager, address(usdt), address(usdc), poolFee1, 658055640487, 659055640487);
+        addLiquidityV3(nftPositionManager, address(dai), address(usdc), poolFee1, 657055640487000000000000, 658055640487);
+        addLiquidityV3(nftPositionManager, address(dai), address(usdt), poolFee1, 657055640487000000000000, 656055640487);
 
         vm.stopPrank();
     }
@@ -403,5 +462,24 @@ contract UniswapSetup is TokensSetup {
         assembly {
             addr := create(0, add(bytecode, 0x20), mload(bytecode))
         }
+    }
+
+    function addLiquidityV3(address nftPositionManager, address token0, address token1, uint24 poolFee, uint256 amount0, uint256 amount1) internal {
+        IPositionManagerMintable.MintParams memory mintParams = IPositionManagerMintable.MintParams({
+            token0: token0,
+            token1: token1,
+            fee: poolFee,
+            tickLower: -887200,
+            tickUpper: 887200,
+            // tickLower: -216200,
+            // tickUpper: -176200,
+            amount0Desired: amount0,  // 115.5 WETH
+            amount1Desired: amount1,   // 345648 USDC
+            amount0Min: 0,
+            amount1Min: 0,
+            recipient: msg.sender,
+            deadline: type(uint256).max
+        });
+        IPositionManagerMintable(nftPositionManager).mint(mintParams);
     }
 }

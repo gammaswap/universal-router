@@ -37,6 +37,12 @@ contract Token is ERC20 {
         _decimals = decimals_;
     }
 
+    function setMetaData(string memory name_, string memory symbol_, uint8 decimals_) external {
+        _name = name_;
+        _symbol = symbol_;
+        _decimals = decimals_;
+    }
+
     function mint(address account, uint256 amount) external {
         _mint(account, amount * 10 ** _decimals);
     }
