@@ -90,7 +90,7 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
     /// @dev this supports transfer fees tokens too
     function calcRoutes(bytes memory path, address _to) public override virtual view returns (Route[] memory routes) {
         require(path.length >= 45 && (path.length - 20) % 25 == 0, "INVALID_PATH");
-        routes = new Route[](path.numPools() + 1);
+        routes = new Route[](path.numPools());
         uint256 i = 0;
         while (true) {
             bool hasMultiplePools = path.hasMultiplePools();

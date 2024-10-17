@@ -58,10 +58,10 @@ library Path2 {
         tokenB = path.toAddress(NEXT_OFFSET);
     }
 
-    /// @notice Gets the segment corresponding to the first pool in the path
+    /// @notice Gets the segment corresponding to the last pool in the path
     /// @param path The bytes encoded swap path
-    /// @return The segment containing all data necessary to target the first pool in the path
-    function getFirstPool(bytes memory path) internal pure returns (bytes memory) {
+    /// @return The segment containing all data necessary to target the last pool in the path
+    function getLastPool(bytes memory path) internal pure returns (bytes memory) {
         uint256 _numPools = numPools(path);
         return path.slice(MULTIPLE_POOLS_MIN_LENGTH * (_numPools - 1), POP_OFFSET);
     }
@@ -69,7 +69,7 @@ library Path2 {
     /// @notice Gets the segment corresponding to the first pool in the path
     /// @param path The bytes encoded swap path
     /// @return The segment containing all data necessary to target the first pool in the path
-    function getLastPool(bytes memory path) internal pure returns (bytes memory) {
+    function getFirstPool(bytes memory path) internal pure returns (bytes memory) {
         return path.slice(0, POP_OFFSET);
     }
 

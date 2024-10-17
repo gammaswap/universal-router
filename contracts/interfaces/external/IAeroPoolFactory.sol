@@ -7,5 +7,11 @@ interface IAeroPoolFactory {
     /// @notice Returns fee for a pool, as custom fees are possible.
     function getFee(address _pool, bool _stable) external view returns (uint256);
 
+    /// @notice Return address of pool created by this factory
+    /// @param tokenA .
+    /// @param tokenB .
+    /// @param stable True if stable, false if volatile
+    function getPool(address tokenA, address tokenB, bool stable) external view returns (address);
+
     function createPool(address tokenA, address tokenB, bool stable) external returns (address pool);
 }

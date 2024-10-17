@@ -8,6 +8,7 @@ import "../../contracts/routes/SushiswapV2.sol";
 import "../../contracts/routes/DeltaSwap.sol";
 import "../../contracts/routes/Aerodrome.sol";
 import "../../contracts/routes/UniswapV3.sol";
+import "../../contracts/interfaces/IUniversalRouter.sol";
 
 contract UniversalRouterTest is TestBed {
 
@@ -102,6 +103,49 @@ contract UniversalRouterTest is TestBed {
 
     function testCalcRoutes(uint8 tokenChoices, uint128 seed) public {
         bytes memory path = createPath(tokenChoices, seed);
+        address to = vm.addr(0x123);
+        IUniversalRouter.Route[] memory routes = router.calcRoutes(path, to);
+        for(uint256 i = 0; i < routes.length; i++) {
+            address pair = getPair(routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee);
+            assertTrue(pair != address(0));
+            assertTrue(validateTokens(routes[i].from, routes[i].to, pair));
+            assertEq(routes[i].hop, router.protocols(routes[i].protocolId));
+            assertEq(routes[i].pair, pair);
+            if(routes[i].protocolId == 6) {
+                assertEq(routes[i].origin, router.protocols(routes[i].protocolId));
+            } else {
+                assertEq(routes[i].origin, pair);
+            }
+            if(i == routes.length - 1) {
+                assertEq(routes[i].destination, to);
+            } else {
+                assertEq(routes[i].destination, routes[i + 1].origin);
+                assertEq(routes[i].to, routes[i + 1].from);
+            }
+        }
+    }
+
+    function validateTokens(address from, address to, address pair) internal view returns (bool) {
+        bool isForward = ICPMM(pair).token0() == from || ICPMM(pair).token1() == to;
+        bool isBackward = ICPMM(pair).token1() == from || ICPMM(pair).token0() == to;
+        return (isForward && !isBackward) || (!isForward && isBackward);
+    }
+
+    function getPair(address from, address to, uint16 protocolId, uint24 fee) internal view returns(address) {
+        if(protocolId == 1) {
+            return uniFactory.getPair(from, to);
+        } else if(protocolId == 2) {
+            return sushiFactory.getPair(from, to);
+        } else if(protocolId == 3) {
+            return dsFactory.getPair(from, to);
+        } else if(protocolId == 4) {
+            return aeroFactory.getPool(from, to, false);
+        } else if(protocolId == 5) {
+            return aeroFactory.getPool(from, to, true);
+        } else if(protocolId == 6) {
+            return uniFactoryV3.getPool(from, to, fee);
+        }
+        return address(0);
     }
 
     function createPath(uint8 tokenChoices, uint128 seed) internal view returns(bytes memory) {
@@ -112,11 +156,29 @@ contract UniversalRouterTest is TestBed {
         bytes memory _path = abi.encodePacked(_tokens[0]);
 
         for(uint256 i = 1; i < _tokens.length; i++) {
-            uint16 protocolId = uint16(random.getRandomNumber(PROTOCOL_ROUTES_COUNT + 1, seed + i + 10));
+            uint16 protocolId = uint16(random.getRandomNumber(PROTOCOL_ROUTES_COUNT, seed + i + 10) + 1);
+            if(protocolId == 4) {
+                if(isStable(_tokens[i-1], _tokens[i])) {
+                    protocolId = 5;
+                }
+            } else if(protocolId == 5) {
+                if(!isStable(_tokens[i-1], _tokens[i])) {
+                    protocolId = 4;
+                }
+            }
             uint24 fee = protocolId == 6 ? poolFee1 : 0;
             _path = abi.encodePacked(_path, protocolId, fee, _tokens[i]);
         }
         return _path;
+    }
+
+    function isStable(address token0, address token1) internal view returns(bool) {
+        return (token0 == address(usdc) && token1 == address(usdt))
+            || (token1 == address(usdc) && token0 == address(usdt))
+            || (token0 == address(usdc) && token1 == address(dai))
+            || (token1 == address(usdc) && token0 == address(dai))
+            || (token0 == address(usdt) && token1 == address(dai))
+            || (token1 == address(usdt) && token0 == address(dai));
     }
 
     function getTokens(uint8 tokenChoices, address[] memory _tokens) internal pure returns (address[] memory) {
