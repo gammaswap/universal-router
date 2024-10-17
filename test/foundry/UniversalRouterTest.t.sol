@@ -49,9 +49,9 @@ contract UniversalRouterTest is TestBed {
         vm.expectRevert("INVALID_PROTOCOL_ID");
         router.addProtocol(address(route0));
 
-        UniswapV2 route2 = new UniswapV2(2, address(uniFactory), address(weth));
+        UniswapV2 route2 = new UniswapV2(20, address(uniFactory), address(weth));
 
-        assertEq(router.protocols(2),address(0));
+        assertEq(router.protocols(20),address(0));
 
         assertEq(router.owner(), address(this));
 
@@ -61,9 +61,9 @@ contract UniversalRouterTest is TestBed {
         router.addProtocol(address(route2));
 
         router.addProtocol(address(route2));
-        assertEq(router.protocols(2),address(route2));
+        assertEq(router.protocols(20),address(route2));
 
-        UniswapV2 route2a = new UniswapV2(2, address(uniFactory), address(weth));
+        UniswapV2 route2a = new UniswapV2(20, address(uniFactory), address(weth));
         vm.expectRevert("PROTOCOL_ID_USED");
         router.addProtocol(address(route2a));
 
@@ -75,10 +75,10 @@ contract UniversalRouterTest is TestBed {
         router.removeProtocol(0);
 
         vm.expectRevert("PROTOCOL_ID_UNUSED");
-        router.removeProtocol(3);
+        router.removeProtocol(30);
 
-        router.removeProtocol(2);
-        assertEq(router.protocols(2),address(0));
+        router.removeProtocol(20);
+        assertEq(router.protocols(20),address(0));
     }
 
     function testCalcRoutes(uint8 tokenChoices, uint128 seed) public {
