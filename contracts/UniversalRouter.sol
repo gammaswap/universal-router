@@ -175,8 +175,8 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
         require(path.length >= 45 && (path.length - 20) % 25 == 0, "INVALID_PATH");
         routes = new Route[](path.numPools());
         amounts = new uint256[](path.numPools() + 1);
-        uint256 i = amounts.length - 1;
-        amounts[i] = amountOut;
+        uint256 i = routes.length - 1;
+        amounts[i + 1] = amountOut;
         while (true) {
             bool hasMultiplePools = path.hasMultiplePools();
 
@@ -197,7 +197,7 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
             routes[i].hop = protocols[routes[i].protocolId];
             require(routes[i].hop != address(0), "ROUTE_NOT_SET");
 
-            (amounts[i - 1], routes[i].pair, routes[i].fee) = IProtocolRoute(routes[i].hop).getAmountIn(amounts[i],
+            (amounts[i], routes[i].pair, routes[i].fee) = IProtocolRoute(routes[i].hop).getAmountIn(amounts[i + 1],
                 routes[i].from, routes[i].to, routes[i].fee);
 
             // decide whether to continue or terminate
