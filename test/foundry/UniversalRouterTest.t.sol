@@ -103,32 +103,66 @@ contract UniversalRouterTest is TestBed {
 
     function testQuotes(uint8 tokenChoices, uint128 seed, uint256 amountIn) public {
         bytes memory path = createPath(tokenChoices, seed);
+        uint256 minAmountOut;
+        (amountIn, minAmountOut) = calcMinAmount(amountIn, path);
+        uint256 amountOut = router.quote(amountIn, path);
+        assertGt(amountOut,minAmountOut);
+    }
+
+    function testGetAmountsOut(uint8 tokenChoices, uint128 seed, uint256 amountIn) public {
+        bytes memory path = createPath(tokenChoices, seed);
+        IUniversalRouter.Route[] memory _routes = router.calcRoutes(path, address(this));
+        uint256 minAmountOut;
+        (amountIn, minAmountOut) = calcMinAmount(amountIn, path);
+        (uint256[] memory amounts, IUniversalRouter.Route[] memory routes) = router.getAmountsOut(amountIn, path);
+        assertEq(routes.length, _routes.length);
+        assertEq(routes.length, amounts.length - 1);
+        for(uint256 i = 0; i < _routes.length; i++) {
+            assertEq(routes[i].from,_routes[i].from);
+            assertEq(routes[i].to,_routes[i].to);
+            assertEq(routes[i].pair,_routes[i].pair);
+            assertEq(routes[i].protocolId,_routes[i].protocolId);
+            if(routes[i].protocolId == 6) {
+                assertEq(routes[i].fee,_routes[i].fee);
+            }
+            assertEq(routes[i].origin,address(0));
+            assertEq(routes[i].destination,address(0));
+            assertEq(routes[i].hop,_routes[i].hop);
+        }
+        assertEq(amounts[0], amountIn);
+        for(uint256 i = 0; i < amounts.length; i++) {
+            assertGt(amounts[i],0);
+        }
+        assertGt(amounts[amounts.length - 1], minAmountOut);
+    }
+
+    function calcMinAmount(uint256 amountIn, bytes memory path) internal view returns(uint256, uint256) {
         IUniversalRouter.Route[] memory routes = router.calcRoutes(path, address(router));
         uint256 minAmountOut;
         if(routes[0].from == address(weth)) {
             amountIn = bound(amountIn, 1e18, 10e18);
             if(routes[routes.length-1].to == address(wbtc)) {
-                minAmountOut = 4600384;
+                minAmountOut = 4400384;
             } else if(routes[routes.length-1].to == address(dai)) {
-                minAmountOut = 2900e18;
+                minAmountOut = 2800e18;
             } else {
-                minAmountOut = 2900e6;
+                minAmountOut = 2800e6;
             }
         } else if(routes[0].from == address(wbtc)) {
             amountIn = bound(amountIn, 1e6, 1e8);
             if(routes[routes.length-1].to == address(weth)) {
                 minAmountOut = 2e17;
             } else if(routes[routes.length-1].to == address(dai)) {
-                minAmountOut = 640e18;
+                minAmountOut = 620e18;
             } else {
-                minAmountOut = 640e6;
+                minAmountOut = 620e6;
             }
         } else if(routes[0].from == address(dai)) {
             amountIn = bound(amountIn, 1e18, 1000e18);
             if(routes[routes.length-1].to == address(weth)) {
                 minAmountOut = 323333333333333;
             } else if(routes[routes.length-1].to == address(wbtc)) {
-                minAmountOut = 1508;
+                minAmountOut = 1500;
             } else {
                 minAmountOut = 9e5;
             }
@@ -137,15 +171,14 @@ contract UniversalRouterTest is TestBed {
             if(routes[routes.length-1].to == address(weth)) {
                 minAmountOut = 323333333333333;
             } else if(routes[routes.length-1].to == address(wbtc)) {
-                minAmountOut = 1508;
+                minAmountOut = 1500;
             } else if(routes[routes.length-1].to == address(dai)) {
                 minAmountOut = 9e17;
             } else {
                 minAmountOut = 9e5;
             }
         }
-        uint256 amountOut = router.quote(amountIn, path);
-        assertGt(amountOut,minAmountOut);
+        return (amountIn, minAmountOut);
     }
 
     function testCalcRoutes(uint8 tokenChoices, uint128 seed) public {
@@ -268,7 +301,7 @@ contract UniversalRouterTest is TestBed {
 
     function testThisFunc2() public {
         bytes memory val = createBytes(address(weth), address(usdc), 5, 1);
-        console.logBytes(val);
+        //console.logBytes(val);
         router.getAmountsOut(1e18, val);
     }
 

@@ -132,7 +132,7 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
 
     function getAmountsOut(uint256 amountIn, bytes memory path) public override virtual returns (uint256[] memory amounts, Route[] memory routes) {
         require(path.length >= 45 && (path.length - 20) % 25 == 0, "INVALID_PATH");
-        routes = new Route[](path.numPools() + 1);
+        routes = new Route[](path.numPools());
         amounts = new uint256[](path.numPools() + 1);
         amounts[0] = amountIn;
         uint256 i = 0;
@@ -173,7 +173,7 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
 
     function getAmountsIn(uint256 amountOut, bytes memory path) public override virtual returns (uint256[] memory amounts, Route[] memory routes) {
         require(path.length >= 45 && (path.length - 20) % 25 == 0, "INVALID_PATH");
-        routes = new Route[](path.numPools() + 1);
+        routes = new Route[](path.numPools());
         amounts = new uint256[](path.numPools() + 1);
         uint256 i = amounts.length - 1;
         amounts[i] = amountOut;
