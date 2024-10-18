@@ -163,7 +163,7 @@ contract UniversalRouterTest is TestBed {
         assertGt(amounts[0], minAmountIn);
     }
 
-    function testSwapExactTokensForTokens(uint8 tokenChoices, uint128 seed, uint256 amountIn) public {
+    function testSwapExactTokensForTokens1(uint8 tokenChoices, uint128 seed, uint256 amountIn) public {
         bytes memory path = createPath(tokenChoices, seed);
         IUniversalRouter.Route[] memory _routes = router.calcRoutes(path, address(this));
         (amountIn,) = calcMinAmount(amountIn, path, true);
@@ -194,6 +194,40 @@ contract UniversalRouterTest is TestBed {
 
         assertEq(amountIn, balanceFrom0 - balanceFrom1);
         assertEq(minAmountOut, balanceTo1 - balanceTo0);
+        vm.stopPrank();
+    }
+
+    function testSwapExactTokensForTokens2(uint8 tokenChoices, uint128 seed, uint256 amountOut) public {
+        bytes memory path = createPath(tokenChoices, seed);
+        IUniversalRouter.Route[] memory _routes = router.calcRoutes(path, address(this));
+        (amountOut,) = calcMinAmount(amountOut, path, false);
+        (uint256[] memory amounts, IUniversalRouter.Route[] memory routes) = router.getAmountsIn(amountOut, path);
+
+        uint256 amountIn = amounts[0];
+        address _to = vm.addr(0x123);
+
+        uint256 balanceTo0 = IERC20(_routes[_routes.length - 1].to).balanceOf(_to);
+        uint256 balanceFrom0 = IERC20(_routes[0].from).balanceOf(owner);
+
+        vm.startPrank(owner);
+        IERC20(_routes[0].from).approve(address(router), type(uint256).max);
+
+        vm.expectRevert("UniversalRouter: EXPIRED");
+        router.swapExactTokensForTokens(amountIn, amountOut, path, _to, block.timestamp - 1);
+
+        vm.expectRevert("UniversalRouter: ZERO_AMOUNT_IN");
+        router.swapExactTokensForTokens(0, amountOut, path, _to, block.timestamp);
+
+        vm.expectRevert("UniversalRouter: INSUFFICIENT_OUTPUT_AMOUNT");
+        router.swapExactTokensForTokens(amountIn, amountOut * 101 / 100, path, _to, block.timestamp);
+
+        router.swapExactTokensForTokens(amountIn, amountOut, path, _to, block.timestamp);
+
+        uint256 balanceTo1 = IERC20(_routes[_routes.length - 1].to).balanceOf(_to);
+        uint256 balanceFrom1 = IERC20(_routes[0].from).balanceOf(owner);
+
+        assertEq(amountIn, balanceFrom0 - balanceFrom1);
+        assertApproxEqRel(amountOut, balanceTo1 - balanceTo0, 1e16);
         vm.stopPrank();
     }
 
