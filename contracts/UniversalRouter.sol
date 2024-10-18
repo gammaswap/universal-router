@@ -22,17 +22,17 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
     }
 
     function addProtocol(address protocol) external virtual override onlyOwner {
-        require(protocol != address(0), "ZERO_ADDRESS");
+        require(protocol != address(0), "UniversalRouter: ZERO_ADDRESS");
         uint16 protocolId = IProtocolRoute(protocol).protocolId();
-        require(protocolId > 0, "INVALID_PROTOCOL_ID");
-        require(protocols[protocolId] == address(0), "PROTOCOL_ID_USED");
+        require(protocolId > 0, "UniversalRouter: INVALID_PROTOCOL_ID");
+        require(protocols[protocolId] == address(0), "UniversalRouter: PROTOCOL_ID_USED");
         protocols[protocolId] = protocol;
         emit ProtocolRegistered(protocolId, protocol);
     }
 
     function removeProtocol(uint16 protocolId) external virtual override onlyOwner {
-        require(protocolId > 0, "INVALID_PROTOCOL_ID");
-        require(protocols[protocolId] != address(0), "PROTOCOL_ID_UNUSED");
+        require(protocolId > 0, "UniversalRouter: INVALID_PROTOCOL_ID");
+        require(protocols[protocolId] != address(0), "UniversalRouter: PROTOCOL_ID_UNUSED");
         address protocol = protocols[protocolId];
         protocols[protocolId] = address(0);
         emit ProtocolUnregistered(protocolId, protocol);
@@ -40,7 +40,7 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
 
     // **** SWAP (supports fee-on-transfer tokens) ****
     function _swap(uint256 amountIn, uint256 amountOutMin, Route[] memory routes) internal virtual {
-        require(amountIn > 0, "ZERO_AMOUNT_IN");
+        require(amountIn > 0, "UniversalRouter: ZERO_AMOUNT_IN");
         GammaSwapLibrary.safeTransferFrom(routes[0].from, msg.sender, routes[0].origin, amountIn);
         uint256 lastRoute = routes.length - 1;
         address to = routes[lastRoute].destination;
@@ -57,7 +57,7 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
     function swapExactETHForTokens(uint256 amountOutMin, bytes calldata path, address to, uint256 deadline)
         public override virtual payable ensure(deadline) {
         Route[] memory routes = calcRoutes(path, to);
-        require(routes[0].from == WETH, "AMOUNT_IN_NOT_ETH");
+        require(routes[0].from == WETH, "UniversalRouter: AMOUNT_IN_NOT_ETH");
         uint256 amountIn = msg.value;
         IWETH(WETH).deposit{value: amountIn}();
         _swap(amountIn, amountOutMin, routes);
@@ -67,7 +67,7 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
     function swapExactTokensForETH(uint256 amountIn, uint256 amountOutMin, bytes calldata path, address to, uint256 deadline)
         public override virtual ensure(deadline) {
         Route[] memory routes = calcRoutes(path, address(this));
-        require(routes[routes.length - 1].to == WETH, "AMOUNT_OUT_NOT_ETH");
+        require(routes[routes.length - 1].to == WETH, "UniversalRouter: AMOUNT_OUT_NOT_ETH");
         _swap(amountIn, amountOutMin, routes);
         unwrapWETH(0, to);
     }
@@ -89,7 +89,7 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
 
     /// @dev this supports transfer fees tokens too
     function calcRoutes(bytes memory path, address _to) public override virtual view returns (Route[] memory routes) {
-        require(path.length >= 45 && (path.length - 20) % 25 == 0, "INVALID_PATH");
+        require(path.length >= 45 && (path.length - 20) % 25 == 0, "UniversalRouter: INVALID_PATH");
         routes = new Route[](path.numPools());
         uint256 i = 0;
         while (true) {
@@ -110,7 +110,7 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
             (routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee) = path.getFirstPool().decodeFirstPool();
 
             routes[i].hop = protocols[routes[i].protocolId];
-            require(routes[i].hop != address(0), "PROTOCOL_NOT_SET");
+            require(routes[i].hop != address(0), "UniversalRouter: PROTOCOL_NOT_SET");
 
             (routes[i].pair, routes[i].origin) = IProtocolRoute(routes[i].hop).getOrigin(routes[i].from,
                 routes[i].to, routes[i].fee);
@@ -131,7 +131,7 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
     }
 
     function getAmountsOut(uint256 amountIn, bytes memory path) public override virtual returns (uint256[] memory amounts, Route[] memory routes) {
-        require(path.length >= 45 && (path.length - 20) % 25 == 0, "INVALID_PATH");
+        require(path.length >= 45 && (path.length - 20) % 25 == 0, "UniversalRouter: INVALID_PATH");
         routes = new Route[](path.numPools());
         amounts = new uint256[](path.numPools() + 1);
         amounts[0] = amountIn;
@@ -154,7 +154,7 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
             (routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee) = path.getFirstPool().decodeFirstPool();
 
             routes[i].hop = protocols[routes[i].protocolId];
-            require(routes[i].hop != address(0), "PROTOCOL_NOT_SET");
+            require(routes[i].hop != address(0), "UniversalRouter: PROTOCOL_NOT_SET");
 
             (amounts[i + 1], routes[i].pair, routes[i].fee) = IProtocolRoute(routes[i].hop).getAmountOut(amounts[i],
                 routes[i].from, routes[i].to, routes[i].fee);
@@ -172,7 +172,7 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
     }
 
     function getAmountsIn(uint256 amountOut, bytes memory path) public override virtual returns (uint256[] memory amounts, Route[] memory routes) {
-        require(path.length >= 45 && (path.length - 20) % 25 == 0, "INVALID_PATH");
+        require(path.length >= 45 && (path.length - 20) % 25 == 0, "UniversalRouter: INVALID_PATH");
         routes = new Route[](path.numPools());
         amounts = new uint256[](path.numPools() + 1);
         uint256 i = routes.length - 1;
@@ -195,7 +195,7 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
             (routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee) = path.getLastPool().decodeFirstPool();
 
             routes[i].hop = protocols[routes[i].protocolId];
-            require(routes[i].hop != address(0), "ROUTE_NOT_SET");
+            require(routes[i].hop != address(0), "UniversalRouter: ROUTE_NOT_SET");
 
             (amounts[i], routes[i].pair, routes[i].fee) = IProtocolRoute(routes[i].hop).getAmountIn(amounts[i + 1],
                 routes[i].from, routes[i].to, routes[i].fee);

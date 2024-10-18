@@ -62,11 +62,11 @@ contract UniversalRouterTest is TestBed {
     }
 
     function testAddRemoveProtocol() public {
-        vm.expectRevert("ZERO_ADDRESS");
+        vm.expectRevert("UniversalRouter: ZERO_ADDRESS");
         router.addProtocol(address(0));
 
         UniswapV2 route0 = new UniswapV2(0, address(uniFactory), address(weth));
-        vm.expectRevert("INVALID_PROTOCOL_ID");
+        vm.expectRevert("UniversalRouter: INVALID_PROTOCOL_ID");
         router.addProtocol(address(route0));
 
         UniswapV2 route2 = new UniswapV2(20, address(uniFactory), address(weth));
@@ -84,17 +84,17 @@ contract UniversalRouterTest is TestBed {
         assertEq(router.protocols(20),address(route2));
 
         UniswapV2 route2a = new UniswapV2(20, address(uniFactory), address(weth));
-        vm.expectRevert("PROTOCOL_ID_USED");
+        vm.expectRevert("UniversalRouter: PROTOCOL_ID_USED");
         router.addProtocol(address(route2a));
 
         vm.prank(userX);
         vm.expectRevert("Ownable: caller is not the owner");
         router.removeProtocol(0);
 
-        vm.expectRevert("INVALID_PROTOCOL_ID");
+        vm.expectRevert("UniversalRouter: INVALID_PROTOCOL_ID");
         router.removeProtocol(0);
 
-        vm.expectRevert("PROTOCOL_ID_UNUSED");
+        vm.expectRevert("UniversalRouter: PROTOCOL_ID_UNUSED");
         router.removeProtocol(30);
 
         router.removeProtocol(20);
@@ -161,6 +161,40 @@ contract UniversalRouterTest is TestBed {
             assertGt(amounts[i],0);
         }
         assertGt(amounts[0], minAmountIn);
+    }
+
+    function testSwapExactTokensForTokens(uint8 tokenChoices, uint128 seed, uint256 amountIn) public {
+        bytes memory path = createPath(tokenChoices, seed);
+        IUniversalRouter.Route[] memory _routes = router.calcRoutes(path, address(this));
+        (amountIn,) = calcMinAmount(amountIn, path, true);
+        (uint256[] memory amounts, IUniversalRouter.Route[] memory routes) = router.getAmountsOut(amountIn, path);
+
+        uint256 minAmountOut = amounts[amounts.length - 1];
+        address _to = vm.addr(0x123);
+
+        uint256 balanceTo0 = IERC20(_routes[_routes.length - 1].to).balanceOf(_to);
+        uint256 balanceFrom0 = IERC20(_routes[0].from).balanceOf(owner);
+
+        vm.startPrank(owner);
+        IERC20(_routes[0].from).approve(address(router), type(uint256).max);
+
+        vm.expectRevert("UniversalRouter: EXPIRED");
+        router.swapExactTokensForTokens(amountIn, minAmountOut, path, _to, block.timestamp - 1);
+
+        vm.expectRevert("UniversalRouter: ZERO_AMOUNT_IN");
+        router.swapExactTokensForTokens(0, minAmountOut, path, _to, block.timestamp);
+
+        vm.expectRevert("UniversalRouter: INSUFFICIENT_OUTPUT_AMOUNT");
+        router.swapExactTokensForTokens(amountIn, minAmountOut + 1, path, _to, block.timestamp);
+
+        router.swapExactTokensForTokens(amountIn, minAmountOut, path, _to, block.timestamp);
+
+        uint256 balanceTo1 = IERC20(_routes[_routes.length - 1].to).balanceOf(_to);
+        uint256 balanceFrom1 = IERC20(_routes[0].from).balanceOf(owner);
+
+        assertEq(amountIn, balanceFrom0 - balanceFrom1);
+        assertEq(minAmountOut, balanceTo1 - balanceTo0);
+        vm.stopPrank();
     }
 
     function calcMinAmount(uint256 amount, bytes memory path, bool isAmountIn) internal view returns(uint256, uint256) {
