@@ -12,6 +12,9 @@ import "../../contracts/interfaces/IUniversalRouter.sol";
 
 contract UniversalRouterTest is TestBed {
 
+    using Path2 for bytes;
+    using BytesLib2 for bytes;
+
     address owner;
     UniswapV2 uniV2Route;
     SushiswapV2 sushiV2Route;
@@ -229,6 +232,53 @@ contract UniversalRouterTest is TestBed {
         assertEq(amountIn, balanceFrom0 - balanceFrom1);
         assertApproxEqRel(amountOut, balanceTo1 - balanceTo0, 1e16);
         vm.stopPrank();
+    }
+
+    function testSwapExactETHForTokens(uint8 tokenChoices, uint128 seed, uint256 amountIn) public {
+        bytes memory path = createPath(tokenChoices, seed);
+        IUniversalRouter.Route[] memory _routes = router.calcRoutes(path, address(this));
+
+        if(_routes[0].from != address(weth)) {
+            vm.expectRevert("UniversalRouter: AMOUNT_IN_NOT_ETH");
+            router.swapExactETHForTokens(0, path, owner, block.timestamp);
+
+            if(_routes[0].to == address(weth)) {
+                if(path.hasMultiplePools()) {
+                    path = path.skipToken();
+                } else {
+                    path = abi.encodePacked(_routes[0].to, uint16(1), uint24(0), _routes[0].from);
+                }
+            } else {
+                path = abi.encodePacked(address(weth), uint16(1), uint24(0), path);
+            }
+        }
+
+        _routes = router.calcRoutes(path, address(this));
+        (amountIn,) = calcMinAmount(amountIn, path, true);
+        (uint256[] memory amounts, IUniversalRouter.Route[] memory routes) = router.getAmountsOut(amountIn, path);
+
+        uint256 minAmountOut = amounts[amounts.length - 1];
+        address _to = vm.addr(0x123);
+
+        vm.expectRevert("UniversalRouter: EXPIRED");
+        router.swapExactETHForTokens(minAmountOut, path, _to, block.timestamp - 1);
+
+        vm.expectRevert("UniversalRouter: ZERO_AMOUNT_IN");
+        router.swapExactETHForTokens(minAmountOut, path, _to, block.timestamp);
+
+        vm.expectRevert("UniversalRouter: INSUFFICIENT_OUTPUT_AMOUNT");
+        router.swapExactETHForTokens{value: amountIn}(minAmountOut + 1, path, _to, block.timestamp);
+
+        uint256 balanceTo0 = IERC20(_routes[_routes.length - 1].to).balanceOf(_to);
+        uint256 balanceFrom0 = address(this).balance;
+
+        router.swapExactETHForTokens{value: amountIn}(minAmountOut, path, _to, block.timestamp);
+
+        uint256 balanceTo1 = IERC20(_routes[_routes.length - 1].to).balanceOf(_to);
+        uint256 balanceFrom1 = address(this).balance;
+
+        assertEq(amountIn, balanceFrom0 - balanceFrom1);
+        assertEq(minAmountOut, balanceTo1 - balanceTo0);
     }
 
     function calcMinAmount(uint256 amount, bytes memory path, bool isAmountIn) internal view returns(uint256, uint256) {

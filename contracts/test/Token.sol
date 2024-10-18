@@ -5,6 +5,10 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 /// @dev Test purpose only!
 contract Token is ERC20 {
+
+    event  Deposit(address indexed dst, uint wad);
+    event  Withdrawal(address indexed src, uint wad);
+
     string private _name;
     string private _symbol;
     uint8 private _decimals;
@@ -45,5 +49,17 @@ contract Token is ERC20 {
 
     function mint(address account, uint256 amount) external {
         _mint(account, amount * 10 ** _decimals);
+    }
+
+    function deposit() public payable {
+        _mint(msg.sender, msg.value);
+        emit Deposit(msg.sender, msg.value);
+    }
+
+    function withdraw(uint256 wad) public {
+        require(balanceOf(msg.sender) >= wad);
+        _burn(msg.sender, wad);
+        payable(msg.sender).transfer(wad);
+        emit Withdrawal(msg.sender, wad);
     }
 }

@@ -39,9 +39,9 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
     }
 
     // **** SWAP (supports fee-on-transfer tokens) ****
-    function _swap(uint256 amountIn, uint256 amountOutMin, Route[] memory routes) internal virtual {
+    function _swap(uint256 amountIn, uint256 amountOutMin, Route[] memory routes, address sender) internal virtual {
         require(amountIn > 0, "UniversalRouter: ZERO_AMOUNT_IN");
-        GammaSwapLibrary.safeTransferFrom(routes[0].from, msg.sender, routes[0].origin, amountIn);
+        send(routes[0].from, sender, routes[0].origin, amountIn);
         uint256 lastRoute = routes.length - 1;
         address to = routes[lastRoute].destination;
         uint256 balanceBefore = IERC20(routes[lastRoute].to).balanceOf(to);
@@ -58,9 +58,7 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
         public override virtual payable ensure(deadline) {
         Route[] memory routes = calcRoutes(path, to);
         require(routes[0].from == WETH, "UniversalRouter: AMOUNT_IN_NOT_ETH");
-        uint256 amountIn = msg.value;
-        IWETH(WETH).deposit{value: amountIn}();
-        _swap(amountIn, amountOutMin, routes);
+        _swap(msg.value, amountOutMin, routes, address(this));
     }
 
     /// @dev this is the main function we'll use to swap
@@ -68,7 +66,7 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
         public override virtual ensure(deadline) {
         Route[] memory routes = calcRoutes(path, address(this));
         require(routes[routes.length - 1].to == WETH, "UniversalRouter: AMOUNT_OUT_NOT_ETH");
-        _swap(amountIn, amountOutMin, routes);
+        _swap(amountIn, amountOutMin, routes, msg.sender);
         unwrapWETH(0, to);
     }
 
@@ -76,7 +74,7 @@ contract UniversalRouter is IUniversalRouter, BaseRouter, Ownable2Step {
     function swapExactTokensForTokens(uint256 amountIn, uint256 amountOutMin, bytes calldata path, address to, uint256 deadline)
         public override virtual ensure(deadline) {
         Route[] memory routes = calcRoutes(path, to);
-        _swap(amountIn, amountOutMin, routes);
+        _swap(amountIn, amountOutMin, routes, msg.sender);
     }
 
     function quote(uint256 amountIn, bytes calldata path) public override virtual view returns(uint256 amountOut) {
