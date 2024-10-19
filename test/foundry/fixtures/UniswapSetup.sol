@@ -11,10 +11,13 @@ import "@gammaswap/v1-deltaswap/contracts/interfaces/IDeltaSwapPair.sol";
 import "@gammaswap/v1-deltaswap/contracts/interfaces/IDeltaSwapRouter02.sol";
 import "@gammaswap/v1-core/contracts/GammaPoolFactory.sol";
 
+import "../../../contracts/interfaces/external/IAeroCLPoolFactory.sol";
 import "../../../contracts/interfaces/external/IAeroPoolFactory.sol";
 import "../../../contracts/interfaces/external/IAeroPool.sol";
+import "../../../contracts/test/IAeroCLPositionManager.sol";
 import "../../../contracts/test/IAeroRouter.sol";
 import "../../../contracts/test/IAeroToken.sol";
+import "../../../contracts/test/ICLGaugeFactory.sol";
 import "../../../contracts/test/IPositionManagerMintable.sol";
 import "./TokensSetup.sol";
 
@@ -104,6 +107,10 @@ contract UniswapSetup is TokensSetup {
     IAeroPool public aeroUsdtUsdcPool;
     IAeroPool public aeroDaiUsdcPool;
     IAeroPool public aeroDaiUsdtPool;
+    address public aeroVoter;
+
+    address public aeroCLFactory;
+    address public aeroCLQuoter;
 
     function initUniswapV3(address owner) public {
         bytes memory factoryBytecode = abi.encodePacked(vm.getCode("./node_modules/@uniswap/v3-core/artifacts/contracts/UniswapV3Factory.sol/UniswapV3Factory.json"));
@@ -112,23 +119,10 @@ contract UniswapSetup is TokensSetup {
         }
         // uniFactoryV3.enableFeeAmount(100, 1);
 
-        bytes memory tickLensBytecode = abi.encodePacked(vm.getCode("./node_modules/@uniswap/v3-periphery/artifacts/contracts/lens/TickLens.sol/TickLens.json"));
-        address tickLens;
-        assembly {
-            tickLens := create(0, add(tickLensBytecode, 0x20), mload(tickLensBytecode))
-        }
-
-        bytes memory nftDescriptorLibBytecode = abi.encodePacked(vm.getCode("./node_modules/@uniswap/v3-periphery/artifacts/contracts/libraries/NFTDescriptor.sol/NFTDescriptor.json"));
-        address nftDescriptorLib;
-        assembly {
-            nftDescriptorLib := create(0, add(nftDescriptorLibBytecode, 0x20), mload(nftDescriptorLibBytecode))
-        }
-
-        bytes memory nftPositionManagerBytecode = abi.encodePacked(vm.getCode("./node_modules/@uniswap/v3-periphery/artifacts/contracts/NonfungiblePositionManager.sol/NonfungiblePositionManager.json"), abi.encode(address(uniFactoryV3), address(weth), address(0)));
-        address nftPositionManager;
-        assembly {
-            nftPositionManager := create(0, add(nftPositionManagerBytecode, 0x20), mload(nftPositionManagerBytecode))
-        }
+        address tickLens = createContractFromBytecode("./node_modules/@uniswap/v3-periphery/artifacts/contracts/lens/TickLens.sol/TickLens.json");
+        address nftDescriptorLib = createContractFromBytecode("./node_modules/@uniswap/v3-periphery/artifacts/contracts/libraries/NFTDescriptor.sol/NFTDescriptor.json");
+        address nftPositionManager = createContractFromBytecodeWithArgs("./node_modules/@uniswap/v3-periphery/artifacts/contracts/NonfungiblePositionManager.sol/NonfungiblePositionManager.json",
+            abi.encode(address(uniFactoryV3), address(weth), address(0)));
 
         bytes memory quoterBytecode = abi.encodePacked(vm.getCode("./node_modules/@uniswap/swap-router-contracts/artifacts/contracts/lens/QuoterV2.sol/QuoterV2.json"), abi.encode(address(uniFactoryV3), address(weth)));
         assembly {
@@ -451,74 +445,27 @@ contract UniswapSetup is TokensSetup {
     }
 
     function initAerodrome(address owner) public {
-        // Let's do the same thing with `getCode`
         {
             address poolAddress = createContractFromBytecode("./test/foundry/bytecodes/aerodrome/Pool.json");
-            {
-                address factoryAddress;
-                bytes memory factoryBytecode = abi.encodePacked(vm.getCode("./test/foundry/bytecodes/aerodrome/PoolFactory.json"), abi.encode(poolAddress));
-                assembly {
-                    factoryAddress := create(0, add(factoryBytecode, 0x20), mload(factoryBytecode))
-                }
-                aeroFactory = IAeroPoolFactory(factoryAddress);
-            }
+            aeroFactory = IAeroPoolFactory(createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome/PoolFactory.json",
+                abi.encode(poolAddress)));
             address managedRewardsFactoryAddress = createContractFromBytecode("./test/foundry/bytecodes/aerodrome/ManagedRewardsFactory.json");
             address gaugeFactoryAddress = createContractFromBytecode("./test/foundry/bytecodes/aerodrome/GaugeFactory.json");
             address votingRewardsFactoryAddress = createContractFromBytecode("./test/foundry/bytecodes/aerodrome/VotingRewardsFactory.json");
             address forwarderAddress = createContractFromBytecode("./test/foundry/bytecodes/aerodrome/Forwarder.json");
-            address factoryRegistryAddress;
-            {
-                bytes memory factoryRegistryBytecode = abi.encodePacked(vm.getCode("./test/foundry/bytecodes/aerodrome/FactoryRegistry.json"),
-                    abi.encode(address(aeroFactory),votingRewardsFactoryAddress,gaugeFactoryAddress,managedRewardsFactoryAddress));
-                assembly {
-                    factoryRegistryAddress := create(0, add(factoryRegistryBytecode, 0x20), mload(factoryRegistryBytecode))
-                }
-            }
+            address factoryRegistryAddress = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome/FactoryRegistry.json",
+                abi.encode(address(aeroFactory),votingRewardsFactoryAddress,gaugeFactoryAddress,managedRewardsFactoryAddress));
             address aeroAddress = createContractFromBytecode("./test/foundry/bytecodes/aerodrome/Aero.json");
-            address votingEscrowAddress;
-            {
-                bytes memory votingEscrowBytecode = abi.encodePacked(vm.getCode("./test/foundry/bytecodes/aerodrome/VotingEscrow.json"),
-                    abi.encode(forwarderAddress,aeroAddress,factoryRegistryAddress));
-                assembly {
-                    votingEscrowAddress := create(0, add(votingEscrowBytecode, 0x20), mload(votingEscrowBytecode))
-                }
-            }
-            address voterAddress;
-            {
-                bytes memory voterBytecode = abi.encodePacked(vm.getCode("./test/foundry/bytecodes/aerodrome/Voter.json"),
-                    abi.encode(forwarderAddress,votingEscrowAddress,factoryRegistryAddress));
-                assembly {
-                    voterAddress := create(0, add(voterBytecode, 0x20), mload(voterBytecode))
-                }
-            }
-
-            address rewardsDistributorAddress;
-            {
-                bytes memory rewardsDistributorBytecode = abi.encodePacked(vm.getCode("./test/foundry/bytecodes/aerodrome/RewardsDistributor.json"),
-                    abi.encode(votingEscrowAddress));
-                assembly {
-                    rewardsDistributorAddress := create(0, add(rewardsDistributorBytecode, 0x20), mload(rewardsDistributorBytecode))
-                }
-            }
-
-            {
-                address routerAddress;
-                bytes memory routerBytecode = abi.encodePacked(vm.getCode("./test/foundry/bytecodes/aerodrome/Router.json"),
-                    abi.encode(forwarderAddress,factoryRegistryAddress,address(aeroFactory),votingEscrowAddress,voterAddress,address(weth)));
-                assembly {
-                    routerAddress := create(0, add(routerBytecode, 0x20), mload(routerBytecode))
-                }
-                aeroRouter = IAeroRouter(routerAddress);
-            }
-
-            address minterAddress;
-            {
-                bytes memory minterBytecode = abi.encodePacked(vm.getCode("./test/foundry/bytecodes/aerodrome/Minter.json"),
-                    abi.encode(voterAddress,votingEscrowAddress,rewardsDistributorAddress));
-                assembly {
-                    minterAddress := create(0, add(minterBytecode, 0x20), mload(minterBytecode))
-                }
-            }
+            address votingEscrowAddress = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome/VotingEscrow.json",
+                abi.encode(forwarderAddress,aeroAddress,factoryRegistryAddress));
+            aeroVoter = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome/Voter.json",
+                abi.encode(forwarderAddress,votingEscrowAddress,factoryRegistryAddress));
+            address rewardsDistributorAddress = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome/RewardsDistributor.json",
+                abi.encode(votingEscrowAddress));
+            aeroRouter = IAeroRouter(createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome/Router.json",
+                abi.encode(forwarderAddress,factoryRegistryAddress,address(aeroFactory),votingEscrowAddress,aeroVoter,address(weth))));
+            address minterAddress = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome/Minter.json",
+                abi.encode(aeroVoter,votingEscrowAddress,rewardsDistributorAddress));
 
             IAeroToken(aeroAddress).setMinter(minterAddress);
         }
@@ -577,12 +524,63 @@ contract UniswapSetup is TokensSetup {
         vm.stopPrank();
     }
 
+    function initAerodromeCL(address owner, address _voter) public {
+        address clPoolAddress = createContractFromBytecode("./test/foundry/bytecodes/aerodrome-cl/CLPool.json");
+
+        aeroCLFactory = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome-cl/CLFactory.json",
+            abi.encode(_voter,clPoolAddress));
+
+        // deploy gauges
+        address clGaugeAddress = createContractFromBytecode("./test/foundry/bytecodes/aerodrome-cl/CLGauge.json");
+        address clGaugeFactoryAddress = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome-cl/CLGaugeFactory.json",
+            abi.encode(_voter, clGaugeAddress));
+
+        address nftPositionDescriptorAddress = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome-cl/NonfungibleTokenPositionDescriptor.json",
+            abi.encode(address(weth), bytes32("ETH")));
+
+        address nonfungiblePositionMgrAddress = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome-cl/NonfungiblePositionManager.json",
+            abi.encode(aeroCLFactory, address(weth), nftPositionDescriptorAddress, "Slipstream Position NFT v1", "AERO-CL-POS"));
+        // set nft manager in the factories
+        ICLGaugeFactory(clGaugeFactoryAddress).setNonfungiblePositionManager(nonfungiblePositionMgrAddress);//TODO: gaugeFactory.setNonfungiblePositionManager(address(nft));
+        ICLGaugeFactory(clGaugeFactoryAddress).setNotifyAdmin(owner);//TODO: gaugeFactory.setNotifyAdmin(notifyAdmin);
+
+        address swapFeeModuleAddress = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome-cl/CustomSwapFeeModule.json",
+            abi.encode(aeroCLFactory));
+        address unstakedFeeModuleAddress = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome-cl/CustomUnstakedFeeModule.json",
+            abi.encode(aeroCLFactory));
+
+        IAeroCLPoolFactory(aeroCLFactory).setSwapFeeModule(swapFeeModuleAddress);//TODO: poolFactory.setSwapFeeModule({_swapFeeModule: address(swapFeeModule)});
+        IAeroCLPoolFactory(aeroCLFactory).setUnstakedFeeModule(unstakedFeeModuleAddress);//TODO: poolFactory.setUnstakedFeeModule({_unstakedFeeModule: address(unstakedFeeModule)});
+
+        // transfer permissions
+        IAeroCLPositionManager(nonfungiblePositionMgrAddress).setOwner(owner);//TODO: nft.setOwner(team);
+        IAeroCLPoolFactory(aeroCLFactory).setOwner(owner);//TODO: poolFactory.setOwner(poolFactoryOwner);
+        IAeroCLPoolFactory(aeroCLFactory).setSwapFeeManager(owner);//TODO: poolFactory.setSwapFeeManager(feeManager);
+        IAeroCLPoolFactory(aeroCLFactory).setUnstakedFeeManager(owner);//TODO: poolFactory.setUnstakedFeeManager(feeManager);
+
+        address mixedQuoterAddress = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome-cl/MixedRouteQuoterV1.json",
+            abi.encode(aeroCLFactory,address(aeroFactory),address(weth)));
+
+        aeroCLQuoter = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome-cl/QuoterV2.json",
+            abi.encode(aeroCLFactory,address(weth)));
+
+        address swapRouterAddress = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome-cl/SwapRouter.json",
+            abi.encode(aeroCLFactory,address(weth)));
+    }
+
     function addLiquidity(address token0, address token1, uint256 amount0, uint256 amount1, address to) public returns (uint256 amountA, uint256 amountB, uint256 liquidity) {
         (amountA, amountB, liquidity) = uniRouter.addLiquidity(token0, token1, amount0, amount1, 0, 0, to, type(uint256).max);
     }
 
     function createContractFromBytecode(string memory bytecodePath) internal virtual returns(address addr) {
         bytes memory bytecode = abi.encodePacked(vm.getCode(bytecodePath));
+        assembly {
+            addr := create(0, add(bytecode, 0x20), mload(bytecode))
+        }
+    }
+
+    function createContractFromBytecodeWithArgs(string memory bytecodePath, bytes memory args) internal virtual returns(address addr) {
+        bytes memory bytecode = abi.encodePacked(vm.getCode(bytecodePath), args);
         assembly {
             addr := create(0, add(bytecode, 0x20), mload(bytecode))
         }

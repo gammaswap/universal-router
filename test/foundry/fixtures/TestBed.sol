@@ -57,6 +57,7 @@ contract TestBed is UniswapSetup {
         initSushiswap(owner);
         initDeltaSwap(owner);
         initAerodrome(owner);
+        initAerodromeCL(owner,aeroVoter);
         router = new TestUniversalRouter(address(weth));
     }
 }
