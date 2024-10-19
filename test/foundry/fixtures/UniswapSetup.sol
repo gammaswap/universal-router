@@ -11,6 +11,7 @@ import "@gammaswap/v1-deltaswap/contracts/interfaces/IDeltaSwapPair.sol";
 import "@gammaswap/v1-deltaswap/contracts/interfaces/IDeltaSwapRouter02.sol";
 import "@gammaswap/v1-core/contracts/GammaPoolFactory.sol";
 
+import "../../../contracts/interfaces/external/IAeroCLPool.sol";
 import "../../../contracts/interfaces/external/IAeroCLPoolFactory.sol";
 import "../../../contracts/interfaces/external/IAeroPoolFactory.sol";
 import "../../../contracts/interfaces/external/IAeroPool.sol";
@@ -77,8 +78,8 @@ contract UniswapSetup is TokensSetup {
     IUniswapV3Pool public wethUsdcPoolV3;
     IUniswapV3Pool public wethUsdtPoolV3;
     IUniswapV3Pool public wethDaiPoolV3;
-    IUniswapV3Pool public wethWbtcPoolV3;
-    IUniswapV3Pool public usdcWbtcPoolV3;
+    IUniswapV3Pool public wbtcWethPoolV3;
+    IUniswapV3Pool public wbtcUsdcPoolV3;
     IUniswapV3Pool public wbtcUsdtPoolV3;
     IUniswapV3Pool public wbtcDaiPoolV3;
     IUniswapV3Pool public usdtUsdcPoolV3;
@@ -111,6 +112,17 @@ contract UniswapSetup is TokensSetup {
 
     address public aeroCLFactory;
     address public aeroCLQuoter;
+    int24 public aeroPoolFee = 100;
+    IAeroCLPool public aeroCLWethUsdcPool;
+    IAeroCLPool public aeroCLWethUsdtPool;
+    IAeroCLPool public aeroCLWethDaiPool;
+    IAeroCLPool public aeroCLWbtcWethPool;
+    IAeroCLPool public aeroCLWbtcUsdcPool;
+    IAeroCLPool public aeroCLWbtcUsdtPool;
+    IAeroCLPool public aeroCLWbtcDaiPool;
+    IAeroCLPool public aeroCLUsdtUsdcPool;
+    IAeroCLPool public aeroCLDaiUsdcPool;
+    IAeroCLPool public aeroCLDaiUsdtPool;
 
     function initUniswapV3(address owner) public {
         bytes memory factoryBytecode = abi.encodePacked(vm.getCode("./node_modules/@uniswap/v3-core/artifacts/contracts/UniswapV3Factory.sol/UniswapV3Factory.json"));
@@ -138,10 +150,10 @@ contract UniswapSetup is TokensSetup {
         wethDaiPoolV3 = IUniswapV3Pool(
             IPoolInitializer(nftPositionManager).createAndInitializePoolIfNecessary(address(weth), address(dai), poolFee1, wethDaiSqrtPriceX96)
         );
-        wethWbtcPoolV3 = IUniswapV3Pool(
+        wbtcWethPoolV3 = IUniswapV3Pool(
             IPoolInitializer(nftPositionManager).createAndInitializePoolIfNecessary(address(wbtc), address(weth), poolFee1, wbtcWethSqrtPriceX96)
         );
-        usdcWbtcPoolV3 = IUniswapV3Pool(
+        wbtcUsdcPoolV3 = IUniswapV3Pool(
             IPoolInitializer(nftPositionManager).createAndInitializePoolIfNecessary(address(wbtc), address(usdc), poolFee1, wbtcUsdcSqrtPriceX96)
         );
         wbtcUsdtPoolV3 = IUniswapV3Pool(
@@ -566,6 +578,18 @@ contract UniswapSetup is TokensSetup {
 
         address swapRouterAddress = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome-cl/SwapRouter.json",
             abi.encode(aeroCLFactory,address(weth)));
+
+        aeroCLWethUsdcPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(weth), address(usdc), aeroPoolFee, wethUsdcSqrtPriceX96));
+        aeroCLWethUsdtPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(weth), address(usdt), aeroPoolFee, wethUsdcSqrtPriceX96));
+        aeroCLWethDaiPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(weth), address(dai), aeroPoolFee, wethDaiSqrtPriceX96));
+        aeroCLWbtcWethPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(wbtc), address(weth), aeroPoolFee, wbtcWethSqrtPriceX96));
+        aeroCLWbtcUsdcPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(wbtc), address(usdc), aeroPoolFee, wbtcUsdcSqrtPriceX96));
+        aeroCLWbtcUsdtPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(wbtc), address(usdt), aeroPoolFee, wbtcUsdcSqrtPriceX96));
+        aeroCLWbtcDaiPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(wbtc), address(dai), aeroPoolFee, wbtcDaiSqrtPriceX96));
+        aeroCLUsdtUsdcPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(usdt), address(usdc), aeroPoolFee, usdtUsdcSqrtPriceX96));
+        aeroCLDaiUsdcPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(dai), address(usdc), aeroPoolFee, daiUsdcSqrtPriceX96));
+        aeroCLDaiUsdtPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(dai), address(usdt), aeroPoolFee, daiUsdcSqrtPriceX96));
+
     }
 
     function addLiquidity(address token0, address token1, uint256 amount0, uint256 amount1, address to) public returns (uint256 amountA, uint256 amountB, uint256 liquidity) {
