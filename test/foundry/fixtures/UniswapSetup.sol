@@ -16,6 +16,7 @@ import "../../../contracts/interfaces/external/IAeroCLPoolFactory.sol";
 import "../../../contracts/interfaces/external/IAeroPoolFactory.sol";
 import "../../../contracts/interfaces/external/IAeroPool.sol";
 import "../../../contracts/test/IAeroCLPositionManager.sol";
+import "../../../contracts/test/IAeroPositionManagerMintable.sol";
 import "../../../contracts/test/IAeroRouter.sol";
 import "../../../contracts/test/IAeroToken.sol";
 import "../../../contracts/test/ICLGaugeFactory.sol";
@@ -112,7 +113,7 @@ contract UniswapSetup is TokensSetup {
 
     address public aeroCLFactory;
     address public aeroCLQuoter;
-    int24 public aeroPoolFee = 100;
+    int24 public aeroCLTickSpacing = 100;
     IAeroCLPool public aeroCLWethUsdcPool;
     IAeroCLPool public aeroCLWethUsdtPool;
     IAeroCLPool public aeroCLWethDaiPool;
@@ -550,10 +551,10 @@ contract UniswapSetup is TokensSetup {
         address nftPositionDescriptorAddress = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome-cl/NonfungibleTokenPositionDescriptor.json",
             abi.encode(address(weth), bytes32("ETH")));
 
-        address nonfungiblePositionMgrAddress = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome-cl/NonfungiblePositionManager.json",
+        address nonfungiblePositionManager = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome-cl/NonfungiblePositionManager.json",
             abi.encode(aeroCLFactory, address(weth), nftPositionDescriptorAddress, "Slipstream Position NFT v1", "AERO-CL-POS"));
         // set nft manager in the factories
-        ICLGaugeFactory(clGaugeFactoryAddress).setNonfungiblePositionManager(nonfungiblePositionMgrAddress);//TODO: gaugeFactory.setNonfungiblePositionManager(address(nft));
+        ICLGaugeFactory(clGaugeFactoryAddress).setNonfungiblePositionManager(nonfungiblePositionManager);//TODO: gaugeFactory.setNonfungiblePositionManager(address(nft));
         ICLGaugeFactory(clGaugeFactoryAddress).setNotifyAdmin(owner);//TODO: gaugeFactory.setNotifyAdmin(notifyAdmin);
 
         address swapFeeModuleAddress = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome-cl/CustomSwapFeeModule.json",
@@ -565,7 +566,7 @@ contract UniswapSetup is TokensSetup {
         IAeroCLPoolFactory(aeroCLFactory).setUnstakedFeeModule(unstakedFeeModuleAddress);//TODO: poolFactory.setUnstakedFeeModule({_unstakedFeeModule: address(unstakedFeeModule)});
 
         // transfer permissions
-        IAeroCLPositionManager(nonfungiblePositionMgrAddress).setOwner(owner);//TODO: nft.setOwner(team);
+        IAeroCLPositionManager(nonfungiblePositionManager).setOwner(owner);//TODO: nft.setOwner(team);
         IAeroCLPoolFactory(aeroCLFactory).setOwner(owner);//TODO: poolFactory.setOwner(poolFactoryOwner);
         IAeroCLPoolFactory(aeroCLFactory).setSwapFeeManager(owner);//TODO: poolFactory.setSwapFeeManager(feeManager);
         IAeroCLPoolFactory(aeroCLFactory).setUnstakedFeeManager(owner);//TODO: poolFactory.setUnstakedFeeManager(feeManager);
@@ -579,17 +580,58 @@ contract UniswapSetup is TokensSetup {
         address swapRouterAddress = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome-cl/SwapRouter.json",
             abi.encode(aeroCLFactory,address(weth)));
 
-        aeroCLWethUsdcPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(weth), address(usdc), aeroPoolFee, wethUsdcSqrtPriceX96));
-        aeroCLWethUsdtPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(weth), address(usdt), aeroPoolFee, wethUsdcSqrtPriceX96));
-        aeroCLWethDaiPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(weth), address(dai), aeroPoolFee, wethDaiSqrtPriceX96));
-        aeroCLWbtcWethPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(wbtc), address(weth), aeroPoolFee, wbtcWethSqrtPriceX96));
-        aeroCLWbtcUsdcPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(wbtc), address(usdc), aeroPoolFee, wbtcUsdcSqrtPriceX96));
-        aeroCLWbtcUsdtPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(wbtc), address(usdt), aeroPoolFee, wbtcUsdcSqrtPriceX96));
-        aeroCLWbtcDaiPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(wbtc), address(dai), aeroPoolFee, wbtcDaiSqrtPriceX96));
-        aeroCLUsdtUsdcPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(usdt), address(usdc), aeroPoolFee, usdtUsdcSqrtPriceX96));
-        aeroCLDaiUsdcPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(dai), address(usdc), aeroPoolFee, daiUsdcSqrtPriceX96));
-        aeroCLDaiUsdtPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(dai), address(usdt), aeroPoolFee, daiUsdcSqrtPriceX96));
+        aeroCLWethUsdcPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(weth), address(usdc), aeroCLTickSpacing, wethUsdcSqrtPriceX96));
+        aeroCLWethUsdtPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(weth), address(usdt), aeroCLTickSpacing, wethUsdcSqrtPriceX96));
+        aeroCLWethDaiPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(weth), address(dai), aeroCLTickSpacing, wethDaiSqrtPriceX96));
+        aeroCLWbtcWethPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(wbtc), address(weth), aeroCLTickSpacing, wbtcWethSqrtPriceX96));
+        aeroCLWbtcUsdcPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(wbtc), address(usdc), aeroCLTickSpacing, wbtcUsdcSqrtPriceX96));
+        aeroCLWbtcUsdtPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(wbtc), address(usdt), aeroCLTickSpacing, wbtcUsdcSqrtPriceX96));
+        aeroCLWbtcDaiPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(wbtc), address(dai), aeroCLTickSpacing, wbtcDaiSqrtPriceX96));
+        aeroCLUsdtUsdcPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(usdt), address(usdc), aeroCLTickSpacing, usdtUsdcSqrtPriceX96));
+        aeroCLDaiUsdcPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(dai), address(usdc), aeroCLTickSpacing, daiUsdcSqrtPriceX96));
+        aeroCLDaiUsdtPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(dai), address(usdt), aeroCLTickSpacing, daiUsdcSqrtPriceX96));
 
+        weth.mint(owner, 120);
+        usdc.mint(owner, 350_000);
+        weth.mint(owner, 890);
+        usdt.mint(owner, 2_700_000);
+        weth.mint(owner, 120);
+        dai.mint(owner, 350_000);
+        weth.mint(owner, 220);
+        wbtc.mint(owner, 11);
+        wbtc.mint(owner, 11);
+        usdc.mint(owner, 660_000);
+        wbtc.mint(owner, 11);
+        usdt.mint(owner, 660_000);
+        wbtc.mint(owner, 11);
+        dai.mint(owner, 660_000);
+        usdc.mint(owner, 660_000);
+        usdt.mint(owner, 660_000);
+        usdc.mint(owner, 660_000);
+        dai.mint(owner, 660_000);
+        usdt.mint(owner, 660_000);
+        dai.mint(owner, 660_000);
+
+        vm.startPrank(owner);
+
+        weth.approve(nonfungiblePositionManager, type(uint256).max);
+        usdc.approve(nonfungiblePositionManager, type(uint256).max);
+        usdt.approve(nonfungiblePositionManager, type(uint256).max);
+        wbtc.approve(nonfungiblePositionManager, type(uint256).max);
+        dai.approve(nonfungiblePositionManager, type(uint256).max);
+
+        addLiquidityAeroCL(nonfungiblePositionManager, address(weth), address(usdc), aeroCLTickSpacing, 115594502247137145239, 345648123455);
+        addLiquidityAeroCL(nonfungiblePositionManager, address(weth), address(usdt), aeroCLTickSpacing, 887209737429288199534, 2680657431182);
+        addLiquidityAeroCL(nonfungiblePositionManager, address(weth), address(dai), aeroCLTickSpacing, 115594502247137145239, 345648123455000000000000);
+        addLiquidityAeroCL(nonfungiblePositionManager, address(wbtc), address(weth), aeroCLTickSpacing, 1012393293, 217378372286812000000);
+        addLiquidityAeroCL(nonfungiblePositionManager, address(wbtc), address(usdc), aeroCLTickSpacing, 1012393293, 658055640487);
+        addLiquidityAeroCL(nonfungiblePositionManager, address(wbtc), address(usdt), aeroCLTickSpacing, 1013393293, 659055640487);
+        addLiquidityAeroCL(nonfungiblePositionManager, address(wbtc), address(dai), aeroCLTickSpacing, 1011393293, 657055640487000000000000);
+        addLiquidityAeroCL(nonfungiblePositionManager, address(usdt), address(usdc), aeroCLTickSpacing, 658055640487, 659055640487);
+        addLiquidityAeroCL(nonfungiblePositionManager, address(dai), address(usdc), aeroCLTickSpacing, 657055640487000000000000, 658055640487);
+        addLiquidityAeroCL(nonfungiblePositionManager, address(dai), address(usdt), aeroCLTickSpacing, 657055640487000000000000, 656055640487);
+
+        vm.stopPrank();
     }
 
     function addLiquidity(address token0, address token1, uint256 amount0, uint256 amount1, address to) public returns (uint256 amountA, uint256 amountB, uint256 liquidity) {
@@ -627,5 +669,23 @@ contract UniswapSetup is TokensSetup {
             deadline: type(uint256).max
         });
         IPositionManagerMintable(nftPositionManager).mint(mintParams);
+    }
+
+    function addLiquidityAeroCL(address nftPositionManager, address token0, address token1, int24 tickSpacing, uint256 amount0, uint256 amount1) internal {
+        IAeroPositionManagerMintable.MintParams memory mintParams = IAeroPositionManagerMintable.MintParams({
+            token0: token0,
+            token1: token1,
+            tickSpacing: tickSpacing,
+            tickLower: -887200,
+            tickUpper: 887200,
+            amount0Desired: amount0,  // 115.5 WETH
+            amount1Desired: amount1,   // 345648 USDC
+            amount0Min: 0,
+            amount1Min: 0,
+            recipient: msg.sender,
+            deadline: type(uint256).max,
+            sqrtPriceX96: 0
+        });
+        IAeroPositionManagerMintable(nftPositionManager).mint(mintParams);
     }
 }
