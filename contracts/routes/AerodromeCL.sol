@@ -31,7 +31,7 @@ contract AerodromeCL is CPMMRoute, IUniswapV3SwapCallback {
     struct SwapParams {
         address tokenIn;
         address tokenOut;
-        uint24 fee;
+        int24 tickSpacing;
         uint256 amount;
         address recipient;
     }
@@ -117,6 +117,24 @@ contract AerodromeCL is CPMMRoute, IUniswapV3SwapCallback {
 
     function _quoteAmountOut(uint256 amountIn, address tokenIn, address tokenOut, uint24 fee) internal virtual
         returns(uint256 amountOut, address pair) {
+
+        bool zeroForOne = tokenIn < tokenOut;
+        pair = pairFor(tokenIn, tokenOut, int24(fee));
+
+        try
+            IAeroCLPool(pair).swap(
+                address(this), // address(0) might cause issues with some tokens
+                zeroForOne,
+                amountIn.toInt256(),
+                zeroForOne ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1,
+                abi.encode(SwapCallbackData({
+                    path: abi.encodePacked(tokenIn, protocolId, fee, tokenOut),
+                    payer: address(0)
+                }))
+            )
+        {} catch (bytes memory reason) {
+            (amountOut,,) = handleRevert(reason, pair);
+        }
     }
 
     function getAmountIn(uint256 amountOut, address tokenIn, address tokenOut, uint256 fee) public
@@ -127,9 +145,59 @@ contract AerodromeCL is CPMMRoute, IUniswapV3SwapCallback {
 
     function _quoteAmountIn(uint256 amountOut, address tokenIn, address tokenOut, uint24 fee) internal virtual
         returns(uint256 amountIn, address pair) {
+        pair = pairFor(tokenIn, tokenOut, int24(fee));
+
+        // if no price limit has been specified, cache the output amount for comparison in the swap callback
+        amountOutCached = amountOut;
+        try
+            IAeroCLPool(pair).swap(
+                address(this), // address(0) might cause issues with some tokens
+                tokenIn < tokenOut, // zeroForOne
+                -amountOut.toInt256(),
+                tokenIn < tokenOut ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1,
+                abi.encode(SwapCallbackData({
+                    path: abi.encodePacked(tokenOut, protocolId, fee, tokenIn),
+                    payer: address(0)
+                }))
+            )
+        {} catch (bytes memory reason) {
+            delete amountOutCached; // clear cache
+            (amountIn,,) = handleRevert(reason, pair);
+        }
     }
 
     function swap(address from, address to, uint24 fee, address dest) external override virtual {
+        uint256 inputAmount = GammaSwapLibrary.balanceOf(from, address(this));
+        require(inputAmount > 0, "ZERO_AMOUNT");
+
+        exactInputSwap(SwapParams({
+            tokenIn: from,
+            tokenOut: to,
+            tickSpacing: int24(fee),
+            amount: inputAmount,
+            recipient: dest
+        }));
+    }
+
+    function exactInputSwap(SwapParams memory params) private returns (uint256) {
+        require(params.amount < 2**255, "INVALID_AMOUNT");
+        require(params.recipient != address(0), "INVALID_RECIPIENT");
+
+        bool zeroForOne = params.tokenIn < params.tokenOut;
+
+        (int256 amount0, int256 amount1) =
+            IAeroCLPool(pairFor(params.tokenIn, params.tokenOut, int24(params.tickSpacing))).swap(
+                params.recipient,
+                zeroForOne,
+                int256(params.amount),
+                (zeroForOne ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1),
+                abi.encode(SwapCallbackData({
+                    path: abi.encodePacked(params.tokenIn, protocolId, params.tickSpacing, params.tokenOut),
+                    payer: address(this)
+                }))
+            );
+
+        return uint256(-(zeroForOne ? amount1 : amount0));
     }
 
     /// @inheritdoc IUniswapV3SwapCallback
