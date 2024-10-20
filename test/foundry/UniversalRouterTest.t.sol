@@ -8,6 +8,7 @@ import "../../contracts/routes/SushiswapV2.sol";
 import "../../contracts/routes/DeltaSwap.sol";
 import "../../contracts/routes/Aerodrome.sol";
 import "../../contracts/routes/UniswapV3.sol";
+import "../../contracts/routes/AerodromeCL.sol";
 import "../../contracts/interfaces/IUniversalRouter.sol";
 
 contract UniversalRouterTest is TestBed {
@@ -22,6 +23,7 @@ contract UniversalRouterTest is TestBed {
     Aerodrome aeroRoute;
     Aerodrome aeroStableRoute;
     UniswapV3 uniV3Route;
+    AerodromeCL aeroCLRoute;
     Random random;
     address[] tokens;
 
@@ -45,6 +47,7 @@ contract UniversalRouterTest is TestBed {
         aeroRoute = new Aerodrome(4, address(aeroFactory), false, address(weth));
         aeroStableRoute = new Aerodrome(5, address(aeroFactory), true, address(weth));
         uniV3Route = new UniswapV3(6, address(uniFactoryV3), address(weth));
+        aeroCLRoute = new AerodromeCL(7, address(aeroCLFactory), address(weth));
 
         // set up routes
         router.addProtocol(address(uniV2Route));
@@ -53,6 +56,7 @@ contract UniversalRouterTest is TestBed {
         router.addProtocol(address(aeroRoute));
         router.addProtocol(address(aeroStableRoute));
         router.addProtocol(address(uniV3Route));
+        router.addProtocol(address(aeroCLRoute));
     }
 
     function createBytes(
