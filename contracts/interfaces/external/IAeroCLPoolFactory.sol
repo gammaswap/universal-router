@@ -9,4 +9,5 @@ interface IAeroCLPoolFactory {
     function setSwapFeeManager(address _swapFeeManager) external;
     function setUnstakedFeeManager(address _unstakedFeeManager) external;
     function createPool(address tokenA, address tokenB, int24 tickSpacing, uint160 sqrtPriceX96) external returns (address pool);
+    function getPool(address tokenA, address tokenB, int24 tickSpacing) external view returns (address pool);
 }

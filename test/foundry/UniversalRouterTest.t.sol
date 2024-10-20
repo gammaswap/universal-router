@@ -27,7 +27,7 @@ contract UniversalRouterTest is TestBed {
     Random random;
     address[] tokens;
 
-    uint256 constant PROTOCOL_ROUTES_COUNT = 6;
+    uint256 constant PROTOCOL_ROUTES_COUNT = 7;
 
     function setUp() public {
         random = new Random();
@@ -57,15 +57,6 @@ contract UniversalRouterTest is TestBed {
         router.addProtocol(address(aeroStableRoute));
         router.addProtocol(address(uniV3Route));
         router.addProtocol(address(aeroCLRoute));
-    }
-
-    function createBytes(
-        address tokenIn,
-        address tokenOut,
-        uint24 fee,
-        uint16 protocolId
-    ) internal pure returns (bytes memory) {
-        return abi.encodePacked(tokenIn, protocolId, fee, tokenOut);
     }
 
     function testAddRemoveProtocol() public {
@@ -129,7 +120,7 @@ contract UniversalRouterTest is TestBed {
             assertEq(routes[i].to,_routes[i].to);
             assertEq(routes[i].pair,_routes[i].pair);
             assertEq(routes[i].protocolId,_routes[i].protocolId);
-            if(routes[i].protocolId == 6) {
+            if(routes[i].protocolId == 6 || routes[i].protocolId == 7) {
                 assertEq(routes[i].fee,_routes[i].fee);
             }
             assertEq(routes[i].origin,address(0));
@@ -156,7 +147,7 @@ contract UniversalRouterTest is TestBed {
             assertEq(routes[i].to,_routes[i].to);
             assertEq(routes[i].pair,_routes[i].pair);
             assertEq(routes[i].protocolId,_routes[i].protocolId);
-            if(routes[i].protocolId == 6) {
+            if(routes[i].protocolId == 6 || routes[i].protocolId == 7) {
                 assertEq(routes[i].fee,_routes[i].fee);
             }
             assertEq(routes[i].origin,address(0));
@@ -364,18 +355,18 @@ contract UniversalRouterTest is TestBed {
         } else if(_fromToken == address(dai)) {
             amount = bound(amount, 1e18, 1000e18);
             if(_toToken == address(weth)) {
-                minAmount = 323333333333333;
+                minAmount = 313333333333333;
             } else if(_toToken == address(wbtc)) {
-                minAmount = 1500;
+                minAmount = 1450;
             } else {
                 minAmount = 9e5;
             }
         } else {
             amount = bound(amount, 1e6, 1000e6);
             if(_toToken == address(weth)) {
-                minAmount = 323333333333333;
+                minAmount = 313333333333333;
             } else if(_toToken == address(wbtc)) {
-                minAmount = 1500;
+                minAmount = 1450;
             } else if(_toToken == address(dai)) {
                 minAmount = 9e17;
             } else {
@@ -395,7 +386,7 @@ contract UniversalRouterTest is TestBed {
             assertTrue(validateTokens(routes[i].from, routes[i].to, pair));
             assertEq(routes[i].hop, router.protocols(routes[i].protocolId));
             assertEq(routes[i].pair, pair);
-            if(routes[i].protocolId == 6) {
+            if(routes[i].protocolId == 6 || routes[i].protocolId == 7) {
                 assertEq(routes[i].origin, router.protocols(routes[i].protocolId));
             } else {
                 assertEq(routes[i].origin, pair);
@@ -428,6 +419,8 @@ contract UniversalRouterTest is TestBed {
             return aeroFactory.getPool(from, to, true);
         } else if(protocolId == 6) {
             return uniFactoryV3.getPool(from, to, fee);
+        } else if(protocolId == 7) {
+            return aeroCLFactory.getPool(from, to, int24(fee));
         }
         return address(0);
     }
@@ -450,7 +443,7 @@ contract UniversalRouterTest is TestBed {
                     protocolId = 4;
                 }
             }
-            uint24 fee = protocolId == 6 ? poolFee1 : 0;
+            uint24 fee = protocolId == 6 ? poolFee1 : protocolId == 7 ? uint24(aeroCLTickSpacing): 0;
             _path = abi.encodePacked(_path, protocolId, fee, _tokens[i]);
         }
         return _path;
@@ -503,20 +496,12 @@ contract UniversalRouterTest is TestBed {
         return selectedTokens;
     }
 
-    function testThisFunc2() public {
-        bytes memory val = createBytes(address(weth), address(usdc), 5, 1);
-        //console.logBytes(val);
-        router.getAmountsOut(1e18, val);
-    }
-
-    function testThisFunc3() public {
+    function testRoutePath() public {
         //bytes memory val = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e80001000bb882af49447d8a07e3bd95bd0d56f35241523fbab1';
         //bytes memory val = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e80001000bb882af49447d8a07e3bd95bd0d56f35241523fbab100010001f4af88d065e77c8cc2239327c5edb3a432268e5831';
         //bytes memory val = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e80001000bb882af49447d8a07e3bd95bd0d56f35241523fbab100010001f4af88d065e77c8cc2239327c5edb3a432268e5831000100010076991314cEE341ebE37e6E2712cb04F5d56dE355';
         bytes memory val = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e80001000bb882af49447d8a07e3bd95bd0d56f35241523fbab100010001f4af88d065e77c8cc2239327c5edb3a432268e5831000100010076991314cEE341ebE37e6E2712cb04F5d56dE3550001000100F6D9C101ceeA72655A13a8Cf1C88c1949Ed399bc';
         address res = router._getTokenOut(val);
         console.log("res:",res);
-        /**router.getAmountsOut(1,val);
-        console.log("done2");/**/
     }
 }

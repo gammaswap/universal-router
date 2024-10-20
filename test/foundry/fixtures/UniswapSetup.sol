@@ -111,7 +111,7 @@ contract UniswapSetup is TokensSetup {
     IAeroPool public aeroDaiUsdtPool;
     address public aeroVoter;
 
-    address public aeroCLFactory;
+    IAeroCLPoolFactory public aeroCLFactory;
     address public aeroCLQuoter;
     int24 public aeroCLTickSpacing = 100;
     IAeroCLPool public aeroCLWethUsdcPool;
@@ -540,8 +540,8 @@ contract UniswapSetup is TokensSetup {
     function initAerodromeCL(address owner, address _voter) public {
         address clPoolAddress = createContractFromBytecode("./test/foundry/bytecodes/aerodrome-cl/CLPool.json");
 
-        aeroCLFactory = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome-cl/CLFactory.json",
-            abi.encode(_voter,clPoolAddress));
+        aeroCLFactory = IAeroCLPoolFactory(createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome-cl/CLFactory.json",
+            abi.encode(_voter,clPoolAddress)));
 
         // deploy gauges
         address clGaugeAddress = createContractFromBytecode("./test/foundry/bytecodes/aerodrome-cl/CLGauge.json");
@@ -552,44 +552,44 @@ contract UniswapSetup is TokensSetup {
             abi.encode(address(weth), bytes32("ETH")));
 
         address nonfungiblePositionManager = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome-cl/NonfungiblePositionManager.json",
-            abi.encode(aeroCLFactory, address(weth), nftPositionDescriptorAddress, "Slipstream Position NFT v1", "AERO-CL-POS"));
+            abi.encode(address(aeroCLFactory), address(weth), nftPositionDescriptorAddress, "Slipstream Position NFT v1", "AERO-CL-POS"));
         // set nft manager in the factories
         ICLGaugeFactory(clGaugeFactoryAddress).setNonfungiblePositionManager(nonfungiblePositionManager);//TODO: gaugeFactory.setNonfungiblePositionManager(address(nft));
         ICLGaugeFactory(clGaugeFactoryAddress).setNotifyAdmin(owner);//TODO: gaugeFactory.setNotifyAdmin(notifyAdmin);
 
         address swapFeeModuleAddress = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome-cl/CustomSwapFeeModule.json",
-            abi.encode(aeroCLFactory));
+            abi.encode(address(aeroCLFactory)));
         address unstakedFeeModuleAddress = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome-cl/CustomUnstakedFeeModule.json",
-            abi.encode(aeroCLFactory));
+            abi.encode(address(aeroCLFactory)));
 
-        IAeroCLPoolFactory(aeroCLFactory).setSwapFeeModule(swapFeeModuleAddress);//TODO: poolFactory.setSwapFeeModule({_swapFeeModule: address(swapFeeModule)});
-        IAeroCLPoolFactory(aeroCLFactory).setUnstakedFeeModule(unstakedFeeModuleAddress);//TODO: poolFactory.setUnstakedFeeModule({_unstakedFeeModule: address(unstakedFeeModule)});
+        aeroCLFactory.setSwapFeeModule(swapFeeModuleAddress);//TODO: poolFactory.setSwapFeeModule({_swapFeeModule: address(swapFeeModule)});
+        aeroCLFactory.setUnstakedFeeModule(unstakedFeeModuleAddress);//TODO: poolFactory.setUnstakedFeeModule({_unstakedFeeModule: address(unstakedFeeModule)});
 
         // transfer permissions
         IAeroCLPositionManager(nonfungiblePositionManager).setOwner(owner);//TODO: nft.setOwner(team);
-        IAeroCLPoolFactory(aeroCLFactory).setOwner(owner);//TODO: poolFactory.setOwner(poolFactoryOwner);
-        IAeroCLPoolFactory(aeroCLFactory).setSwapFeeManager(owner);//TODO: poolFactory.setSwapFeeManager(feeManager);
-        IAeroCLPoolFactory(aeroCLFactory).setUnstakedFeeManager(owner);//TODO: poolFactory.setUnstakedFeeManager(feeManager);
+        aeroCLFactory.setOwner(owner);//TODO: poolFactory.setOwner(poolFactoryOwner);
+        aeroCLFactory.setSwapFeeManager(owner);//TODO: poolFactory.setSwapFeeManager(feeManager);
+        aeroCLFactory.setUnstakedFeeManager(owner);//TODO: poolFactory.setUnstakedFeeManager(feeManager);
 
         address mixedQuoterAddress = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome-cl/MixedRouteQuoterV1.json",
-            abi.encode(aeroCLFactory,address(aeroFactory),address(weth)));
+            abi.encode(address(aeroCLFactory),address(aeroFactory),address(weth)));
 
         aeroCLQuoter = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome-cl/QuoterV2.json",
-            abi.encode(aeroCLFactory,address(weth)));
+            abi.encode(address(aeroCLFactory),address(weth)));
 
         address swapRouterAddress = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome-cl/SwapRouter.json",
-            abi.encode(aeroCLFactory,address(weth)));
+            abi.encode(address(aeroCLFactory),address(weth)));
 
-        aeroCLWethUsdcPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(weth), address(usdc), aeroCLTickSpacing, wethUsdcSqrtPriceX96));
-        aeroCLWethUsdtPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(weth), address(usdt), aeroCLTickSpacing, wethUsdcSqrtPriceX96));
-        aeroCLWethDaiPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(weth), address(dai), aeroCLTickSpacing, wethDaiSqrtPriceX96));
-        aeroCLWbtcWethPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(wbtc), address(weth), aeroCLTickSpacing, wbtcWethSqrtPriceX96));
-        aeroCLWbtcUsdcPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(wbtc), address(usdc), aeroCLTickSpacing, wbtcUsdcSqrtPriceX96));
-        aeroCLWbtcUsdtPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(wbtc), address(usdt), aeroCLTickSpacing, wbtcUsdcSqrtPriceX96));
-        aeroCLWbtcDaiPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(wbtc), address(dai), aeroCLTickSpacing, wbtcDaiSqrtPriceX96));
-        aeroCLUsdtUsdcPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(usdt), address(usdc), aeroCLTickSpacing, usdtUsdcSqrtPriceX96));
-        aeroCLDaiUsdcPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(dai), address(usdc), aeroCLTickSpacing, daiUsdcSqrtPriceX96));
-        aeroCLDaiUsdtPool = IAeroCLPool(IAeroCLPoolFactory(aeroCLFactory).createPool(address(dai), address(usdt), aeroCLTickSpacing, daiUsdcSqrtPriceX96));
+        aeroCLWethUsdcPool = IAeroCLPool(aeroCLFactory.createPool(address(weth), address(usdc), aeroCLTickSpacing, wethUsdcSqrtPriceX96));
+        aeroCLWethUsdtPool = IAeroCLPool(aeroCLFactory.createPool(address(weth), address(usdt), aeroCLTickSpacing, wethUsdcSqrtPriceX96));
+        aeroCLWethDaiPool = IAeroCLPool(aeroCLFactory.createPool(address(weth), address(dai), aeroCLTickSpacing, wethDaiSqrtPriceX96));
+        aeroCLWbtcWethPool = IAeroCLPool(aeroCLFactory.createPool(address(wbtc), address(weth), aeroCLTickSpacing, wbtcWethSqrtPriceX96));
+        aeroCLWbtcUsdcPool = IAeroCLPool(aeroCLFactory.createPool(address(wbtc), address(usdc), aeroCLTickSpacing, wbtcUsdcSqrtPriceX96));
+        aeroCLWbtcUsdtPool = IAeroCLPool(aeroCLFactory.createPool(address(wbtc), address(usdt), aeroCLTickSpacing, wbtcUsdcSqrtPriceX96));
+        aeroCLWbtcDaiPool = IAeroCLPool(aeroCLFactory.createPool(address(wbtc), address(dai), aeroCLTickSpacing, wbtcDaiSqrtPriceX96));
+        aeroCLUsdtUsdcPool = IAeroCLPool(aeroCLFactory.createPool(address(usdt), address(usdc), aeroCLTickSpacing, usdtUsdcSqrtPriceX96));
+        aeroCLDaiUsdcPool = IAeroCLPool(aeroCLFactory.createPool(address(dai), address(usdc), aeroCLTickSpacing, daiUsdcSqrtPriceX96));
+        aeroCLDaiUsdtPool = IAeroCLPool(aeroCLFactory.createPool(address(dai), address(usdt), aeroCLTickSpacing, daiUsdcSqrtPriceX96));
 
         weth.mint(owner, 120);
         usdc.mint(owner, 350_000);
