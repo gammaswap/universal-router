@@ -109,14 +109,14 @@ contract AerodromeCL is CPMMRoute, IUniswapV3SwapCallback {
     function getAmountOut(uint256 amountIn, address tokenIn, address tokenOut, uint256 fee) public override
         virtual returns(uint256 amountOut, address pair, uint24 swapFee) {
         swapFee = uint24(fee);
-        (amountOut, pair) = _quoteAmountOut(amountIn, tokenIn, tokenOut, swapFee);
+        (amountOut, pair) = _quoteAmountOut(amountIn, tokenIn, tokenOut, int24(swapFee));
     }
 
-    function _quoteAmountOut(uint256 amountIn, address tokenIn, address tokenOut, uint24 fee) internal virtual
+    function _quoteAmountOut(uint256 amountIn, address tokenIn, address tokenOut, int24 fee) internal virtual
         returns(uint256 amountOut, address pair) {
 
         bool zeroForOne = tokenIn < tokenOut;
-        pair = pairFor(tokenIn, tokenOut, int24(fee));
+        pair = pairFor(tokenIn, tokenOut, fee);
 
         try
             IAeroCLPool(pair).swap(
@@ -137,12 +137,12 @@ contract AerodromeCL is CPMMRoute, IUniswapV3SwapCallback {
     function getAmountIn(uint256 amountOut, address tokenIn, address tokenOut, uint256 fee) public
         override virtual returns(uint256 amountIn, address pair, uint24 swapFee) {
         swapFee = uint24(fee);
-        (amountIn, pair) = _quoteAmountIn(amountOut, tokenIn, tokenOut, swapFee);
+        (amountIn, pair) = _quoteAmountIn(amountOut, tokenIn, tokenOut, int24(swapFee));
     }
 
-    function _quoteAmountIn(uint256 amountOut, address tokenIn, address tokenOut, uint24 fee) internal virtual
+    function _quoteAmountIn(uint256 amountOut, address tokenIn, address tokenOut, int24 fee) internal virtual
         returns(uint256 amountIn, address pair) {
-        pair = pairFor(tokenIn, tokenOut, int24(fee));
+        pair = pairFor(tokenIn, tokenOut, fee);
 
         // if no price limit has been specified, cache the output amount for comparison in the swap callback
         amountOutCached = amountOut;
@@ -209,7 +209,7 @@ contract AerodromeCL is CPMMRoute, IUniswapV3SwapCallback {
         ? (tokenIn < tokenOut, uint256(amount0Delta), uint256(-amount1Delta))
         : (tokenOut < tokenIn, uint256(amount1Delta), uint256(-amount0Delta));
 
-        (uint160 sqrtPriceX96After, int24 tickAfter, , , ,) = IAeroCLPool(pairFor(tokenIn, tokenOut, int24(fee))).slot0();
+        (uint160 sqrtPriceX96After, int24 tickAfter,,,,) = IAeroCLPool(pairFor(tokenIn, tokenOut, int24(fee))).slot0();
 
         if (isExactInput) {
             if(data.payer != address(0)) {

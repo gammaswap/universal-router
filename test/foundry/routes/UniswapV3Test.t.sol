@@ -33,7 +33,7 @@ contract UniswapV3Test is TestBed {
     }
 
     function testPairForErrors() public {
-        vm.expectRevert("INVALID_ORDER");
+        vm.expectRevert("PoolAddress: INVALID_ORDER");
         route.getPairFor(address(weth), address(weth), poolFee1);
 
         vm.expectRevert("UniswapV3: AMM_DOES_NOT_EXIST");
