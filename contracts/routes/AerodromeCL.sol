@@ -73,9 +73,6 @@ contract AerodromeCL is CPMMRoute, IUniswapV3SwapCallback {
     // calculates the CREATE2 address for a pair without making any external calls
     function pairFor(address tokenA, address tokenB, int24 tickSpacing) internal view returns (address pair) {
         pair = AeroPoolAddress.computeAddress(factory, AeroPoolAddress.getPoolKey(tokenA, tokenB, tickSpacing));
-
-        return AeroPoolAddress.computeAddress(factory, AeroPoolAddress.getPoolKey(tokenA, tokenB, tickSpacing));
-
         require(GammaSwapLibrary.isContract(pair), "AerodromeCL: AMM_DOES_NOT_EXIST");
     }
 
