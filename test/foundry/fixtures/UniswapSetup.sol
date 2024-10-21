@@ -554,22 +554,22 @@ contract UniswapSetup is TokensSetup {
         address nonfungiblePositionManager = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome-cl/NonfungiblePositionManager.json",
             abi.encode(address(aeroCLFactory), address(weth), nftPositionDescriptorAddress, "Slipstream Position NFT v1", "AERO-CL-POS"));
         // set nft manager in the factories
-        ICLGaugeFactory(clGaugeFactoryAddress).setNonfungiblePositionManager(nonfungiblePositionManager);//TODO: gaugeFactory.setNonfungiblePositionManager(address(nft));
-        ICLGaugeFactory(clGaugeFactoryAddress).setNotifyAdmin(owner);//TODO: gaugeFactory.setNotifyAdmin(notifyAdmin);
+        ICLGaugeFactory(clGaugeFactoryAddress).setNonfungiblePositionManager(nonfungiblePositionManager);
+        ICLGaugeFactory(clGaugeFactoryAddress).setNotifyAdmin(owner);
 
         address swapFeeModuleAddress = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome-cl/CustomSwapFeeModule.json",
             abi.encode(address(aeroCLFactory)));
         address unstakedFeeModuleAddress = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome-cl/CustomUnstakedFeeModule.json",
             abi.encode(address(aeroCLFactory)));
 
-        aeroCLFactory.setSwapFeeModule(swapFeeModuleAddress);//TODO: poolFactory.setSwapFeeModule({_swapFeeModule: address(swapFeeModule)});
-        aeroCLFactory.setUnstakedFeeModule(unstakedFeeModuleAddress);//TODO: poolFactory.setUnstakedFeeModule({_unstakedFeeModule: address(unstakedFeeModule)});
+        aeroCLFactory.setSwapFeeModule(swapFeeModuleAddress);
+        aeroCLFactory.setUnstakedFeeModule(unstakedFeeModuleAddress);
 
         // transfer permissions
-        IAeroCLPositionManager(nonfungiblePositionManager).setOwner(owner);//TODO: nft.setOwner(team);
-        aeroCLFactory.setOwner(owner);//TODO: poolFactory.setOwner(poolFactoryOwner);
-        aeroCLFactory.setSwapFeeManager(owner);//TODO: poolFactory.setSwapFeeManager(feeManager);
-        aeroCLFactory.setUnstakedFeeManager(owner);//TODO: poolFactory.setUnstakedFeeManager(feeManager);
+        IAeroCLPositionManager(nonfungiblePositionManager).setOwner(owner);
+        aeroCLFactory.setOwner(owner);
+        aeroCLFactory.setSwapFeeManager(owner);
+        aeroCLFactory.setUnstakedFeeManager(owner);
 
         address mixedQuoterAddress = createContractFromBytecodeWithArgs("./test/foundry/bytecodes/aerodrome-cl/MixedRouteQuoterV1.json",
             abi.encode(address(aeroCLFactory),address(aeroFactory),address(weth)));
