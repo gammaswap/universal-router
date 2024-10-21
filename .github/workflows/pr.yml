@@ -17,8 +17,6 @@ jobs:
           scope: '@gammaswap'
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
-        with:
-          foundry-version: latest
 
       - name: Debug Foundry Installation
         run: |
@@ -41,6 +39,14 @@ jobs:
           ls -la lib
           echo "Listing forge-std directory:"
           ls -la lib/forge-std
+
+      # Debugging lib/forge-std specifically
+      - name: Verify Installation of forge-std
+        run: |
+          echo "Checking forge-std directory:"
+          ls -la lib/forge-std
+          ls -la lib/forge-std/src
+          ls -la lib/forge-std/lib
 
       # Debug: Print out the contents of the 'lib' directory to verify that dependencies were installed
       - name: List Foundry lib directory
