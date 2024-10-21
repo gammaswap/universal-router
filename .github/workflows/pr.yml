@@ -17,6 +17,14 @@ jobs:
           scope: '@gammaswap'
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
+        with:
+          foundry-version: latest
+
+      - name: Debug Foundry Installation
+        run: |
+          echo "Checking if forge is installed:"
+          which forge
+          forge --version
 
       # Clear Foundry Cache (this clears the global cache, ensuring no conflicts)
       - name: Clear Foundry Cache
