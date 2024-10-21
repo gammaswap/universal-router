@@ -10,3 +10,5 @@ fs_permissions = [
   { access = "read", path = "./out" },
   { access = "read", path = "./test" }
 ]
+[dependencies]
+forge-std = { git = "https://github.com/foundry-rs/forge-std", tag = "v1.1.2" }
