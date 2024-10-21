@@ -22,6 +22,10 @@ jobs:
       - name: Clear Foundry Cache
         run: forge clean
 
+      # Install Foundry Dependencies (including forge-std)
+      - name: Install Foundry Dependencies
+        run: forge install
+
       # Debug: Print out the contents of the 'lib' directory to verify that dependencies were installed
       - name: List Foundry lib directory
         run: ls -R lib
