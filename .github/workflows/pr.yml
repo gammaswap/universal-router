@@ -26,6 +26,9 @@ jobs:
           which forge
           forge --version
 
+      - name: Create lib directory
+        run: mkdir -p lib
+
       # Clear Foundry Cache (this clears the global cache, ensuring no conflicts)
       - name: Clear Foundry Cache
         run: forge clean
