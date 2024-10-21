@@ -28,8 +28,8 @@ jobs:
       #  run: mkdir -p lib
 
       # Clear Foundry Cache (this clears the global cache, ensuring no conflicts)
-      #- name: Clear Foundry Cache
-      #  run: forge clean
+      - name: Clear Foundry Cache
+        run: forge clean
 
       # Install Foundry Dependencies (including forge-std)
       - name: Install Foundry Dependencies
@@ -41,12 +41,12 @@ jobs:
           ls -la lib/forge-std
 
       # Debugging lib/forge-std specifically
-      - name: Verify Installation of forge-std
-        run: |
-          echo "Checking forge-std directory:"
-          ls -la lib/forge-std
-          ls -la lib/forge-std/src
-          ls -la lib/forge-std/lib
+      #- name: Verify Installation of forge-std
+      #  run: |
+      #    echo "Checking forge-std directory:"
+      #    ls -la lib/forge-std
+      #    ls -la lib/forge-std/src
+      #    ls -la lib/forge-std/lib
 
       # Debug: Print out the contents of the 'lib' directory to verify that dependencies were installed
       - name: List Foundry lib directory
