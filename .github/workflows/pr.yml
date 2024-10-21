@@ -17,9 +17,6 @@ jobs:
           scope: '@gammaswap'
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
-      # Install Foundry Dependencies (like forge-std)
-      - name: Install Forge Dependencies
-        run: forge install
       - run: yarn install
         env:
           NODE_AUTH_TOKEN: ${{secrets.GS_TOKEN}}
