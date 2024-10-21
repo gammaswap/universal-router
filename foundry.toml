@@ -6,7 +6,7 @@ solc_version = '0.8.21'
 test = 'test'
 cache_path  = 'cache_forge'
 fs_permissions = [{ access = "read", path = "./node_modules" },{ access = "read", path = "./out" },{ access = "read", path = "./test" }]
-[profile.dependencies]
-forge-std = { git = "https://github.com/foundry-rs/forge-std", tag = "v1.1.2" }
+#[profile.dependencies]
+#forge-std = { git = "https://github.com/foundry-rs/forge-std", tag = "v1.1.2" }
 [fuzz]
 runs = 263
