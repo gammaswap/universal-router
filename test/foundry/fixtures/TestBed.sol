@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-v3
 pragma solidity ^0.8.0;
 
-import "../../../contracts/test/TestUniversalRouter.sol";
-import "./UniswapSetup.sol";
+import '../../../contracts/test/TestUniversalRouter.sol';
+import './UniswapSetup.sol';
 
 contract TestBed is UniswapSetup {
     event ExternalRebalanceSingleSwap(

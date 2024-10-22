@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-v3
 pragma solidity ^0.8.0;
 
-import "forge-std/Test.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../../../contracts/test/Token.sol";
+import 'forge-std/Test.sol';
+import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import '../../../contracts/test/Token.sol';
 
 contract TokensSetup is Test {
     Token weth;
@@ -13,11 +13,11 @@ contract TokensSetup is Test {
     Token wbtc;
 
     function initTokens() public {
-        weth = new Token("Wrapped ETH", "WETH", 18);
-        usdc = new Token("USD Coin", "USDC", 6);
-        usdt = new Token("Tether USD", "USDT", 6);
-        dai = new Token("DAI", "DAI", 18);
-        wbtc = new Token("Wrapped BTC", "WBTC", 8);
+        weth = new Token('Wrapped ETH', 'WETH', 18);
+        usdc = new Token('USD Coin', 'USDC', 6);
+        usdt = new Token('Tether USD', 'USDT', 6);
+        dai = new Token('DAI', 'DAI', 18);
+        wbtc = new Token('Wrapped BTC', 'WBTC', 8);
 
         address[] memory _tokens = new address[](5);
         _tokens[0] = address(usdc);
@@ -33,11 +33,11 @@ contract TokensSetup is Test {
         dai = Token(_tokens[2]);
         usdt = Token(_tokens[3]);
         usdc = Token(_tokens[4]);
-        wbtc.setMetaData("Wrapped BTC", "WBTC", 8);
-        weth.setMetaData("Wrapped Ethereum", "WETH", 18);
-        dai.setMetaData("DAI", "DAI", 18);
-        usdt.setMetaData("Tether USD", "USDT", 6);
-        usdc.setMetaData("USD Coin", "USDC", 6);
+        wbtc.setMetaData('Wrapped BTC', 'WBTC', 8);
+        weth.setMetaData('Wrapped Ethereum', 'WETH', 18);
+        dai.setMetaData('DAI', 'DAI', 18);
+        usdt.setMetaData('Tether USD', 'USDT', 6);
+        usdc.setMetaData('USD Coin', 'USDC', 6);
     }
 
     function sort(address[] memory arr, int left, int right) internal pure {

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-v3
 pragma solidity ^0.8.0;
 
-import "../fixtures/TestBed.sol";
-import "../../../contracts/test/TestUniversalRouter.sol";
-import "../../../contracts/test/routes/TestDeltaSwap.sol";
+import '../fixtures/TestBed.sol';
+import '../../../contracts/test/TestUniversalRouter.sol';
+import '../../../contracts/test/routes/TestDeltaSwap.sol';
 
 contract DeltaSwapTest is TestBed {
 
@@ -47,10 +47,10 @@ contract DeltaSwapTest is TestBed {
     }
 
     function testPairForErrors() public {
-        vm.expectRevert("CPMMRoute: IDENTICAL_ADDRESSES");
+        vm.expectRevert('CPMMRoute: IDENTICAL_ADDRESSES');
         route.getPairFor(address(weth), address(weth));
 
-        vm.expectRevert("UniswapV2: AMM_DOES_NOT_EXIST");
+        vm.expectRevert('UniswapV2: AMM_DOES_NOT_EXIST');
         route.getPairFor(address(weth), address(vm.addr(123456)));
     }
 

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
-import "../fixtures/TestBed.sol";
-import "../../../contracts/test/TestUniversalRouter.sol";
-import "../../../contracts/test/routes/TestUniswapV3.sol";
+import '../fixtures/TestBed.sol';
+import '../../../contracts/test/TestUniversalRouter.sol';
+import '../../../contracts/test/routes/TestUniswapV3.sol';
 
 contract UniswapV3Test is TestBed {
 
@@ -33,10 +33,10 @@ contract UniswapV3Test is TestBed {
     }
 
     function testPairForErrors() public {
-        vm.expectRevert("PoolAddress: INVALID_ORDER");
+        vm.expectRevert('PoolAddress: INVALID_ORDER');
         route.getPairFor(address(weth), address(weth), poolFee1);
 
-        vm.expectRevert("UniswapV3: AMM_DOES_NOT_EXIST");
+        vm.expectRevert('UniswapV3: AMM_DOES_NOT_EXIST');
         route.getPairFor(address(weth), address(vm.addr(123456)), poolFee1);
     }
 

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-v3
 pragma solidity ^0.8.0;
 
-import "../fixtures/TestBed.sol";
-import "../../../contracts/test/TestUniversalRouter.sol";
-import "../../../contracts/test/routes/TestAerodrome.sol";
+import '../fixtures/TestBed.sol';
+import '../../../contracts/test/TestUniversalRouter.sol';
+import '../../../contracts/test/routes/TestAerodrome.sol';
 
 contract AerodromeTestStable is TestBed {
 
@@ -48,10 +48,10 @@ contract AerodromeTestStable is TestBed {
     }
 
     function testPairForErrors() public {
-        vm.expectRevert("CPMMRoute: IDENTICAL_ADDRESSES");
+        vm.expectRevert('CPMMRoute: IDENTICAL_ADDRESSES');
         route.getPairFor(address(usdc), address(usdc));
 
-        vm.expectRevert("Aerodrome: AMM_DOES_NOT_EXIST");
+        vm.expectRevert('Aerodrome: AMM_DOES_NOT_EXIST');
         route.getPairFor(address(usdc), address(vm.addr(123456)));
     }
 
