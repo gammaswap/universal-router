@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-v3
 pragma solidity ^0.8.0;
 
-import './fixtures/TestBed.sol';
-import './utils/Random.sol';
 import '../../contracts/routes/UniswapV2.sol';
 import '../../contracts/routes/SushiswapV2.sol';
 import '../../contracts/routes/DeltaSwap.sol';
@@ -10,6 +8,8 @@ import '../../contracts/routes/Aerodrome.sol';
 import '../../contracts/routes/UniswapV3.sol';
 import '../../contracts/routes/AerodromeCL.sol';
 import '../../contracts/interfaces/IUniversalRouter.sol';
+import './fixtures/TestBed.sol';
+import './utils/Random.sol';
 
 contract UniversalRouterTest is TestBed {
 
@@ -64,7 +64,7 @@ contract UniversalRouterTest is TestBed {
         router.addProtocol(address(0));
 
         UniswapV2 route0 = new UniswapV2(0, address(uniFactory), address(weth));
-        vm.expectRevert('UniversalRouter: INVALID_PROTOCOL_ID');
+        vm.expectRevert('UniversalRouter: INVALID_PROTOCOL_ROUTE_ID');
         router.addProtocol(address(route0));
 
         UniswapV2 route2 = new UniswapV2(20, address(uniFactory), address(weth));
@@ -82,17 +82,17 @@ contract UniversalRouterTest is TestBed {
         assertEq(router.protocols(20),address(route2));
 
         UniswapV2 route2a = new UniswapV2(20, address(uniFactory), address(weth));
-        vm.expectRevert('UniversalRouter: PROTOCOL_ID_USED');
+        vm.expectRevert('UniversalRouter: PROTOCOL_ROUTE_ID_USED');
         router.addProtocol(address(route2a));
 
         vm.prank(userX);
         vm.expectRevert('Ownable: caller is not the owner');
         router.removeProtocol(0);
 
-        vm.expectRevert('UniversalRouter: INVALID_PROTOCOL_ID');
+        vm.expectRevert('UniversalRouter: INVALID_PROTOCOL_ROUTE_ID');
         router.removeProtocol(0);
 
-        vm.expectRevert('UniversalRouter: PROTOCOL_ID_UNUSED');
+        vm.expectRevert('UniversalRouter: PROTOCOL_ROUTE_ID_UNUSED');
         router.removeProtocol(30);
 
         router.removeProtocol(20);
@@ -494,6 +494,90 @@ contract UniversalRouterTest is TestBed {
         }
 
         return selectedTokens;
+    }
+
+    function testGetAmountsOutErrors() public {
+        bytes memory path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b';
+
+        vm.expectRevert('UniversalRouter: PROTOCOL_ROUTE_NOT_SET');
+        router.getAmountsOut(1e18, path);
+
+        path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C5847';
+        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        router.getAmountsOut(1e18, path);
+
+        path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b';
+        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        router.getAmountsOut(1e18, path);
+
+        path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470bff';
+        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        router.getAmountsOut(1e18, path);
+
+        path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b00ff000bb8';
+        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        router.getAmountsOut(1e18, path);
+
+        path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b00ff000b';
+        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        router.getAmountsOut(1e18, path);
+
+        path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b00ff00';
+        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        router.getAmountsOut(1e18, path);
+
+        path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b00ff000bb8F62849F9A0B5Bf2913b396098F7c7019b51A820a';
+        vm.expectRevert('UniversalRouter: PROTOCOL_ROUTE_NOT_SET');
+        router.getAmountsOut(1e18, path);
+
+        path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A90001000bb82e234DAe75C793f67A35089C9d99245E1C58470b0001000bb8F62849F9A0B5Bf2913b396098F7c7019b51A820a';
+        router.getAmountsOut(1e18, path);
+
+        path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A90001000bb82e234DAe75C793f67A35089C9d99245E1C58470b00ff000bb8F62849F9A0B5Bf2913b396098F7c7019b51A82';
+        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        router.getAmountsOut(1e18, path);
+    }
+
+    function testGetAmountsInErrors() public {
+        bytes memory path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b';
+
+        vm.expectRevert('UniversalRouter: PROTOCOL_ROUTE_NOT_SET');
+        router.getAmountsIn(1e6, path);
+
+        path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C5847';
+        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        router.getAmountsIn(1e6, path);
+
+        path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b';
+        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        router.getAmountsIn(1e6, path);
+
+        path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470bff';
+        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        router.getAmountsIn(1e6, path);
+
+        path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b00ff000bb8';
+        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        router.getAmountsIn(1e6, path);
+
+        path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b00ff000b';
+        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        router.getAmountsIn(1e6, path);
+
+        path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b00ff00';
+        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        router.getAmountsIn(1e6, path);
+
+        path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b00ff000bb8F62849F9A0B5Bf2913b396098F7c7019b51A820a';
+        vm.expectRevert('UniversalRouter: PROTOCOL_ROUTE_NOT_SET');
+        router.getAmountsIn(1e6, path);
+
+        path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A90001000bb82e234DAe75C793f67A35089C9d99245E1C58470b0001000bb8F62849F9A0B5Bf2913b396098F7c7019b51A820a';
+        router.getAmountsIn(1e6, path);
+
+        path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A90001000bb82e234DAe75C793f67A35089C9d99245E1C58470b00ff000bb8F62849F9A0B5Bf2913b396098F7c7019b51A82';
+        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        router.getAmountsIn(1e6, path);
     }
 
     function testRoutePath() public {

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity >=0.8.0;
 
 import '@gammaswap/v1-implementations/contracts/interfaces/external/cpmm/ICPMM.sol';
-
 import './CPMMRoute.sol';
 
 /// @title UniswapV2 Protocol Route contract

@@ -2,7 +2,6 @@
 pragma solidity >=0.8.0;
 
 import '@openzeppelin/contracts/proxy/Clones.sol';
-
 import '../interfaces/external/IAeroCLPoolFactory.sol';
 
 /// @title Provides functions for deriving a pool address from the factory, tokens, and the fee

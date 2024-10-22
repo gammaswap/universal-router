@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity >=0.8.0;
 
 import '@gammaswap/v1-deltaswap/contracts/libraries/DSMath.sol';
 import '@gammaswap/v1-deltaswap/contracts/interfaces/IDeltaSwapPair.sol';
-
 import './UniswapV2.sol';
 
 /// @title DeltaSwap Protocol Route contract

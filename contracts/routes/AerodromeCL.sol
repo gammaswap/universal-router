@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity >=0.8.0;
 
 import '@gammaswap/v1-core/contracts/libraries/GSMath.sol';
 import '@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol';
 import '@uniswap/v3-core/contracts/libraries/SafeCast.sol';
-
 import '../interfaces/external/IAeroCLPool.sol';
-import '../interfaces/external/IAeroCLPoolFactory.sol';
 import '../libraries/AeroCallbackValidation.sol';
 import '../libraries/AeroPoolAddress.sol';
 import '../libraries/AeroPoolTicksCounter.sol';

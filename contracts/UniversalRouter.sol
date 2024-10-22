@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity >=0.8.0;
 
-import '@openzeppelin/contracts/access/Ownable2Step.sol';
 import '@gammaswap/v1-core/contracts/libraries/GammaSwapLibrary.sol';
 import '@gammaswap/v1-periphery/contracts/base/Transfers.sol';
-
+import '@openzeppelin/contracts/access/Ownable2Step.sol';
 import './interfaces/IProtocolRoute.sol';
 import './interfaces/IUniversalRouter.sol';
 import './libraries/BytesLib2.sol';
@@ -37,16 +36,16 @@ contract UniversalRouter is IUniversalRouter, Transfers, Ownable2Step {
     function addProtocol(address protocol) external virtual override onlyOwner {
         require(protocol != address(0), 'UniversalRouter: ZERO_ADDRESS');
         uint16 protocolId = IProtocolRoute(protocol).protocolId();
-        require(protocolId > 0, 'UniversalRouter: INVALID_PROTOCOL_ID');
-        require(protocols[protocolId] == address(0), 'UniversalRouter: PROTOCOL_ID_USED');
+        require(protocolId > 0, 'UniversalRouter: INVALID_PROTOCOL_ROUTE_ID');
+        require(protocols[protocolId] == address(0), 'UniversalRouter: PROTOCOL_ROUTE_ID_USED');
         protocols[protocolId] = protocol;
         emit ProtocolRegistered(protocolId, protocol);
     }
 
     /// @inheritdoc IUniversalRouter
     function removeProtocol(uint16 protocolId) external virtual override onlyOwner {
-        require(protocolId > 0, 'UniversalRouter: INVALID_PROTOCOL_ID');
-        require(protocols[protocolId] != address(0), 'UniversalRouter: PROTOCOL_ID_UNUSED');
+        require(protocolId > 0, 'UniversalRouter: INVALID_PROTOCOL_ROUTE_ID');
+        require(protocols[protocolId] != address(0), 'UniversalRouter: PROTOCOL_ROUTE_ID_UNUSED');
         address protocol = protocols[protocolId];
         protocols[protocolId] = address(0);
         emit ProtocolUnregistered(protocolId, protocol);
@@ -130,7 +129,7 @@ contract UniversalRouter is IUniversalRouter, Transfers, Ownable2Step {
             (routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee) = path.getFirstPool().decodeFirstPool();
 
             routes[i].hop = protocols[routes[i].protocolId];
-            require(routes[i].hop != address(0), 'UniversalRouter: PROTOCOL_NOT_SET');
+            require(routes[i].hop != address(0), 'UniversalRouter: PROTOCOL_ROUTE_NOT_SET');
 
             (routes[i].pair, routes[i].origin) = IProtocolRoute(routes[i].hop).getOrigin(routes[i].from,
                 routes[i].to, routes[i].fee);
@@ -176,7 +175,7 @@ contract UniversalRouter is IUniversalRouter, Transfers, Ownable2Step {
             (routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee) = path.getFirstPool().decodeFirstPool();
 
             routes[i].hop = protocols[routes[i].protocolId];
-            require(routes[i].hop != address(0), 'UniversalRouter: PROTOCOL_NOT_SET');
+            require(routes[i].hop != address(0), 'UniversalRouter: PROTOCOL_ROUTE_NOT_SET');
 
             (amounts[i + 1], routes[i].pair, routes[i].fee) = IProtocolRoute(routes[i].hop).getAmountOut(amounts[i],
                 routes[i].from, routes[i].to, routes[i].fee);
@@ -219,7 +218,7 @@ contract UniversalRouter is IUniversalRouter, Transfers, Ownable2Step {
             (routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee) = path.getLastPool().decodeFirstPool();
 
             routes[i].hop = protocols[routes[i].protocolId];
-            require(routes[i].hop != address(0), 'UniversalRouter: ROUTE_NOT_SET');
+            require(routes[i].hop != address(0), 'UniversalRouter: PROTOCOL_ROUTE_NOT_SET');
 
             (amounts[i], routes[i].pair, routes[i].fee) = IProtocolRoute(routes[i].hop).getAmountIn(amounts[i + 1],
                 routes[i].from, routes[i].to, routes[i].fee);
