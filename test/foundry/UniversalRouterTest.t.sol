@@ -496,6 +496,48 @@ contract UniversalRouterTest is TestBed {
         return selectedTokens;
     }
 
+    function testCalcRoutesErrors() public {
+        bytes memory path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b';
+
+        vm.expectRevert('UniversalRouter: PROTOCOL_ROUTE_NOT_SET');
+        router.calcRoutes(path, address(this));
+
+        path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C5847';
+        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        router.calcRoutes(path, address(this));
+
+        path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b';
+        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        router.calcRoutes(path, address(this));
+
+        path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470bff';
+        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        router.calcRoutes(path, address(this));
+
+        path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b00ff000bb8';
+        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        router.calcRoutes(path, address(this));
+
+        path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b00ff000b';
+        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        router.calcRoutes(path, address(this));
+
+        path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b00ff00';
+        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        router.calcRoutes(path, address(this));
+
+        path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b00ff000bb8F62849F9A0B5Bf2913b396098F7c7019b51A820a';
+        vm.expectRevert('UniversalRouter: PROTOCOL_ROUTE_NOT_SET');
+        router.calcRoutes(path, address(this));
+
+        path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A90001000bb82e234DAe75C793f67A35089C9d99245E1C58470b0001000bb8F62849F9A0B5Bf2913b396098F7c7019b51A820a';
+        router.calcRoutes(path, address(this));
+
+        path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A90001000bb82e234DAe75C793f67A35089C9d99245E1C58470b00ff000bb8F62849F9A0B5Bf2913b396098F7c7019b51A82';
+        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        router.calcRoutes(path, address(this));
+    }
+
     function testGetAmountsOutErrors() public {
         bytes memory path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b';
 
