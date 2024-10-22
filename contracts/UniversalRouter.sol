@@ -19,7 +19,7 @@ contract UniversalRouter is IUniversalRouter, Transfers, Ownable2Step {
     using BytesLib2 for bytes;
 
     /// @dev Returns protocol route contracts by their protocolId
-    mapping(uint16 => address) public override protocols;
+    mapping(uint16 => address) public override protocolRoutes;
 
     /// @dev Initialize `WETH` address to Wrapped Ethereum contract
     constructor(address _WETH) Transfers(_WETH) {
@@ -33,22 +33,22 @@ contract UniversalRouter is IUniversalRouter, Transfers, Ownable2Step {
     }
 
     /// @inheritdoc IUniversalRouter
-    function addProtocol(address protocol) external virtual override onlyOwner {
+    function addProtocolRoute(address protocol) external virtual override onlyOwner {
         require(protocol != address(0), 'UniversalRouter: ZERO_ADDRESS');
         uint16 protocolId = IProtocolRoute(protocol).protocolId();
         require(protocolId > 0, 'UniversalRouter: INVALID_PROTOCOL_ROUTE_ID');
-        require(protocols[protocolId] == address(0), 'UniversalRouter: PROTOCOL_ROUTE_ID_USED');
-        protocols[protocolId] = protocol;
-        emit ProtocolRegistered(protocolId, protocol);
+        require(protocolRoutes[protocolId] == address(0), 'UniversalRouter: PROTOCOL_ROUTE_ID_USED');
+        protocolRoutes[protocolId] = protocol;
+        emit AddProtocolRoute(protocolId, protocol);
     }
 
     /// @inheritdoc IUniversalRouter
-    function removeProtocol(uint16 protocolId) external virtual override onlyOwner {
+    function removeProtocolRoute(uint16 protocolId) external virtual override onlyOwner {
         require(protocolId > 0, 'UniversalRouter: INVALID_PROTOCOL_ROUTE_ID');
-        require(protocols[protocolId] != address(0), 'UniversalRouter: PROTOCOL_ROUTE_ID_UNUSED');
-        address protocol = protocols[protocolId];
-        protocols[protocolId] = address(0);
-        emit ProtocolUnregistered(protocolId, protocol);
+        require(protocolRoutes[protocolId] != address(0), 'UniversalRouter: PROTOCOL_ROUTE_ID_UNUSED');
+        address protocol = protocolRoutes[protocolId];
+        protocolRoutes[protocolId] = address(0);
+        emit RemoveProtocolRoute(protocolId, protocol);
     }
 
     // **** SWAP ****
@@ -128,7 +128,7 @@ contract UniversalRouter is IUniversalRouter, Transfers, Ownable2Step {
             // only the first pool in the path is necessary
             (routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee) = path.getFirstPool().decodeFirstPool();
 
-            routes[i].hop = protocols[routes[i].protocolId];
+            routes[i].hop = protocolRoutes[routes[i].protocolId];
             require(routes[i].hop != address(0), 'UniversalRouter: PROTOCOL_ROUTE_NOT_SET');
 
             (routes[i].pair, routes[i].origin) = IProtocolRoute(routes[i].hop).getOrigin(routes[i].from,
@@ -174,7 +174,7 @@ contract UniversalRouter is IUniversalRouter, Transfers, Ownable2Step {
             // only the first pool in the path is necessary
             (routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee) = path.getFirstPool().decodeFirstPool();
 
-            routes[i].hop = protocols[routes[i].protocolId];
+            routes[i].hop = protocolRoutes[routes[i].protocolId];
             require(routes[i].hop != address(0), 'UniversalRouter: PROTOCOL_ROUTE_NOT_SET');
 
             (amounts[i + 1], routes[i].pair, routes[i].fee) = IProtocolRoute(routes[i].hop).getAmountOut(amounts[i],
@@ -217,7 +217,7 @@ contract UniversalRouter is IUniversalRouter, Transfers, Ownable2Step {
             // only the first pool in the path is necessary
             (routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee) = path.getLastPool().decodeFirstPool();
 
-            routes[i].hop = protocols[routes[i].protocolId];
+            routes[i].hop = protocolRoutes[routes[i].protocolId];
             require(routes[i].hop != address(0), 'UniversalRouter: PROTOCOL_ROUTE_NOT_SET');
 
             (amounts[i], routes[i].pair, routes[i].fee) = IProtocolRoute(routes[i].hop).getAmountIn(amounts[i + 1],

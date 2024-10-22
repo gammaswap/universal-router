@@ -7,9 +7,9 @@ pragma solidity >=0.8.0;
 interface IUniversalRouter {
 
     /// @dev emitted when a protocol route is added
-    event ProtocolRegistered(uint16 indexed protocolId, address protocol);
+    event AddProtocolRoute(uint16 indexed protocolId, address protocol);
     /// @dev emitted when a protocol route is removed
-    event ProtocolUnregistered(uint16 indexed protocolId, address protocol);
+    event RemoveProtocolRoute(uint16 indexed protocolId, address protocol);
 
     /// @dev Route struct that contains instructions to perform a swap through supported routes
     struct Route {
@@ -34,15 +34,15 @@ interface IUniversalRouter {
     /// @dev Get protocol route identified by protocolId from supported routes
     /// @param protocolId - protocolId identifying route to retrieve
     /// @return address of supported protocol route contract (IProtocolRoute implementation)
-    function protocols(uint16 protocolId) external view returns(address);
+    function protocolRoutes(uint16 protocolId) external view returns(address);
 
     /// @dev Add protocol route identified by protocolId to supported routes
     /// @param protocol - address of protocol route contract
-    function addProtocol(address protocol) external;
+    function addProtocolRoute(address protocol) external;
 
     /// @dev Remove protocol route identified by protocolId from supported routes
     /// @param protocolId - protocolId identifying route to remove
-    function removeProtocol(uint16 protocolId) external;
+    function removeProtocolRoute(uint16 protocolId) external;
 
     /// @dev Swap ETH for ERC20 token at path[n] through provided path. Token at path[0] must be WETH
     /// @dev Must transfer ETH when calling this function to perform swap

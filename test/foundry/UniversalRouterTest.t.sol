@@ -50,53 +50,53 @@ contract UniversalRouterTest is TestBed {
         aeroCLRoute = new AerodromeCL(7, address(aeroCLFactory), address(weth));
 
         // set up routes
-        router.addProtocol(address(uniV2Route));
-        router.addProtocol(address(sushiV2Route));
-        router.addProtocol(address(dsRoute));
-        router.addProtocol(address(aeroRoute));
-        router.addProtocol(address(aeroStableRoute));
-        router.addProtocol(address(uniV3Route));
-        router.addProtocol(address(aeroCLRoute));
+        router.addProtocolRoute(address(uniV2Route));
+        router.addProtocolRoute(address(sushiV2Route));
+        router.addProtocolRoute(address(dsRoute));
+        router.addProtocolRoute(address(aeroRoute));
+        router.addProtocolRoute(address(aeroStableRoute));
+        router.addProtocolRoute(address(uniV3Route));
+        router.addProtocolRoute(address(aeroCLRoute));
     }
 
     function testAddRemoveProtocol() public {
         vm.expectRevert('UniversalRouter: ZERO_ADDRESS');
-        router.addProtocol(address(0));
+        router.addProtocolRoute(address(0));
 
         UniswapV2 route0 = new UniswapV2(0, address(uniFactory), address(weth));
         vm.expectRevert('UniversalRouter: INVALID_PROTOCOL_ROUTE_ID');
-        router.addProtocol(address(route0));
+        router.addProtocolRoute(address(route0));
 
         UniswapV2 route2 = new UniswapV2(20, address(uniFactory), address(weth));
 
-        assertEq(router.protocols(20),address(0));
+        assertEq(router.protocolRoutes(20),address(0));
 
         assertEq(router.owner(), address(this));
 
         address userX = vm.addr(12345);
         vm.prank(userX);
         vm.expectRevert('Ownable: caller is not the owner');
-        router.addProtocol(address(route2));
+        router.addProtocolRoute(address(route2));
 
-        router.addProtocol(address(route2));
-        assertEq(router.protocols(20),address(route2));
+        router.addProtocolRoute(address(route2));
+        assertEq(router.protocolRoutes(20),address(route2));
 
         UniswapV2 route2a = new UniswapV2(20, address(uniFactory), address(weth));
         vm.expectRevert('UniversalRouter: PROTOCOL_ROUTE_ID_USED');
-        router.addProtocol(address(route2a));
+        router.addProtocolRoute(address(route2a));
 
         vm.prank(userX);
         vm.expectRevert('Ownable: caller is not the owner');
-        router.removeProtocol(0);
+        router.removeProtocolRoute(0);
 
         vm.expectRevert('UniversalRouter: INVALID_PROTOCOL_ROUTE_ID');
-        router.removeProtocol(0);
+        router.removeProtocolRoute(0);
 
         vm.expectRevert('UniversalRouter: PROTOCOL_ROUTE_ID_UNUSED');
-        router.removeProtocol(30);
+        router.removeProtocolRoute(30);
 
-        router.removeProtocol(20);
-        assertEq(router.protocols(20),address(0));
+        router.removeProtocolRoute(20);
+        assertEq(router.protocolRoutes(20),address(0));
     }
 
     function testQuotes(uint8 tokenChoices, uint128 seed, uint256 amountIn) public {
@@ -384,10 +384,10 @@ contract UniversalRouterTest is TestBed {
             address pair = getPair(routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee);
             assertTrue(pair != address(0));
             assertTrue(validateTokens(routes[i].from, routes[i].to, pair));
-            assertEq(routes[i].hop, router.protocols(routes[i].protocolId));
+            assertEq(routes[i].hop, router.protocolRoutes(routes[i].protocolId));
             assertEq(routes[i].pair, pair);
             if(routes[i].protocolId == 6 || routes[i].protocolId == 7) {
-                assertEq(routes[i].origin, router.protocols(routes[i].protocolId));
+                assertEq(routes[i].origin, router.protocolRoutes(routes[i].protocolId));
             } else {
                 assertEq(routes[i].origin, pair);
             }

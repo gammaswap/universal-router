@@ -7,7 +7,7 @@ pragma solidity >=0.8.0;
 /// @dev Every protocol route created must implement this interface
 interface IProtocolRoute {
 
-    /// @dev Unique across protocol routes
+    /// @dev Unique across protocol routes. Matches protocolId in GammaSwap
     /// @return id of protocol route
     function protocolId() external view returns(uint16);
 
