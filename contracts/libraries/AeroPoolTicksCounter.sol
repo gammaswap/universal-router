@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity >=0.6.0;
 
-import "../interfaces/external/IAeroCLPool.sol";
+import '../interfaces/external/IAeroCLPool.sol';
 
 library AeroPoolTicksCounter {
     /// @dev This function counts the number of initialized ticks that would incur a gas cost between tickBefore and tickAfter.

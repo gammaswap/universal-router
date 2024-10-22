@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity >=0.8.0;
 
-import "../interfaces/external/IAeroCLPoolFactory.sol";
-import "@openzeppelin/contracts/proxy/Clones.sol";
+import '@openzeppelin/contracts/proxy/Clones.sol';
+
+import '../interfaces/external/IAeroCLPoolFactory.sol';
 
 /// @title Provides functions for deriving a pool address from the factory, tokens, and the fee
 library AeroPoolAddress {
@@ -29,7 +30,7 @@ library AeroPoolAddress {
     /// @param key The PoolKey
     /// @return pool The contract address of the V3 pool
     function computeAddress(address factory, PoolKey memory key) internal view returns (address pool) {
-        require(key.token0 < key.token1, "AeroPoolAddress: INVALID_ORDER");
+        require(key.token0 < key.token1, 'AeroPoolAddress: INVALID_ORDER');
         pool = Clones.predictDeterministicAddress(
             IAeroCLPoolFactory(factory).poolImplementation(),
             keccak256(abi.encode(key.token0, key.token1, key.tickSpacing)),

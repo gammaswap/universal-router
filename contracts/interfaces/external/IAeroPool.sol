@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
+/// @title Interface for the Aerodrome Pool within UniversalRouter
+/// @author Daniel D. Alcarraz (https://github.com/0xDanr)
+/// @dev This is a limited implementation for use in UniversalRouter. Sufficient to perform swaps
 interface IAeroPool {
     /// @notice Read reserve token quantities in the AMM, and timestamp of last update
     /// @dev Reserve quantities come back as uint112 although we store them as uint128
