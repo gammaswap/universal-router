@@ -7,7 +7,7 @@
 </p>
 
 <h1 align="center">Universal Router</h1>
-Universal router used to trade across multiple protocols (e.g. DeltaSwap, UniswapV3, Aerodrome, etc.)
+Universal router used to trade across multiple protocols (e.g. DeltaSwap, UniswapV3, Aerodrome, etc.).
 
 ## Path Definition
 
@@ -35,7 +35,7 @@ E.g.
 
 -tokenOut: 0x2e234DAe75C793f67A35089C9d99245E1C58470b
 
-Paths can be appended to create multi pool paths across multiple protocols
+Paths can be appended to create multi pool paths across multiple protocols.
 
 E.g.
 
@@ -55,12 +55,12 @@ E.g.
 
 -tokenOut: 0xF62849F9A0B5Bf2913b396098F7c7019b51A820a
 
-fee parameter is only needed when swapping with UniswapV3 or Aerodrome Concentrated Liquidity pools
+fee parameter is only needed when swapping with UniswapV3 or Aerodrome Concentrated Liquidity pools.
 
 ## Available Protocols
-UniswapV2, SushiswapV2, DeltaSwap, UniswapV3, Aerodrome (stable & non-stable), Aerodrome Concentrated Liquidity
+UniswapV2, SushiswapV2, DeltaSwap, UniswapV3, Aerodrome (stable & non-stable), Aerodrome Concentrated Liquidity.
 
 ## How to Add Another Protocol Route
 
 Create a contract that implements IProtocolRoute and give it a unique protocolId that has not been used by the protocolRouter yet.
-Then add it to the UniversalRouter by calling addProtocolRoute()
+Then add it to the UniversalRouter by calling addProtocolRoute().
