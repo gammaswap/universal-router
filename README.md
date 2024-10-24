@@ -58,7 +58,7 @@ E.g.
 fee parameter is only needed when swapping with UniswapV3 or Aerodrome Concentrated Liquidity pools.
 
 ## Available Protocols
-UniswapV2, SushiswapV2, DeltaSwap, UniswapV3, Aerodrome (stable & non-stable), Aerodrome Concentrated Liquidity
+UniswapV2, SushiswapV2, DeltaSwap, UniswapV3, Aerodrome (stable & non-stable), Aerodrome Concentrated Liquidity.
 
 ## How to Add Another Protocol Route
 
