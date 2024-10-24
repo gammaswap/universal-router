@@ -5,6 +5,21 @@ pragma solidity >=0.8.0;
 /// @author Daniel D. Alcarraz (https://github.com/0xDanr)
 /// @dev This is a limited implementation for use in UniversalRouter. Sufficient to perform swaps
 interface IAeroPool {
+
+    event Fees(address indexed sender, uint256 amount0, uint256 amount1);
+    event Mint(address indexed sender, uint256 amount0, uint256 amount1);
+    event Burn(address indexed sender, address indexed to, uint256 amount0, uint256 amount1);
+    event Swap(
+        address indexed sender,
+        address indexed to,
+        uint256 amount0In,
+        uint256 amount1In,
+        uint256 amount0Out,
+        uint256 amount1Out
+    );
+    event Sync(uint256 reserve0, uint256 reserve1);
+    event Claim(address indexed sender, address indexed recipient, uint256 amount0, uint256 amount1);
+
     /// @notice Read reserve token quantities in the AMM, and timestamp of last update
     /// @dev Reserve quantities come back as uint112 although we store them as uint128
     /// @return reserve0 - quantity of token0 held in AMM
