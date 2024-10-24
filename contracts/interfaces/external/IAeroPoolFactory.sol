@@ -8,6 +8,13 @@ pragma solidity >=0.8.0;
 /// @dev Write functions are defined only for unit testing
 interface IAeroPoolFactory {
 
+    event SetFeeManager(address feeManager);
+    event SetPauser(address pauser);
+    event SetPauseState(bool state);
+    event SetVoter(address voter);
+    event PoolCreated(address indexed token0, address indexed token1, bool indexed stable, address pool, uint256);
+    event SetCustomFee(address indexed pool, uint256 fee);
+
     /// @notice Returns address of implementation Aerodrome pool contract from which all AMMs are made
     function implementation() external view returns (address);
 
