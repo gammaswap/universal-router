@@ -62,5 +62,5 @@ UniswapV2, SushiswapV2, DeltaSwap, UniswapV3, Aerodrome (stable & non-stable), A
 
 ## How to Add Another Protocol Route
 
-Create a contract that implements IProtocolRoute and give it a unique protocolId that has not used by the protocolRouter yet.0x000bb8
+Create a contract that implements IProtocolRoute and give it a unique protocolId that has not been used by the protocolRouter yet.
 Then add it to the UniversalRouter by calling addProtocolRoute()
