@@ -3,7 +3,7 @@ pragma solidity >=0.8.0;
 
 import './SushiswapV2.sol';
 
-/// @title Sushiswap Protocol Route Test contract
+/// @title SushiswapV2 Protocol Route Test contract
 /// @author Daniel D. Alcarraz (https://github.com/0xDanr)
 /// @notice Route contract to implement swaps in Sushiswap AMMs
 /// @dev Implements IProtocolRoute functions to quote and handle one AMM swap at a time
