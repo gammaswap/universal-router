@@ -14,7 +14,8 @@ contract SushiswapV2Test is TestBed {
         owner = vm.addr(1);
         initSetup(owner);
 
-        route = new TestSushiswapV2(2, address(sushiFactory), address(weth));
+        bytes32 initCodeHash = 0xe18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303;
+        route = new TestSushiswapV2(2, address(sushiFactory), address(weth), initCodeHash);
     }
 
     function testConstants() public {

@@ -5,7 +5,7 @@ import '../../routes/SushiswapV2.sol';
 
 contract TestSushiswapV2 is SushiswapV2 {
 
-    constructor(uint16 _protocolId, address _factory, address _WETH) SushiswapV2(_protocolId, _factory, _WETH) {
+    constructor(uint16 _protocolId, address _factory, address _WETH, bytes32 initCodeHash) SushiswapV2(_protocolId, _factory, _WETH, initCodeHash) {
     }
 
     function getInitCodeHash() public virtual view returns(bytes32) {

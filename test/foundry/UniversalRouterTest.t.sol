@@ -41,8 +41,10 @@ contract UniversalRouterTest is TestBed {
         tokens[3] = address(dai);
         tokens[4] = address(wbtc);
 
+        bytes32 initCodeHash = 0xe18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303;
+
         uniV2Route = new UniswapV2(1, address(uniFactory), address(weth));
-        sushiV2Route = new SushiswapV2(2, address(sushiFactory), address(weth));
+        sushiV2Route = new SushiswapV2(2, address(sushiFactory), address(weth), initCodeHash);
         dsRoute = new DeltaSwap(3, address(dsFactory), address(weth));
         aeroRoute = new Aerodrome(4, address(aeroFactory), false, address(weth));
         aeroStableRoute = new Aerodrome(5, address(aeroFactory), true, address(weth));

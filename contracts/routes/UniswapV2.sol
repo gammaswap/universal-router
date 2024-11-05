@@ -20,7 +20,7 @@ contract UniswapV2 is CPMMRoute {
     }
 
     /// @dev init code hash of UniswapV2 pools. Used to calculate pool address without external calls
-    function initCodeHash() internal virtual pure returns(bytes32) {
+    function initCodeHash() internal virtual view returns(bytes32) {
         return 0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f;
     }
 
