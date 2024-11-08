@@ -20,6 +20,7 @@ contract UniversalRouter is IUniversalRouter, Transfers, Ownable2Step {
 
     /// @dev Returns protocol route contracts by their protocolId
     mapping(uint16 => address) public override protocolRoutes;
+    mapping(address => bool) public override trackedPairs;
 
     /// @dev Initialize `WETH` address to Wrapped Ethereum contract
     constructor(address _WETH) Transfers(_WETH) {
@@ -30,6 +31,23 @@ contract UniversalRouter is IUniversalRouter, Transfers, Ownable2Step {
     modifier ensure(uint256 deadline) {
         require(deadline >= block.timestamp, 'UniversalRouter: EXPIRED');
         _;
+    }
+
+    /// @inheritdoc IUniversalRouter
+    function trackPair(address token0, address token1, uint24 fee, uint16 protocolId) external virtual override onlyOwner {
+        require(token0 != address(0), 'UniversalRouter: ZERO_ADDRESS');
+        require(token1 != address(0), 'UniversalRouter: ZERO_ADDRESS');
+
+        address protocol = protocolRoutes[protocolId];
+        require(protocol != address(0), 'UniversalRouter: ROUTE_NOT_SET_UP');
+
+        address pair;
+        (pair, token0, token1) = IProtocolRoute(protocol).pairFor(token0, token1, fee);
+
+        require(trackedPairs[pair] == false, "UniversalRouter: ALREADY_TRACKED");
+        trackedPairs[pair] = true;
+
+        emit TrackPair(pair, token0, token1, fee);
     }
 
     /// @inheritdoc IUniversalRouter

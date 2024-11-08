@@ -5,12 +5,8 @@ import './aerodrome-cl/IAeroVoter.sol';
 import './aerodrome-cl/IAeroFactoryRegistry.sol';
 
 /// @title Interface for the Aerodrome Concentrated Liquidity Factory within UniversalRouter
-/// @author Daniel D. Alcarraz (https://github.com/0xDanr)
 /// @notice The Concentrated Liquidity Factory facilitates creation of CL pools and control over the protocol fees
-/// @dev This is a limited implementation for use in UniversalRouter
-/// @dev Write functions are defined only for unit testing
 interface IAeroCLPoolFactory {
-
     /// @notice Emitted when the owner of the factory is changed
     /// @param oldOwner The owner before the owner was changed
     /// @param newOwner The owner after the owner was changed
