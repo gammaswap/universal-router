@@ -11,6 +11,15 @@ interface IProtocolRoute {
     /// @return id of protocol route
     function protocolId() external view returns(uint16);
 
+    /// @dev Get AMM for tokenA and tokenB pair.
+    /// @param tokenA - address of a token of the AMM pool
+    /// @param tokenB - address of other token of the AMM pool
+    /// @param fee - AMM fee used to identify AMM pool
+    /// @return pair - address of AMM for token pair
+    /// @return token0 - address of token0 in AMM
+    /// @return token1 - address of token1 in AMM
+    function pairFor(address tokenA, address tokenB, uint24 fee) external view returns (address pair, address token0, address token1);
+
     /// @dev Get conversion amount of amountIn of tokenIn in tokenOut. Conversion happens at marginal price of AMM
     /// @param amountIn - quantity of tokenIn token to convert to tokenOut
     /// @param tokenIn - address token of amountIn quantity that will be converted

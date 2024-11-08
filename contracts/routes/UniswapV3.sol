@@ -62,7 +62,7 @@ contract UniswapV3 is CPMMRoute, IUniswapV3SwapCallback {
 
     /// @inheritdoc IProtocolRoute
     function quote(uint256 amountIn, address tokenIn, address tokenOut, uint24 fee) public override virtual view returns (uint256 amountOut) {
-        address pair = pairFor(tokenIn, tokenOut, fee);
+        (address pair,,) = pairFor(tokenIn, tokenOut, fee);
         (uint256 sqrtPriceX96,,,,,,) = IUniswapV3Pool(pair).slot0();
         if(tokenIn < tokenOut) {
             uint256 decimals = 10**GammaSwapLibrary.decimals(tokenIn);
@@ -87,20 +87,22 @@ contract UniswapV3 is CPMMRoute, IUniswapV3SwapCallback {
         price = sqrtPrice * sqrtPrice;
     }
 
-    /// @dev Get AMM for tokenA and tokenB pair. Calculated using CREATE2 address for the pair without making any external calls
-    /// @param tokenA - address of a token of the AMM pool
-    /// @param tokenB - address of other token of the AMM pool
-    /// @param fee - AMM fee used to identify AMM pool
-    /// @return pair - address of AMM for token pair
-    function pairFor(address tokenA, address tokenB, uint24 fee) internal view returns (address pair) {
-        pair = PoolAddress.computeAddress(factory, POOL_INIT_CODE_HASH, PoolAddress.getPoolKey(tokenA, tokenB, fee));
+    /// @inheritdoc IProtocolRoute
+    function pairFor(address tokenA, address tokenB, uint24 fee) public override virtual view returns (address pair, address token0, address token1) {
+        (token0, token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
+        pair = PoolAddress.computeAddress(factory, POOL_INIT_CODE_HASH, PoolAddress.PoolKey({token0: token0, token1: token1, fee: fee}));
         require(GammaSwapLibrary.isContract(pair), 'UniswapV3: AMM_DOES_NOT_EXIST');
+    }
+
+    /// @dev return only the pair address when calling pairFor
+    function _pairFor(address token0, address token1, uint24 fee) internal virtual view returns(address pair) {
+        (pair,,) = pairFor(token0, token1, fee);
     }
 
     /// @inheritdoc IProtocolRoute
     function getOrigin(address tokenA, address tokenB, uint24 fee) external override virtual view
         returns(address pair, address origin) {
-        pair = pairFor(tokenA, tokenB, fee);
+        (pair,,) = pairFor(tokenA, tokenB, fee);
         origin = address(this);
     }
 
@@ -158,7 +160,7 @@ contract UniswapV3 is CPMMRoute, IUniswapV3SwapCallback {
         returns(uint256 amountOut, address pair) {
 
         bool zeroForOne = tokenIn < tokenOut;
-        pair = pairFor(tokenIn, tokenOut, fee);
+        (pair,,) = pairFor(tokenIn, tokenOut, fee);
 
         try
             IUniswapV3Pool(pair).swap(
@@ -194,7 +196,7 @@ contract UniswapV3 is CPMMRoute, IUniswapV3SwapCallback {
     /// @return pair - address of AMM contract in UniswapV3
     function _quoteAmountIn(uint256 amountOut, address tokenIn, address tokenOut, uint24 fee) internal virtual
         returns(uint256 amountIn, address pair) {
-        pair = pairFor(tokenIn, tokenOut, fee);
+        (pair,,) = pairFor(tokenIn, tokenOut, fee);
 
         // if no price limit has been specified, cache the output amount for comparison in the swap callback
         amountOutCached = amountOut;
@@ -239,7 +241,7 @@ contract UniswapV3 is CPMMRoute, IUniswapV3SwapCallback {
         bool zeroForOne = params.tokenIn < params.tokenOut;
 
         (int256 amount0, int256 amount1) =
-            IUniswapV3Pool(pairFor(params.tokenIn, params.tokenOut, params.fee)).swap(
+            IUniswapV3Pool(_pairFor(params.tokenIn, params.tokenOut, params.fee)).swap(
                 params.recipient,
                 zeroForOne,
                 int256(params.amount),
@@ -265,7 +267,7 @@ contract UniswapV3 is CPMMRoute, IUniswapV3SwapCallback {
         ? (tokenIn < tokenOut, uint256(amount0Delta), uint256(-amount1Delta))
         : (tokenOut < tokenIn, uint256(amount1Delta), uint256(-amount0Delta));
 
-        (uint160 sqrtPriceX96After, int24 tickAfter, , , , , ) = IUniswapV3Pool(pairFor(tokenIn, tokenOut, fee)).slot0();
+        (uint160 sqrtPriceX96After, int24 tickAfter, , , , , ) = IUniswapV3Pool(_pairFor(tokenIn, tokenOut, fee)).slot0();
 
         if (isExactInput) {
             if(data.payer != address(0)) {

@@ -15,7 +15,7 @@ contract TestUniswapV3 is UniswapV3 {
 
     function getPairFor(address tokenA, address tokenB, uint24 fee) public virtual view
         returns(address pair) {
-        return pairFor(tokenA, tokenB, fee);
+        (pair,,) = pairFor(tokenA, tokenB, fee);
     }
 
     function getDecodedPrice(uint256 sqrtPriceX96, uint256 decimals) public virtual view

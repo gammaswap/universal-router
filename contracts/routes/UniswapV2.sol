@@ -30,14 +30,8 @@ contract UniswapV2 is CPMMRoute {
         amountOut = _quote(amountIn, reserveIn, reserveOut);
     }
 
-    /// @dev Get AMM for tokenA and tokenB pair. Calculated using CREATE2 address for the pair without making any external calls
-    /// @dev Also return sorted token pair
-    /// @param tokenA - address of a token of the AMM pool
-    /// @param tokenB - address of other token of the AMM pool
-    /// @return pair - address of AMM for token pair
-    /// @return token0 - address of token in the AMM of lower value
-    /// @return token1 - address of token in the AMM of higher value
-    function pairFor(address tokenA, address tokenB) internal view returns (address pair, address token0, address token1) {
+    /// @inheritdoc IProtocolRoute
+    function pairFor(address tokenA, address tokenB, uint24 fee) public override virtual view returns (address pair, address token0, address token1) {
         (token0, token1) = _sortTokens(tokenA, tokenB);
         pair = address(uint160(uint256(keccak256(abi.encodePacked(
             hex'ff',
@@ -56,7 +50,7 @@ contract UniswapV2 is CPMMRoute {
     /// @return pair - address of AMM of tokenA and tokenB pair
     function getReserves(address tokenA, address tokenB) internal view returns (uint256 reserveA, uint256 reserveB, address pair) {
         address token0;
-        (pair, token0,) = pairFor(tokenA, tokenB);
+        (pair, token0,) = pairFor(tokenA, tokenB, 0);
         (uint256 reserve0, uint256 reserve1,) = ICPMM(pair).getReserves();
         (reserveA, reserveB) = tokenA == token0 ? (reserve0, reserve1) : (reserve1, reserve0);
     }
@@ -84,7 +78,7 @@ contract UniswapV2 is CPMMRoute {
     /// @inheritdoc IProtocolRoute
     function getOrigin(address tokenA, address tokenB, uint24 fee) external override virtual view
         returns(address pair, address origin) {
-        (pair,,) = pairFor(tokenA, tokenB);
+        (pair,,) = pairFor(tokenA, tokenB, fee);
         origin = pair;
     }
 
@@ -117,7 +111,7 @@ contract UniswapV2 is CPMMRoute {
 
     /// @inheritdoc IProtocolRoute
     function swap(address from, address to, uint24 fee, address dest) external override virtual {
-        (address pair, address token0,) = pairFor(from, to);
+        (address pair, address token0,) = pairFor(from, to, fee);
         uint256 amountInput;
         uint256 amountOutput;
         { // scope to avoid stack too deep errors
