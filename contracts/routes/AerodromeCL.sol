@@ -47,9 +47,6 @@ contract AerodromeCL is CPMMRoute, IUniswapV3SwapCallback {
         address recipient;
     }
 
-    /// @dev address of Aerodrome Concentrated Liquidity factory contract
-    address public immutable factory;
-
     /// @dev Transient storage variable used to check a safety condition in exact output swaps.
     uint256 private amountOutCached;
 

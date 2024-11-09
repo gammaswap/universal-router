@@ -252,7 +252,9 @@ contract UniversalRouter is IUniversalRouter, Transfers, Ownable2Step {
         require(trackedPairs[pair] == false, "UniversalRouter: ALREADY_TRACKED");
         trackedPairs[pair] = true;
 
-        emit TrackPair(pair, token0, token1, fee);
+        address factory = IProtocolRoute(protocol).factory();
+
+        emit TrackPair(pair, token0, token1, fee, factory);
     }
 
     /// @inheritdoc Transfers

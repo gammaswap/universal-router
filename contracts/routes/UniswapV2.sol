@@ -10,9 +10,6 @@ import './CPMMRoute.sol';
 /// @dev Implements IProtocolRoute functions to quote and handle one AMM swap at a time
 contract UniswapV2 is CPMMRoute {
 
-    /// @dev address of UniswapV2 factory contract
-    address public immutable factory;
-
     /// @dev Initialize `_protocolId`, `_factory`, and `WETH` address
     constructor(uint16 _protocolId, address _factory, address _WETH) Transfers(_WETH) {
         protocolId = _protocolId;

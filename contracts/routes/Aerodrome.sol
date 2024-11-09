@@ -13,8 +13,6 @@ import './CPMMRoute.sol';
 /// @dev Implements IProtocolRoute functions to quote and handle one AMM swap at a time
 contract Aerodrome is CPMMRoute {
 
-    /// @dev address of Aerodrome factory contract
-    address public immutable factory;
     /// @dev address of Aerodrome pool used as implementation address by factory contract
     address public immutable implementation;
     /// @dev if set to true, it's for stable token pairs in Aerodrome

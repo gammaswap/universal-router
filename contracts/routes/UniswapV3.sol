@@ -48,9 +48,6 @@ contract UniswapV3 is CPMMRoute, IUniswapV3SwapCallback {
     /// @dev init code hash used to calculate pool address from token pair, fee, and factory contract
     bytes32 internal constant POOL_INIT_CODE_HASH = 0xe34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54;
 
-    /// @dev address of UniswapV3 factory contract
-    address public immutable factory;
-
     /// @dev Transient storage variable used to check a safety condition in exact output swaps.
     uint256 private amountOutCached;
 

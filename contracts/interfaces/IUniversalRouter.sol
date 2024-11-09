@@ -11,7 +11,7 @@ interface IUniversalRouter {
     /// @dev emitted when a protocol route is removed
     event RemoveProtocolRoute(uint16 indexed protocolId, address protocol);
     /// @dev emitted when a pair is tracked
-    event TrackPair(address indexed pair, address token0, address token1, uint24 fee);
+    event TrackPair(address indexed pair, address token0, address token1, uint24 fee, address factory);
 
     /// @dev Route struct that contains instructions to perform a swap through supported routes
     struct Route {

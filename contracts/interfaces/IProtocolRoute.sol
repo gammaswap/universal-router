@@ -11,6 +11,9 @@ interface IProtocolRoute {
     /// @return id of protocol route
     function protocolId() external view returns(uint16);
 
+    /// @return factory contract of AMMs for this route
+    function factory() external view returns(address);
+
     /// @dev Get AMM for tokenA and tokenB pair.
     /// @param tokenA - address of a token of the AMM pool
     /// @param tokenB - address of other token of the AMM pool
