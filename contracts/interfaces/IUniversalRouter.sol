@@ -96,7 +96,7 @@ interface IUniversalRouter {
     /// @return routes - array of route parameters to perform swap through the path provided
     function getAmountsIn(uint256 amountOut, bytes memory path) external returns (uint256[] memory amounts, Route[] memory routes);
 
-    /// @dev Check if already emitted event to track pair
+    /// @dev Check if already emitted TrackPair event for pair
     /// @param pair - address of AMM tracked
     function trackedPairs(address pair) external view returns(bool);
 
