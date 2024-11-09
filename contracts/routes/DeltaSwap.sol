@@ -88,7 +88,7 @@ contract DeltaSwap is UniswapV2 {
 
     /// @inheritdoc IProtocolRoute
     function swap(address from, address to, uint24 fee, address dest) external override virtual {
-        (address pair, address token0,) = pairFor(from, to);
+        (address pair, address token0,) = pairFor(from, to, fee);
         uint256 amountInput;
         uint256 amountOutput;
         { // scope to avoid stack too deep errors

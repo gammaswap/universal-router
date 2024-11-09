@@ -10,6 +10,8 @@ interface IUniversalRouter {
     event AddProtocolRoute(uint16 indexed protocolId, address protocol);
     /// @dev emitted when a protocol route is removed
     event RemoveProtocolRoute(uint16 indexed protocolId, address protocol);
+    /// @dev emitted when a pair is tracked
+    event TrackPair(address indexed pair, address token0, address token1, uint24 fee, address factory);
 
     /// @dev Route struct that contains instructions to perform a swap through supported routes
     struct Route {
@@ -93,4 +95,15 @@ interface IUniversalRouter {
     /// @return amounts - amounts of tokens swapped through the path provided
     /// @return routes - array of route parameters to perform swap through the path provided
     function getAmountsIn(uint256 amountOut, bytes memory path) external returns (uint256[] memory amounts, Route[] memory routes);
+
+    /// @dev Check if already emitted TrackPair event for pair
+    /// @param pair - address of AMM tracked
+    function trackedPairs(address pair) external view returns(bool);
+
+    /// @dev Emit event detailing AMM for tokenA and tokenB pair so that it's tracked in subgraph.
+    /// @param token0 - address of a token of the AMM pool
+    /// @param token1 - address of other token of the AMM pool
+    /// @param fee - AMM fee used to identify AMM pool
+    /// @param protocolId - protocolId identifying route pair belongs to
+    function trackPair(address token0, address token1, uint24 fee, uint16 protocolId) external;
 }

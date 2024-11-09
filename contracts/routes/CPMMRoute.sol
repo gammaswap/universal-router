@@ -12,6 +12,9 @@ abstract contract CPMMRoute is IProtocolRoute, Transfers {
     /// @inheritdoc IProtocolRoute
     uint16 public immutable override protocolId;
 
+    /// @inheritdoc IProtocolRoute
+    address public immutable override factory;
+
     /// @dev returns sorted token addresses, used to handle return values from pairs sorted in this order
     /// @param tokenA - address of first ERC20 token
     /// @param tokenB - address of second ERC20 token

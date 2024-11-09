@@ -14,7 +14,7 @@ contract TestDeltaSwap is DeltaSwap {
 
     function getPairFor(address tokenA, address tokenB) public virtual view
         returns(address pair, address token0, address token1) {
-        return pairFor(tokenA, tokenB);
+        return pairFor(tokenA, tokenB, 0);
     }
 
     function getPairReserves(address tokenA, address tokenB) public virtual view

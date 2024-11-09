@@ -13,8 +13,6 @@ import './CPMMRoute.sol';
 /// @dev Implements IProtocolRoute functions to quote and handle one AMM swap at a time
 contract Aerodrome is CPMMRoute {
 
-    /// @dev address of Aerodrome factory contract
-    address public immutable factory;
     /// @dev address of Aerodrome pool used as implementation address by factory contract
     address public immutable implementation;
     /// @dev if set to true, it's for stable token pairs in Aerodrome
@@ -34,14 +32,8 @@ contract Aerodrome is CPMMRoute {
         amountOut = _quote(amountIn, reserveIn, reserveOut);
     }
 
-    /// @dev Get AMM for tokenA and tokenB pair. Calculated using CREATE2 address for the pair without making any external calls
-    /// @dev Also return sorted token pair
-    /// @param tokenA - address of a token of the AMM pool
-    /// @param tokenB - address of other token of the AMM pool
-    /// @return pair - address of AMM for token pair
-    /// @return token0 - address of token in the AMM of lower value
-    /// @return token1 - address of token in the AMM of higher value
-    function pairFor(address tokenA, address tokenB) internal view returns (address pair, address token0, address token1) {
+    /// @inheritdoc IProtocolRoute
+    function pairFor(address tokenA, address tokenB, uint24 fee) public override virtual view returns (address pair, address token0, address token1) {
         (token0, token1) = _sortTokens(tokenA, tokenB);
         bytes32 salt = keccak256(abi.encodePacked(token0, token1, isStable));
         pair = Clones.predictDeterministicAddress(implementation, salt, factory);
@@ -56,7 +48,7 @@ contract Aerodrome is CPMMRoute {
     /// @return pair - address of AMM of tokenA and tokenB pair
     function getReserves(address tokenA, address tokenB) internal view returns (uint256 reserveA, uint256 reserveB, address pair) {
         address token0;
-        (pair, token0,) = pairFor(tokenA, tokenB);
+        (pair, token0,) = pairFor(tokenA, tokenB, 0);
         (uint256 reserve0, uint256 reserve1,) = IAeroPool(pair).getReserves();
         (reserveA, reserveB) = tokenA == token0 ? (reserve0, reserve1) : (reserve1, reserve0);
     }
@@ -64,7 +56,7 @@ contract Aerodrome is CPMMRoute {
     /// @inheritdoc IProtocolRoute
     function getAmountOut(uint256 amountIn, address tokenA, address tokenB, uint256 fee) public override virtual
         returns(uint256 amountOut, address pair, uint24 swapFee) {
-        (pair,,) = pairFor(tokenA, tokenB);
+        (pair,,) = pairFor(tokenA, tokenB, 0);
         swapFee = uint24(IAeroPoolFactory(factory).getFee(pair, isStable));
         amountOut = IAeroPool(pair).getAmountOut(amountIn, tokenA);
     }
@@ -84,13 +76,13 @@ contract Aerodrome is CPMMRoute {
     /// @inheritdoc IProtocolRoute
     function getOrigin(address tokenA, address tokenB, uint24 fee) external override virtual view
         returns(address pair, address origin) {
-        (pair,,) = pairFor(tokenA, tokenB);
+        (pair,,) = pairFor(tokenA, tokenB, fee);
         origin = pair;
     }
 
     /// @inheritdoc IProtocolRoute
     function swap(address from, address to, uint24 fee, address dest) external override virtual {
-        (address pair, address token0,) = pairFor(from, to);
+        (address pair, address token0,) = pairFor(from, to, fee);
         uint256 amountInput;
         uint256 amountOutput;
         { // scope to avoid stack too deep errors

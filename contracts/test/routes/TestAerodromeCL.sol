@@ -11,7 +11,7 @@ contract TestAerodromeCL is AerodromeCL {
 
     function getPairFor(address tokenA, address tokenB, int24 tickSpacing) public virtual view
         returns(address pair) {
-        return pairFor(tokenA, tokenB, tickSpacing);
+        (pair,,) = pairFor(tokenA, tokenB, uint24(tickSpacing));
     }
 
     function getDecodedPrice(uint256 sqrtPriceX96, uint256 decimals) public virtual view

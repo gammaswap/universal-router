@@ -40,15 +40,12 @@ contract AerodromeCL is CPMMRoute, IUniswapV3SwapCallback {
         /// @dev address of token swapped out
         address tokenOut;
         /// @dev tick spacing of AMM (used to identify AMM)
-        int24 tickSpacing;
+        uint24 tickSpacing;
         /// @dev amount of tokenIn swapped in
         uint256 amount;
         /// @dev address receiving output of swap in tokenOut
         address recipient;
     }
-
-    /// @dev address of Aerodrome Concentrated Liquidity factory contract
-    address public immutable factory;
 
     /// @dev Transient storage variable used to check a safety condition in exact output swaps.
     uint256 private amountOutCached;
@@ -61,8 +58,7 @@ contract AerodromeCL is CPMMRoute, IUniswapV3SwapCallback {
 
     /// @inheritdoc IProtocolRoute
     function quote(uint256 amountIn, address tokenIn, address tokenOut, uint24 fee) public override virtual view returns (uint256 amountOut) {
-        address pair = pairFor(tokenIn, tokenOut, int24(fee));
-        (uint256 sqrtPriceX96,,,,,) = IAeroCLPool(pair).slot0();
+        (uint256 sqrtPriceX96,,,,,) = IAeroCLPool(_pairFor(tokenIn, tokenOut, fee)).slot0();
         if(tokenIn < tokenOut) {
             uint256 decimals = 10**GammaSwapLibrary.decimals(tokenIn);
             uint256 price = decodePrice(sqrtPriceX96, decimals);
@@ -86,20 +82,23 @@ contract AerodromeCL is CPMMRoute, IUniswapV3SwapCallback {
         price = sqrtPrice * sqrtPrice;
     }
 
-    /// @dev Get AMM for tokenA and tokenB pair. Calculated using CREATE2 address for the pair without making any external calls
-    /// @param tokenA - address of a token of the AMM pool
-    /// @param tokenB - address of other token of the AMM pool
-    /// @param tickSpacing - tickSpacing to calculate fees in Aerodrome CL pool
-    /// @return pair - address of AMM for token pair
-    function pairFor(address tokenA, address tokenB, int24 tickSpacing) internal view returns (address pair) {
-        pair = AeroPoolAddress.computeAddress(factory, AeroPoolAddress.getPoolKey(tokenA, tokenB, tickSpacing));
+    /// @inheritdoc IProtocolRoute
+    function pairFor(address tokenA, address tokenB, uint24 fee) public override virtual view returns (address pair, address token0, address token1) {
+        int24 tickSpacing = int24(fee);
+        (token0, token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
+        pair = AeroPoolAddress.computeAddress(factory, AeroPoolAddress.PoolKey({token0: token0, token1: token1, tickSpacing: tickSpacing}));
         require(GammaSwapLibrary.isContract(pair), 'AerodromeCL: AMM_DOES_NOT_EXIST');
+    }
+
+    /// @dev return only the pair address when calling pairFor
+    function _pairFor(address token0, address token1, uint24 fee) internal virtual view returns(address pair) {
+        (pair,,) = pairFor(token0, token1, fee);
     }
 
     /// @inheritdoc IProtocolRoute
     function getOrigin(address tokenA, address tokenB, uint24 fee) external override virtual view
         returns(address pair, address origin) {
-        pair = pairFor(tokenA, tokenB, int24(fee));
+        (pair,,) = pairFor(tokenA, tokenB, fee);
         origin = address(this);
     }
 
@@ -141,7 +140,7 @@ contract AerodromeCL is CPMMRoute, IUniswapV3SwapCallback {
     function getAmountOut(uint256 amountIn, address tokenIn, address tokenOut, uint256 fee) public override
         virtual returns(uint256 amountOut, address pair, uint24 swapFee) {
         swapFee = uint24(fee);
-        (amountOut, pair) = _quoteAmountOut(amountIn, tokenIn, tokenOut, int24(swapFee));
+        (amountOut, pair) = _quoteAmountOut(amountIn, tokenIn, tokenOut, swapFee);
     }
 
     /// @notice Calculate amountOut of tokenOut that will be received from swapping in amountIn in tokenIn
@@ -153,11 +152,11 @@ contract AerodromeCL is CPMMRoute, IUniswapV3SwapCallback {
     /// @param fee - fee charged by AMM, used to identify AMM in Aerodrome CL
     /// @return amountOut - amount of tokenOut that will be received from the swap
     /// @return pair - address of AMM contract in Aerodrome CL
-    function _quoteAmountOut(uint256 amountIn, address tokenIn, address tokenOut, int24 fee) internal virtual
+    function _quoteAmountOut(uint256 amountIn, address tokenIn, address tokenOut, uint24 fee) internal virtual
         returns(uint256 amountOut, address pair) {
 
         bool zeroForOne = tokenIn < tokenOut;
-        pair = pairFor(tokenIn, tokenOut, fee);
+        (pair,,) = pairFor(tokenIn, tokenOut, fee);
 
         try
             IAeroCLPool(pair).swap(
@@ -179,7 +178,7 @@ contract AerodromeCL is CPMMRoute, IUniswapV3SwapCallback {
     function getAmountIn(uint256 amountOut, address tokenIn, address tokenOut, uint256 fee) public
         override virtual returns(uint256 amountIn, address pair, uint24 swapFee) {
         swapFee = uint24(fee);
-        (amountIn, pair) = _quoteAmountIn(amountOut, tokenIn, tokenOut, int24(swapFee));
+        (amountIn, pair) = _quoteAmountIn(amountOut, tokenIn, tokenOut, swapFee);
     }
 
     /// @notice Calculate amountIn of tokenIn to swap for amountOut of tokenOut
@@ -191,9 +190,9 @@ contract AerodromeCL is CPMMRoute, IUniswapV3SwapCallback {
     /// @param fee - fee charged by AMM, used to identify AMM in Aerodrome CL
     /// @return amountIn - amount of tokenIn to swap in to get amountOut in tokenOut
     /// @return pair - address of AMM contract in Aerodrome CL
-    function _quoteAmountIn(uint256 amountOut, address tokenIn, address tokenOut, int24 fee) internal virtual
+    function _quoteAmountIn(uint256 amountOut, address tokenIn, address tokenOut, uint24 fee) internal virtual
         returns(uint256 amountIn, address pair) {
-        pair = pairFor(tokenIn, tokenOut, fee);
+        (pair,,) = pairFor(tokenIn, tokenOut, fee);
 
         // if no price limit has been specified, cache the output amount for comparison in the swap callback
         amountOutCached = amountOut;
@@ -222,7 +221,7 @@ contract AerodromeCL is CPMMRoute, IUniswapV3SwapCallback {
         exactInputSwap(SwapParams({
             tokenIn: from,
             tokenOut: to,
-            tickSpacing: int24(fee),
+            tickSpacing: fee,
             amount: inputAmount,
             recipient: dest
         }));
@@ -238,7 +237,7 @@ contract AerodromeCL is CPMMRoute, IUniswapV3SwapCallback {
         bool zeroForOne = params.tokenIn < params.tokenOut;
 
         (int256 amount0, int256 amount1) =
-            IAeroCLPool(pairFor(params.tokenIn, params.tokenOut, int24(params.tickSpacing))).swap(
+            IAeroCLPool(_pairFor(params.tokenIn, params.tokenOut, params.tickSpacing)).swap(
                 params.recipient,
                 zeroForOne,
                 int256(params.amount),
@@ -264,7 +263,7 @@ contract AerodromeCL is CPMMRoute, IUniswapV3SwapCallback {
         ? (tokenIn < tokenOut, uint256(amount0Delta), uint256(-amount1Delta))
         : (tokenOut < tokenIn, uint256(amount1Delta), uint256(-amount0Delta));
 
-        (uint160 sqrtPriceX96After, int24 tickAfter,,,,) = IAeroCLPool(pairFor(tokenIn, tokenOut, int24(fee))).slot0();
+        (uint160 sqrtPriceX96After, int24 tickAfter,,,,) = IAeroCLPool(_pairFor(tokenIn, tokenOut, fee)).slot0();
 
         if (isExactInput) {
             if(data.payer != address(0)) {
