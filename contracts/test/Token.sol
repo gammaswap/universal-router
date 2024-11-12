@@ -51,6 +51,10 @@ contract Token is ERC20 {
         _mint(account, amount * 10 ** _decimals);
     }
 
+    function mintExact(address account, uint256 amount) external {
+        _mint(account, amount);
+    }
+
     function deposit() public payable {
         _mint(msg.sender, msg.value);
         emit Deposit(msg.sender, msg.value);
