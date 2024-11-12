@@ -766,6 +766,12 @@ contract UniversalRouterTest is TestBed {
             router.trackPair(token0, token1, _poolFee, protocolId);
 
             assertEq(router.trackedPairs(pair), block.timestamp);
+
+            vm.expectEmit();
+            emit TrackPair(pair, _token0, _token1, _poolFee, _factory);
+            router.trackPair(token0, token1, _poolFee, protocolId);
+
+            assertEq(router.trackedPairs(pair), block.timestamp);
         }
 
         for(uint16 protocolId = 1; protocolId < 8; protocolId++) {
@@ -780,6 +786,12 @@ contract UniversalRouterTest is TestBed {
             vm.prank(vm.addr(1));
             vm.expectRevert("Ownable: caller is not the owner");
             router.unTrackPair(token0, token1, _poolFee, protocolId);
+
+            vm.expectEmit();
+            emit UnTrackPair(pair, _token0, _token1, _poolFee, _factory);
+            router.unTrackPair(token0, token1, _poolFee, protocolId);
+
+            assertEq(router.trackedPairs(pair), 0);
 
             vm.expectEmit();
             emit UnTrackPair(pair, _token0, _token1, _poolFee, _factory);
@@ -809,6 +821,12 @@ contract UniversalRouterTest is TestBed {
             router.trackPair(token0, token1, _poolFee, protocolId);
 
             assertEq(router.trackedPairs(pair), block.timestamp);
+
+            vm.expectEmit();
+            emit TrackPair(pair, _token0, _token1, _poolFee, _factory);
+            router.trackPair(token0, token1, _poolFee, protocolId);
+
+            assertEq(router.trackedPairs(pair), block.timestamp);
         }
 
         for(uint16 protocolId = 1; protocolId < 8; protocolId++) {
@@ -823,6 +841,12 @@ contract UniversalRouterTest is TestBed {
             vm.prank(vm.addr(1));
             vm.expectRevert("Ownable: caller is not the owner");
             router.unTrackPair(token0, token1, _poolFee, protocolId);
+
+            vm.expectEmit();
+            emit UnTrackPair(pair, _token0, _token1, _poolFee, _factory);
+            router.unTrackPair(token0, token1, _poolFee, protocolId);
+
+            assertEq(router.trackedPairs(pair), 0);
 
             vm.expectEmit();
             emit UnTrackPair(pair, _token0, _token1, _poolFee, _factory);
