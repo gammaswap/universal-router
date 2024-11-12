@@ -40,6 +40,9 @@ contract UniversalRouterTest is TestBed {
         uint256 amountOut
     );
 
+    event TrackPair(address indexed pair, address token0, address token1, uint24 fee, address factory);
+    event UnTrackPair(address indexed pair, address token0, address token1, uint24 fee, address factory);
+
     function setUp() public {
         random = new Random();
         owner = vm.addr(1);
@@ -438,6 +441,25 @@ contract UniversalRouterTest is TestBed {
         return address(0);
     }
 
+    function getFactory(uint16 protocolId) internal view returns(address) {
+        if(protocolId == 1) {
+            return address(uniFactory);
+        } else if(protocolId == 2) {
+            return address(sushiFactory);
+        } else if(protocolId == 3) {
+            return address(dsFactory);
+        } else if(protocolId == 4) {
+            return address(aeroFactory);
+        } else if(protocolId == 5) {
+            return address(aeroFactory);
+        } else if(protocolId == 6) {
+            return address(uniFactoryV3);
+        } else if(protocolId == 7) {
+            return address(aeroCLFactory);
+        }
+        return address(0);
+    }
+
     function createPath(uint8 tokenChoices, uint128 seed) internal view returns(bytes memory) {
         address[] memory _tokens = tokens;
         _tokens = random.shuffleAddresses(_tokens, seed);
@@ -712,70 +734,101 @@ contract UniversalRouterTest is TestBed {
     }
 
     function testGetPairInfo() public {
-        for(uint256 protocolId = 1; protocolId < 8; protocolId++) {
+        for(uint16 protocolId = 1; protocolId < 8; protocolId++) {
             uint24 _poolFee = protocolId == 6 ? poolFee1 : protocolId == 7 ? uint24(aeroCLTickSpacing) : 0;
             (address token0, address token1) = protocolId == 5 ? (address(usdc), address(usdt)) : (address(weth), address(usdc));
-            (address _pair0,,,address _factory0) = router.getPairInfo(token0, token1, _poolFee, uint16(protocolId));
-            (address _pair1,,,address _factory1) = router.getPairInfo(token1, token0, _poolFee, uint16(protocolId));
-            address pair;
-            if(protocolId == 1) {
-                pair = uniFactory.getPair(token0, token1);
-                assertEq(pair, uniFactory.getPair(token1, token0));
-                assertEq(_factory0, address(uniFactory));
-                assertEq(_factory1, address(uniFactory));
-            } else if(protocolId == 2) {
-                pair = sushiFactory.getPair(token0, token1);
-                assertEq(pair, sushiFactory.getPair(token1, token0));
-                assertEq(_factory0, address(sushiFactory));
-                assertEq(_factory1, address(sushiFactory));
-            } else if(protocolId == 3) {
-                pair = dsFactory.getPair(token0, token1);
-                assertEq(pair, dsFactory.getPair(token1, token0));
-                assertEq(_factory0, address(dsFactory));
-                assertEq(_factory1, address(dsFactory));
-            } else if(protocolId == 4) {
-                pair = aeroFactory.getPool(token0, token1, false);
-                assertEq(pair, aeroFactory.getPool(token1, token0, false));
-                assertEq(_factory0, address(aeroFactory));
-                assertEq(_factory1, address(aeroFactory));
-            } else if(protocolId == 5) {
-                pair = aeroFactory.getPool(token0, token1, true);
-                assertEq(pair, aeroFactory.getPool(token1, token0, true));
-                assertEq(_factory0, address(aeroFactory));
-                assertEq(_factory1, address(aeroFactory));
-            } else if(protocolId == 6) {
-                pair = uniFactoryV3.getPool(token0, token1, _poolFee);
-                assertEq(pair, uniFactoryV3.getPool(token1, token0, _poolFee));
-                assertEq(_factory0, address(uniFactoryV3));
-                assertEq(_factory1, address(uniFactoryV3));
-            } else if(protocolId == 7) {
-                pair = aeroCLFactory.getPool(token0, token1, aeroCLTickSpacing);
-                assertEq(pair, aeroCLFactory.getPool(token1, token0, aeroCLTickSpacing));
-                assertEq(_factory0, address(aeroCLFactory));
-                assertEq(_factory1, address(aeroCLFactory));
-            }
-            assertEq(_pair0, pair);
-            assertEq(_pair1, pair);
+            (address _pair0,,,address _factory0) = router.getPairInfo(token0, token1, _poolFee, protocolId);
+            (address _pair1,,,address _factory1) = router.getPairInfo(token1, token0, _poolFee, protocolId);
+            assertEq(_pair0,getPair(token0, token1, protocolId, _poolFee));
+            assertEq(_pair1,getPair(token1, token0, protocolId, _poolFee));
+            assertEq(_factory0, getFactory(protocolId));
+            assertEq(_factory1, getFactory(protocolId));
         }
     }
 
-    function testTrackPair() public {
+    function testTrackPair0() public {
+        assertEq(router.owner(), address(this));
+        for(uint16 protocolId = 1; protocolId < 8; protocolId++) {
+            uint24 _poolFee = protocolId == 6 ? poolFee1 : protocolId == 7 ? uint24(aeroCLTickSpacing) : 0;
+            (address token0, address token1) = protocolId == 5 ? (address(usdc), address(usdt)) : (address(weth), address(usdc));
+            (address pair, address _token0, address _token1, address _factory) = router.getPairInfo(token0, token1, _poolFee, protocolId);
 
-        /*tokens = new address[](5);
-        tokens[0] = address(weth);
-        tokens[1] = address(usdc);
-        tokens[2] = address(usdt);
-        tokens[3] = address(dai);
-        tokens[4] = address(wbtc);
+            assertEq(pair, getPair(token0, token1, protocolId, _poolFee));
+            assertEq(_factory, getFactory(protocolId));
+            assertEq(router.trackedPairs(pair), 0);
 
-        bytes32 initCodeHash = 0xe18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303;
+            vm.prank(vm.addr(1));
+            vm.expectRevert("Ownable: caller is not the owner");
+            router.trackPair(token0, token1, _poolFee, protocolId);
 
-        uniV2Route = new UniswapV2(1, address(uniFactory), address(weth));
-        sushiV2Route = new SushiswapV2(2, address(sushiFactory), address(weth), initCodeHash);
-        dsRoute = new DeltaSwap(3, address(dsFactory), address(weth));
-        aeroRoute = new Aerodrome(4, address(aeroFactory), false, address(weth));
-        aeroStableRoute = new Aerodrome(5, address(aeroFactory), true, address(weth));
-        uniV3Route = new UniswapV3(6, address(uniFactoryV3), address(weth));
-        aeroCLRoute = new AerodromeCL(7, address(aeroCLFactory), address(weth));/**/
+            vm.expectEmit();
+            emit TrackPair(pair, _token0, _token1, _poolFee, _factory);
+            router.trackPair(token0, token1, _poolFee, protocolId);
+
+            assertEq(router.trackedPairs(pair), block.timestamp);
+        }
+
+        for(uint16 protocolId = 1; protocolId < 8; protocolId++) {
+            uint24 _poolFee = protocolId == 6 ? poolFee1 : protocolId == 7 ? uint24(aeroCLTickSpacing) : 0;
+            (address token0, address token1) = protocolId == 5 ? (address(usdc), address(usdt)) : (address(weth), address(usdc));
+            (address pair, address _token0, address _token1, address _factory) = router.getPairInfo(token0, token1, _poolFee, protocolId);
+
+            assertEq(pair, getPair(token0, token1, protocolId, _poolFee));
+            assertEq(_factory, getFactory(protocolId));
+            assertGe(router.trackedPairs(pair), block.timestamp);
+
+            vm.prank(vm.addr(1));
+            vm.expectRevert("Ownable: caller is not the owner");
+            router.unTrackPair(token0, token1, _poolFee, protocolId);
+
+            vm.expectEmit();
+            emit UnTrackPair(pair, _token0, _token1, _poolFee, _factory);
+            router.unTrackPair(token0, token1, _poolFee, protocolId);
+
+            assertEq(router.trackedPairs(pair), 0);
+        }
+    }
+
+    function testTrackPair1() public {
+        assertEq(router.owner(), address(this));
+        for(uint16 protocolId = 1; protocolId < 8; protocolId++) {
+            uint24 _poolFee = protocolId == 6 ? poolFee1 : protocolId == 7 ? uint24(aeroCLTickSpacing) : 0;
+            (address token0, address token1) = protocolId == 5 ? (address(usdt), address(usdc)) : (address(usdc), address(weth));
+            (address pair, address _token0, address _token1, address _factory) = router.getPairInfo(token0, token1, _poolFee, protocolId);
+
+            assertEq(pair, getPair(token0, token1, protocolId, _poolFee));
+            assertEq(_factory, getFactory(protocolId));
+            assertEq(router.trackedPairs(pair), 0);
+
+            vm.prank(vm.addr(1));
+            vm.expectRevert("Ownable: caller is not the owner");
+            router.trackPair(token0, token1, _poolFee, protocolId);
+
+            vm.expectEmit();
+            emit TrackPair(pair, _token0, _token1, _poolFee, _factory);
+            router.trackPair(token0, token1, _poolFee, protocolId);
+
+            assertEq(router.trackedPairs(pair), block.timestamp);
+        }
+
+        for(uint16 protocolId = 1; protocolId < 8; protocolId++) {
+            uint24 _poolFee = protocolId == 6 ? poolFee1 : protocolId == 7 ? uint24(aeroCLTickSpacing) : 0;
+            (address token0, address token1) = protocolId == 5 ? (address(usdt), address(usdc)) : (address(usdc), address(weth));
+            (address pair, address _token0, address _token1, address _factory) = router.getPairInfo(token0, token1, _poolFee, protocolId);
+
+            assertEq(pair, getPair(token0, token1, protocolId, _poolFee));
+            assertEq(_factory, getFactory(protocolId));
+            assertGe(router.trackedPairs(pair), block.timestamp);
+
+            vm.prank(vm.addr(1));
+            vm.expectRevert("Ownable: caller is not the owner");
+            router.unTrackPair(token0, token1, _poolFee, protocolId);
+
+            vm.expectEmit();
+            emit UnTrackPair(pair, _token0, _token1, _poolFee, _factory);
+            router.unTrackPair(token0, token1, _poolFee, protocolId);
+
+            assertEq(router.trackedPairs(pair), 0);
+        }
     }
 }
