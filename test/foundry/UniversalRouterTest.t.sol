@@ -707,6 +707,8 @@ contract UniversalRouterTest is TestBed {
             assertGt(usdc.balanceOf(address(this)), balanceUSDC);
             assertEq(weth.balanceOf(address(this)), balanceWETH);
         }
+        assertEq(usdc.balanceOf(address(router)), 0);
+        assertEq(weth.balanceOf(address(router)), 0);
     }
 
 }
