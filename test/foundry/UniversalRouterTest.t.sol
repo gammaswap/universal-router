@@ -10,6 +10,7 @@ import '../../contracts/routes/AerodromeCL.sol';
 import '../../contracts/interfaces/IUniversalRouter.sol';
 import './fixtures/TestBed.sol';
 import './utils/Random.sol';
+import "../../contracts/UniversalRouter.sol";
 
 contract UniversalRouterTest is TestBed {
 
@@ -28,6 +29,16 @@ contract UniversalRouterTest is TestBed {
     address[] tokens;
 
     uint256 constant PROTOCOL_ROUTES_COUNT = 7;
+
+    event ExternalCallSwap(
+        address indexed sender,
+        address indexed caller,
+        uint256 indexed tokenId,
+        address tokenIn,
+        address tokenOut,
+        uint256 amountIn,
+        uint256 amountOut
+    );
 
     function setUp() public {
         random = new Random();
@@ -638,4 +649,64 @@ contract UniversalRouterTest is TestBed {
         res = router._getTokenOut(val);
         assertEq(res,0xF6D9C101ceeA72655A13a8Cf1C88c1949Ed399bc);
     }
+
+    function testExternalCallSwap(uint256 deltaUSDC, uint256 deltaWETH, bool isBuyWeth) public {
+        deltaUSDC = bound(deltaUSDC, 10e6, 1_000e6);
+        deltaWETH = bound(deltaWETH, 1e16, 10e18);
+
+        bytes memory pathUsdcToWeth = abi.encodePacked(address(usdc), uint16(1), poolFee1, address(wbtc), uint16(1), poolFee1, address(weth));
+        bytes memory pathWethToUsdc = abi.encodePacked(address(weth), uint16(1), poolFee1, address(wbtc), uint16(1), poolFee1, address(usdc));
+
+        UniversalRouter.ExternalCallData memory data;
+
+        if (isBuyWeth) {
+            data = UniversalRouter.ExternalCallData({
+                amountIn: deltaUSDC,
+                minAmountOut: 0,
+                deadline: type(uint256).max,
+                tokenId: 100,
+                path: pathUsdcToWeth
+            });
+        } else {
+            data = UniversalRouter.ExternalCallData({
+                amountIn: deltaWETH,
+                minAmountOut: 0,
+                deadline: type(uint256).max,
+                tokenId: 100,
+                path: pathWethToUsdc
+            });
+        }
+
+        uint128[] memory amounts = new uint128[](2);
+        amounts[0] = uint128(deltaUSDC);
+        amounts[1] = uint128(deltaWETH);
+
+        usdc.mintExact(address(router), deltaUSDC);
+        weth.mintExact(address(router), deltaWETH);
+
+        uint256 balanceUSDC = usdc.balanceOf(address(this));
+        uint256 balanceWETH = weth.balanceOf(address(this));
+        assertEq(usdc.balanceOf(address(this)), 0);
+        assertEq(weth.balanceOf(address(this)), 0);
+        assertEq(usdc.balanceOf(address(router)), deltaUSDC);
+        assertEq(weth.balanceOf(address(router)), deltaWETH);
+
+        // Avoid stack-too-deep
+        {
+            (uint256[] memory amountsOut,) = router.getAmountsOut(data.amountIn, data.path);
+
+            vm.expectEmit();
+            emit ExternalCallSwap(vm.addr(1), address(this), data.tokenId, isBuyWeth ? address(usdc) : address(weth), isBuyWeth ? address(weth) : address(usdc), data.amountIn, amountsOut[amountsOut.length - 1]);
+            router.externalCall(vm.addr(1), amounts, 0, abi.encode(data));
+        }
+
+        if(isBuyWeth) {
+            assertEq(usdc.balanceOf(address(this)), balanceUSDC);
+            assertGt(weth.balanceOf(address(this)), balanceWETH);
+        } else {
+            assertGt(usdc.balanceOf(address(this)), balanceUSDC);
+            assertEq(weth.balanceOf(address(this)), balanceWETH);
+        }
+    }
+
 }

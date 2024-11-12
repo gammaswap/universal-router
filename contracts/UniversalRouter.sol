@@ -19,24 +19,36 @@ contract UniversalRouter is IUniversalRouter, IExternalCallee, Transfers, Ownabl
     using Path2 for bytes;
     using BytesLib2 for bytes;
 
+    /// @dev Struct to use in externalCall function
     struct ExternalCallData {
-        address[] tokens;
-        int256[] deltas;
-        uint256[] amountsLimit;
+        /// @dev amount of token sold
+        uint256 amountIn;
+        /// @dev min amount expected to get for token sold
+        uint256 minAmountOut;
+        /// @dev deadline in timestamp seconds
         uint256 deadline;
+        /// @dev optional id number to identify transaction
         uint256 tokenId;
+        /// @dev path of token swaps. First token in the path corresponds to amountIn, last token in the path corresponds to minAmountOut
         bytes path;
     }
 
+    /// @dev Event emitted after performing a swap by calling externalCall
     event ExternalCallSwap(
+        /// @dev optional field to identify address caller called function on behalf
         address indexed sender,
+        /// @dev address that called externalCall
         address indexed caller,
+        /// @dev optional id number to identify transaction
         uint256 indexed tokenId,
+        /// @dev token sold
         address tokenIn,
+        /// @dev token bought
         address tokenOut,
+        /// @dev amount of tokenIn sold
         uint256 amountIn,
-        uint256 amountOut
-    );
+        /// @dev amount of tokenOut bought
+        uint256 amountOut);
 
     /// @inheritdoc IUniversalRouter
     mapping(uint16 => address) public override protocolRoutes;
@@ -299,26 +311,29 @@ contract UniversalRouter is IUniversalRouter, IExternalCallee, Transfers, Ownabl
         ExternalCallData memory data = abi.decode(_data, (ExternalCallData));
 
         require(data.deadline >= block.timestamp, 'ExternalCall: EXPIRED');
-        require(IERC20(data.tokens[0]).balanceOf(address(this)) >= uint256(amounts[0]), "ExternalCall: Invalid token amount");
-        require(IERC20(data.tokens[1]).balanceOf(address(this)) >= uint256(amounts[1]), "ExternalCall: Invalid token amount");
-
-        int256[] memory deltas = data.deltas;
-        require((deltas[0] * deltas[1] == 0) && (deltas[0] + deltas[1] < 0), "ExternalCall: Invalid deltas"); // only sells
-
-        address caller = msg.sender;
-        uint256 activeIndex = deltas[0] > 0 ? 0 : 1;
 
         Route[] memory routes = calcRoutes(data.path, address(this));
-        uint256 amountOut = _swap(uint256(-deltas[activeIndex]), data.amountsLimit[1 - activeIndex], routes, address(this));
 
-        for (uint256 i = 0; i < data.tokens.length; i ++) {
-            uint256 balance = IERC20(data.tokens[i]).balanceOf(address(this));
-            if (balance > 0) {
-                GammaSwapLibrary.safeTransfer(data.tokens[i], caller, balance);
-            }
-        }
+        address tokenIn = routes[0].from;
+        address tokenOut = routes[routes.length - 1].to;
 
-        emit ExternalCallSwap(sender, caller, data.tokenId, data.tokens[activeIndex], data.tokens[1 - activeIndex], uint256(-deltas[activeIndex]), amountOut);
+        uint256 balanceIn = IERC20(tokenIn).balanceOf(address(this));
+        uint256 balanceOut = IERC20(tokenOut).balanceOf(address(this));
+
+        require((balanceIn >= amounts[0] && balanceOut >= amounts[1]) || (balanceIn >= amounts[1] && balanceOut >= amounts[0]), "ExternalCall: Invalid token amounts");
+        require(data.amountIn > 0 && balanceIn >= data.amountIn, "ExternalCall: Insufficient amountIn"); // only sells
+
+        address caller = msg.sender;
+
+        uint256 amountOut = _swap(data.amountIn, data.minAmountOut, routes, address(this));
+
+        balanceIn = IERC20(tokenIn).balanceOf(address(this));
+        balanceOut = IERC20(tokenOut).balanceOf(address(this));
+
+        if (balanceIn > 0) GammaSwapLibrary.safeTransfer(tokenIn, caller, balanceIn);
+        if (balanceOut > 0) GammaSwapLibrary.safeTransfer(tokenOut, caller, balanceOut);
+
+        emit ExternalCallSwap(sender, caller, data.tokenId, tokenIn, tokenOut, data.amountIn, amountOut);
     }
 
     /// @inheritdoc Transfers
