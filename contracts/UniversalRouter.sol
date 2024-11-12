@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0;
 
 import '@gammaswap/v1-core/contracts/libraries/GammaSwapLibrary.sol';
+import '@gammaswap/v1-core/contracts/interfaces/periphery/IExternalCallee.sol';
 import '@gammaswap/v1-periphery/contracts/base/Transfers.sol';
 import '@openzeppelin/contracts/access/Ownable2Step.sol';
 import './interfaces/IProtocolRoute.sol';
@@ -13,16 +14,35 @@ import './libraries/Path2.sol';
 /// @author Daniel D. Alcarraz (https://github.com/0xDanr)
 /// @notice Swaps tokens across multiple protocols
 /// @dev Protocols are supported as different routes by inheriting IProtocolRoute
-contract UniversalRouter is IUniversalRouter, Transfers, Ownable2Step {
+contract UniversalRouter is IUniversalRouter, IExternalCallee, Transfers, Ownable2Step {
 
     using Path2 for bytes;
     using BytesLib2 for bytes;
+
+    struct ExternalCallData {
+        address[] tokens;
+        int256[] deltas;
+        uint256[] amountsLimit;
+        uint256 deadline;
+        uint256 tokenId;
+        bytes path;
+    }
+
+    event ExternalCallSwap(
+        address indexed sender,
+        address indexed caller,
+        uint256 indexed tokenId,
+        address tokenIn,
+        address tokenOut,
+        uint256 amountIn,
+        uint256 amountOut
+    );
 
     /// @inheritdoc IUniversalRouter
     mapping(uint16 => address) public override protocolRoutes;
 
     /// @inheritdoc IUniversalRouter
-    mapping(address => bool) public override trackedPairs;
+    mapping(address => uint256) public override trackedPairs;
 
     /// @dev Initialize `WETH` address to Wrapped Ethereum contract
     constructor(address _WETH) Transfers(_WETH) {
@@ -60,7 +80,8 @@ contract UniversalRouter is IUniversalRouter, Transfers, Ownable2Step {
     /// @param amountOutMin - minimum quantity of token at Route[n].to willing to receive or revert
     /// @param routes - array of Route structs containing instructions to swap
     /// @param sender - address funding swap
-    function _swap(uint256 amountIn, uint256 amountOutMin, Route[] memory routes, address sender) internal virtual {
+    /// @return amountOut - amount bought of final token in path
+    function _swap(uint256 amountIn, uint256 amountOutMin, Route[] memory routes, address sender) internal virtual returns(uint256 amountOut){
         require(amountIn > 0, 'UniversalRouter: ZERO_AMOUNT_IN');
         send(routes[0].from, sender, routes[0].origin, amountIn);
         uint256 lastRoute = routes.length - 1;
@@ -69,10 +90,8 @@ contract UniversalRouter is IUniversalRouter, Transfers, Ownable2Step {
         for (uint256 i; i <= lastRoute; i++) {
             IProtocolRoute(routes[i].hop).swap(routes[i].from, routes[i].to, routes[i].fee, routes[i].destination);
         }
-        require(
-            IERC20(routes[lastRoute].to).balanceOf(to) - balanceBefore >= amountOutMin,
-            'UniversalRouter: INSUFFICIENT_OUTPUT_AMOUNT'
-        );
+        amountOut = IERC20(routes[lastRoute].to).balanceOf(to) - balanceBefore;
+        require(amountOut >= amountOutMin, 'UniversalRouter: INSUFFICIENT_OUTPUT_AMOUNT');
     }
 
     /// @inheritdoc IUniversalRouter
@@ -240,21 +259,66 @@ contract UniversalRouter is IUniversalRouter, Transfers, Ownable2Step {
 
     /// @inheritdoc IUniversalRouter
     function trackPair(address token0, address token1, uint24 fee, uint16 protocolId) external virtual override onlyOwner {
-        require(token0 != address(0), 'UniversalRouter: ZERO_ADDRESS');
-        require(token1 != address(0), 'UniversalRouter: ZERO_ADDRESS');
+        address pair;
+        address factory;
+        (pair, token0, token1, factory) = getPairInfo(token0, token1, fee, protocolId);
+
+        trackedPairs[pair] = block.timestamp;
+
+        emit TrackPair(pair, token0, token1, fee, factory);
+    }
+
+    /// @inheritdoc IUniversalRouter
+    function unTrackPair(address token0, address token1, uint24 fee, uint16 protocolId) external virtual override onlyOwner {
+        address pair;
+        address factory;
+        (pair, token0, token1, factory) = getPairInfo(token0, token1, fee, protocolId);
+
+        trackedPairs[pair] = 0;
+
+        emit UnTrackPair(pair, token0, token1, fee, factory);
+    }
+
+    /// @inheritdoc IUniversalRouter
+    function getPairInfo(address tokenA, address tokenB, uint24 fee, uint16 protocolId) public virtual override view returns(address pair, address token0, address token1, address factory) {
+        require(tokenA != address(0), 'UniversalRouter: ZERO_ADDRESS');
+        require(tokenB != address(0), 'UniversalRouter: ZERO_ADDRESS');
 
         address protocol = protocolRoutes[protocolId];
         require(protocol != address(0), 'UniversalRouter: ROUTE_NOT_SET_UP');
 
-        address pair;
-        (pair, token0, token1) = IProtocolRoute(protocol).pairFor(token0, token1, fee);
+        (pair, token0, token1) = IProtocolRoute(protocol).pairFor(tokenA, tokenB, fee);
 
-        require(trackedPairs[pair] == false, "UniversalRouter: ALREADY_TRACKED");
-        trackedPairs[pair] = true;
+        factory = IProtocolRoute(protocol).factory();
+    }
 
-        address factory = IProtocolRoute(protocol).factory();
+    /// @inheritdoc IExternalCallee
+    function externalCall(address sender, uint128[] calldata amounts, uint256 lpTokens, bytes calldata _data) external override {
+        require(lpTokens == 0, "ExternalCall: Invalid deposit");
 
-        emit TrackPair(pair, token0, token1, fee, factory);
+        ExternalCallData memory data = abi.decode(_data, (ExternalCallData));
+
+        require(data.deadline >= block.timestamp, 'ExternalCall: EXPIRED');
+        require(IERC20(data.tokens[0]).balanceOf(address(this)) >= uint256(amounts[0]), "ExternalCall: Invalid token amount");
+        require(IERC20(data.tokens[1]).balanceOf(address(this)) >= uint256(amounts[1]), "ExternalCall: Invalid token amount");
+
+        int256[] memory deltas = data.deltas;
+        require((deltas[0] * deltas[1] == 0) && (deltas[0] + deltas[1] < 0), "ExternalCall: Invalid deltas"); // only sells
+
+        address caller = msg.sender;
+        uint256 activeIndex = deltas[0] > 0 ? 0 : 1;
+
+        Route[] memory routes = calcRoutes(data.path, address(this));
+        uint256 amountOut = _swap(uint256(-deltas[activeIndex]), data.amountsLimit[1 - activeIndex], routes, address(this));
+
+        for (uint256 i = 0; i < data.tokens.length; i ++) {
+            uint256 balance = IERC20(data.tokens[i]).balanceOf(address(this));
+            if (balance > 0) {
+                GammaSwapLibrary.safeTransfer(data.tokens[i], caller, balance);
+            }
+        }
+
+        emit ExternalCallSwap(sender, caller, data.tokenId, data.tokens[activeIndex], data.tokens[1 - activeIndex], uint256(-deltas[activeIndex]), amountOut);
     }
 
     /// @inheritdoc Transfers

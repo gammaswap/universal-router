@@ -12,6 +12,8 @@ interface IUniversalRouter {
     event RemoveProtocolRoute(uint16 indexed protocolId, address protocol);
     /// @dev emitted when a pair is tracked
     event TrackPair(address indexed pair, address token0, address token1, uint24 fee, address factory);
+    /// @dev emitted when a pair is un-tracked
+    event UnTrackPair(address indexed pair, address token0, address token1, uint24 fee, address factory);
 
     /// @dev Route struct that contains instructions to perform a swap through supported routes
     struct Route {
@@ -98,7 +100,8 @@ interface IUniversalRouter {
 
     /// @dev Check if already emitted TrackPair event for pair
     /// @param pair - address of AMM tracked
-    function trackedPairs(address pair) external view returns(bool);
+    /// @return timestamp pair started being tracked
+    function trackedPairs(address pair) external view returns(uint256);
 
     /// @dev Emit event detailing AMM for tokenA and tokenB pair so that it's tracked in subgraph.
     /// @param token0 - address of a token of the AMM pool
@@ -106,4 +109,22 @@ interface IUniversalRouter {
     /// @param fee - AMM fee used to identify AMM pool
     /// @param protocolId - protocolId identifying route pair belongs to
     function trackPair(address token0, address token1, uint24 fee, uint16 protocolId) external;
+
+    /// @dev Emit event detailing AMM for tokenA and tokenB pair so that it's tracked in subgraph.
+    /// @param token0 - address of a token of the AMM pool
+    /// @param token1 - address of other token of the AMM pool
+    /// @param fee - AMM fee used to identify AMM pool
+    /// @param protocolId - protocolId identifying route pair belongs to
+    function unTrackPair(address token0, address token1, uint24 fee, uint16 protocolId) external;
+
+    /// @dev Get pair information from tokens, fee, protocolId identifiers
+    /// @param tokenA - address of a token of the AMM pool
+    /// @param tokenB - address of other token of the AMM pool
+    /// @param fee - AMM fee used to identify AMM pool
+    /// @param protocolId - protocolId identifying route pair belongs to
+    /// @return pair - address of AMM
+    /// @return token0 - address of first token in AMM
+    /// @return token1 - address of second token in AMM
+    /// @return factory - factory contract that created AMM
+    function getPairInfo(address tokenA, address tokenB, uint24 fee, uint16 protocolId) external view returns(address pair, address token0, address token1, address factory);
 }
