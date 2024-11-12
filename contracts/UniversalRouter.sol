@@ -5,7 +5,10 @@ import '@gammaswap/v1-core/contracts/libraries/GammaSwapLibrary.sol';
 import '@gammaswap/v1-core/contracts/interfaces/periphery/IExternalCallee.sol';
 import '@gammaswap/v1-periphery/contracts/base/Transfers.sol';
 import '@openzeppelin/contracts/access/Ownable2Step.sol';
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import './interfaces/IProtocolRoute.sol';
+import './interfaces/IRouterExternalCallee.sol';
 import './interfaces/IUniversalRouter.sol';
 import './libraries/BytesLib2.sol';
 import './libraries/Path2.sol';
@@ -14,41 +17,10 @@ import './libraries/Path2.sol';
 /// @author Daniel D. Alcarraz (https://github.com/0xDanr)
 /// @notice Swaps tokens across multiple protocols
 /// @dev Protocols are supported as different routes by inheriting IProtocolRoute
-contract UniversalRouter is IUniversalRouter, IExternalCallee, Transfers, Ownable2Step {
+contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializable, UUPSUpgradeable, Transfers, Ownable2Step {
 
     using Path2 for bytes;
     using BytesLib2 for bytes;
-
-    /// @dev Struct to use in externalCall function
-    struct ExternalCallData {
-        /// @dev amount of token sold
-        uint256 amountIn;
-        /// @dev min amount expected to get for token sold
-        uint256 minAmountOut;
-        /// @dev deadline in timestamp seconds
-        uint256 deadline;
-        /// @dev optional id number to identify transaction
-        uint256 tokenId;
-        /// @dev path of token swaps. First token in the path corresponds to amountIn, last token in the path corresponds to minAmountOut
-        bytes path;
-    }
-
-    /// @dev Event emitted after performing a swap by calling externalCall
-    event ExternalCallSwap(
-        /// @dev optional field to identify address caller called function on behalf
-        address indexed sender,
-        /// @dev address that called externalCall
-        address indexed caller,
-        /// @dev optional id number to identify transaction
-        uint256 indexed tokenId,
-        /// @dev token sold
-        address tokenIn,
-        /// @dev token bought
-        address tokenOut,
-        /// @dev amount of tokenIn sold
-        uint256 amountIn,
-        /// @dev amount of tokenOut bought
-        uint256 amountOut);
 
     /// @inheritdoc IUniversalRouter
     mapping(uint16 => address) public override protocolRoutes;
@@ -58,6 +30,12 @@ contract UniversalRouter is IUniversalRouter, IExternalCallee, Transfers, Ownabl
 
     /// @dev Initialize `WETH` address to Wrapped Ethereum contract
     constructor(address _WETH) Transfers(_WETH) {
+    }
+
+    /// @dev Initialize UniversalRouter when used as a proxy contract
+    function initialize() public virtual initializer {
+        require(owner() == address(0), "UniversalRouter: INITIALIZED");
+        _transferOwnership(msg.sender);
     }
 
     /// @dev Check current timestamp is not past blockchain's timestamp
@@ -344,4 +322,7 @@ contract UniversalRouter is IUniversalRouter, IExternalCallee, Transfers, Ownabl
     /// @inheritdoc ISendTokensCallback
     function sendTokensCallback(address[] calldata tokens, uint256[] calldata amounts, address payee, bytes calldata data) external virtual override {
     }
+
+    /// @inheritdoc UUPSUpgradeable
+    function _authorizeUpgrade(address) internal override onlyOwner {}
 }

@@ -7,10 +7,10 @@ import '../../contracts/routes/DeltaSwap.sol';
 import '../../contracts/routes/Aerodrome.sol';
 import '../../contracts/routes/UniswapV3.sol';
 import '../../contracts/routes/AerodromeCL.sol';
+import "../../contracts/interfaces/IRouterExternalCallee.sol";
 import '../../contracts/interfaces/IUniversalRouter.sol';
 import './fixtures/TestBed.sol';
 import './utils/Random.sol';
-import "../../contracts/UniversalRouter.sol";
 
 contract UniversalRouterTest is TestBed {
 
@@ -660,7 +660,7 @@ contract UniversalRouterTest is TestBed {
         UniversalRouter.ExternalCallData memory data;
 
         if (isBuyWeth) {
-            data = UniversalRouter.ExternalCallData({
+            data = IRouterExternalCallee.ExternalCallData({
                 amountIn: deltaUSDC,
                 minAmountOut: 0,
                 deadline: type(uint256).max,
@@ -668,7 +668,7 @@ contract UniversalRouterTest is TestBed {
                 path: pathUsdcToWeth
             });
         } else {
-            data = UniversalRouter.ExternalCallData({
+            data = IRouterExternalCallee.ExternalCallData({
                 amountIn: deltaWETH,
                 minAmountOut: 0,
                 deadline: type(uint256).max,
