@@ -12,9 +12,9 @@ contract SushiswapV2 is UniswapV2 {
     /// @dev init code hash used to calculate pair addresses
     bytes32 public immutable INIT_CODE_HASH;
 
-    /// @dev Initialize `_protocolId`, `_factory`, and `WETH` address
-    constructor(uint16 _protocolId, address _factory, address _WETH, bytes32 initCodeHash) UniswapV2(_protocolId, _factory, _WETH) {
-        INIT_CODE_HASH = initCodeHash;
+    /// @dev Initialize `_protocolId`, `_factory`, `WETH`, and _initCodeHash
+    constructor(uint16 _protocolId, address _factory, address _WETH, bytes32 _initCodeHash) UniswapV2(_protocolId, _factory, _WETH) {
+        INIT_CODE_HASH = _initCodeHash;
     }
 
     /// @dev init code hash of Sushiswap pools. Used to calculate pool address without external calls
