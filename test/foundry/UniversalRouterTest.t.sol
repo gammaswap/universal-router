@@ -711,4 +711,71 @@ contract UniversalRouterTest is TestBed {
         assertEq(weth.balanceOf(address(router)), 0);
     }
 
+    function testGetPairInfo() public {
+        for(uint256 protocolId = 1; protocolId < 8; protocolId++) {
+            uint24 _poolFee = protocolId == 6 ? poolFee1 : protocolId == 7 ? uint24(aeroCLTickSpacing) : 0;
+            (address token0, address token1) = protocolId == 5 ? (address(usdc), address(usdt)) : (address(weth), address(usdc));
+            (address _pair0,,,address _factory0) = router.getPairInfo(token0, token1, _poolFee, uint16(protocolId));
+            (address _pair1,,,address _factory1) = router.getPairInfo(token1, token0, _poolFee, uint16(protocolId));
+            address pair;
+            if(protocolId == 1) {
+                pair = uniFactory.getPair(token0, token1);
+                assertEq(pair, uniFactory.getPair(token1, token0));
+                assertEq(_factory0, address(uniFactory));
+                assertEq(_factory1, address(uniFactory));
+            } else if(protocolId == 2) {
+                pair = sushiFactory.getPair(token0, token1);
+                assertEq(pair, sushiFactory.getPair(token1, token0));
+                assertEq(_factory0, address(sushiFactory));
+                assertEq(_factory1, address(sushiFactory));
+            } else if(protocolId == 3) {
+                pair = dsFactory.getPair(token0, token1);
+                assertEq(pair, dsFactory.getPair(token1, token0));
+                assertEq(_factory0, address(dsFactory));
+                assertEq(_factory1, address(dsFactory));
+            } else if(protocolId == 4) {
+                pair = aeroFactory.getPool(token0, token1, false);
+                assertEq(pair, aeroFactory.getPool(token1, token0, false));
+                assertEq(_factory0, address(aeroFactory));
+                assertEq(_factory1, address(aeroFactory));
+            } else if(protocolId == 5) {
+                pair = aeroFactory.getPool(token0, token1, true);
+                assertEq(pair, aeroFactory.getPool(token1, token0, true));
+                assertEq(_factory0, address(aeroFactory));
+                assertEq(_factory1, address(aeroFactory));
+            } else if(protocolId == 6) {
+                pair = uniFactoryV3.getPool(token0, token1, _poolFee);
+                assertEq(pair, uniFactoryV3.getPool(token1, token0, _poolFee));
+                assertEq(_factory0, address(uniFactoryV3));
+                assertEq(_factory1, address(uniFactoryV3));
+            } else if(protocolId == 7) {
+                pair = aeroCLFactory.getPool(token0, token1, aeroCLTickSpacing);
+                assertEq(pair, aeroCLFactory.getPool(token1, token0, aeroCLTickSpacing));
+                assertEq(_factory0, address(aeroCLFactory));
+                assertEq(_factory1, address(aeroCLFactory));
+            }
+            assertEq(_pair0, pair);
+            assertEq(_pair1, pair);
+        }
+    }
+
+    function testTrackPair() public {
+
+        /*tokens = new address[](5);
+        tokens[0] = address(weth);
+        tokens[1] = address(usdc);
+        tokens[2] = address(usdt);
+        tokens[3] = address(dai);
+        tokens[4] = address(wbtc);
+
+        bytes32 initCodeHash = 0xe18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303;
+
+        uniV2Route = new UniswapV2(1, address(uniFactory), address(weth));
+        sushiV2Route = new SushiswapV2(2, address(sushiFactory), address(weth), initCodeHash);
+        dsRoute = new DeltaSwap(3, address(dsFactory), address(weth));
+        aeroRoute = new Aerodrome(4, address(aeroFactory), false, address(weth));
+        aeroStableRoute = new Aerodrome(5, address(aeroFactory), true, address(weth));
+        uniV3Route = new UniswapV3(6, address(uniFactoryV3), address(weth));
+        aeroCLRoute = new AerodromeCL(7, address(aeroCLFactory), address(weth));/**/
+    }
 }
