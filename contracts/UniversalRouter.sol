@@ -33,7 +33,7 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
     }
 
     /// @dev Initialize UniversalRouter when used as a proxy contract
-    function initialize() public virtual initializer {
+    function initialize() public virtual override initializer {
         require(owner() == address(0), "UniversalRouter: INITIALIZED");
         _transferOwnership(msg.sender);
     }
@@ -255,7 +255,7 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
 
         trackedPairs[pair] = block.timestamp;
 
-        emit TrackPair(pair, token0, token1, fee, factory);
+        emit TrackPair(pair, token0, token1, fee, factory, protocolId);
     }
 
     /// @inheritdoc IUniversalRouter
@@ -266,7 +266,7 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
 
         trackedPairs[pair] = 0;
 
-        emit UnTrackPair(pair, token0, token1, fee, factory);
+        emit UnTrackPair(pair, token0, token1, fee, factory, protocolId);
     }
 
     /// @inheritdoc IUniversalRouter
