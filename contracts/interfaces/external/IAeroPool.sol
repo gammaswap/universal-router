@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0;
 
 /// @title Interface for the Aerodrome Pool
+/// @dev Added Transfer & Approval events from OpenZeppelin
 interface IAeroPool {
     error DepositsNotEqual();
     error BelowMinimumK();
@@ -29,6 +30,9 @@ interface IAeroPool {
     );
     event Sync(uint256 reserve0, uint256 reserve1);
     event Claim(address indexed sender, address indexed recipient, uint256 amount0, uint256 amount1);
+
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
 
     // Struct to capture time period obervations every 30 minutes, used for local oracles
     struct Observation {
