@@ -11,9 +11,9 @@ interface IUniversalRouter {
     /// @dev emitted when a protocol route is removed
     event RemoveProtocolRoute(uint16 indexed protocolId, address protocol);
     /// @dev emitted when a pair is tracked
-    event TrackPair(address indexed pair, address token0, address token1, uint24 fee, address factory);
+    event TrackPair(address indexed pair, address token0, address token1, uint24 fee, address factory, uint16 protocolId);
     /// @dev emitted when a pair is un-tracked
-    event UnTrackPair(address indexed pair, address token0, address token1, uint24 fee, address factory);
+    event UnTrackPair(address indexed pair, address token0, address token1, uint24 fee, address factory, uint16 protocolId);
 
     /// @dev Route struct that contains instructions to perform a swap through supported routes
     struct Route {
@@ -34,6 +34,9 @@ interface IUniversalRouter {
         /// @dev address of IProtocolRoute contract for each AMM swap
         address hop;
     }
+
+    /// @dev function to initialize contract storage variables
+    function initialize() external;
 
     /// @dev Get protocol route identified by protocolId from supported routes
     /// @param protocolId - protocolId identifying route to retrieve

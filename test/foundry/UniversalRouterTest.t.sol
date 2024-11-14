@@ -40,8 +40,8 @@ contract UniversalRouterTest is TestBed {
         uint256 amountOut
     );
 
-    event TrackPair(address indexed pair, address token0, address token1, uint24 fee, address factory);
-    event UnTrackPair(address indexed pair, address token0, address token1, uint24 fee, address factory);
+    event TrackPair(address indexed pair, address token0, address token1, uint24 fee, address factory, uint16 protocolId);
+    event UnTrackPair(address indexed pair, address token0, address token1, uint24 fee, address factory, uint16 protocolId);
 
     function setUp() public {
         random = new Random();
@@ -762,13 +762,13 @@ contract UniversalRouterTest is TestBed {
             router.trackPair(token0, token1, _poolFee, protocolId);
 
             vm.expectEmit();
-            emit TrackPair(pair, _token0, _token1, _poolFee, _factory);
+            emit TrackPair(pair, _token0, _token1, _poolFee, _factory, protocolId);
             router.trackPair(token0, token1, _poolFee, protocolId);
 
             assertEq(router.trackedPairs(pair), block.timestamp);
 
             vm.expectEmit();
-            emit TrackPair(pair, _token0, _token1, _poolFee, _factory);
+            emit TrackPair(pair, _token0, _token1, _poolFee, _factory, protocolId);
             router.trackPair(token0, token1, _poolFee, protocolId);
 
             assertEq(router.trackedPairs(pair), block.timestamp);
@@ -788,13 +788,13 @@ contract UniversalRouterTest is TestBed {
             router.unTrackPair(token0, token1, _poolFee, protocolId);
 
             vm.expectEmit();
-            emit UnTrackPair(pair, _token0, _token1, _poolFee, _factory);
+            emit UnTrackPair(pair, _token0, _token1, _poolFee, _factory, protocolId);
             router.unTrackPair(token0, token1, _poolFee, protocolId);
 
             assertEq(router.trackedPairs(pair), 0);
 
             vm.expectEmit();
-            emit UnTrackPair(pair, _token0, _token1, _poolFee, _factory);
+            emit UnTrackPair(pair, _token0, _token1, _poolFee, _factory, protocolId);
             router.unTrackPair(token0, token1, _poolFee, protocolId);
 
             assertEq(router.trackedPairs(pair), 0);
@@ -817,13 +817,13 @@ contract UniversalRouterTest is TestBed {
             router.trackPair(token0, token1, _poolFee, protocolId);
 
             vm.expectEmit();
-            emit TrackPair(pair, _token0, _token1, _poolFee, _factory);
+            emit TrackPair(pair, _token0, _token1, _poolFee, _factory, protocolId);
             router.trackPair(token0, token1, _poolFee, protocolId);
 
             assertEq(router.trackedPairs(pair), block.timestamp);
 
             vm.expectEmit();
-            emit TrackPair(pair, _token0, _token1, _poolFee, _factory);
+            emit TrackPair(pair, _token0, _token1, _poolFee, _factory, protocolId);
             router.trackPair(token0, token1, _poolFee, protocolId);
 
             assertEq(router.trackedPairs(pair), block.timestamp);
@@ -843,13 +843,13 @@ contract UniversalRouterTest is TestBed {
             router.unTrackPair(token0, token1, _poolFee, protocolId);
 
             vm.expectEmit();
-            emit UnTrackPair(pair, _token0, _token1, _poolFee, _factory);
+            emit UnTrackPair(pair, _token0, _token1, _poolFee, _factory, protocolId);
             router.unTrackPair(token0, token1, _poolFee, protocolId);
 
             assertEq(router.trackedPairs(pair), 0);
 
             vm.expectEmit();
-            emit UnTrackPair(pair, _token0, _token1, _poolFee, _factory);
+            emit UnTrackPair(pair, _token0, _token1, _poolFee, _factory, protocolId);
             router.unTrackPair(token0, token1, _poolFee, protocolId);
 
             assertEq(router.trackedPairs(pair), 0);
