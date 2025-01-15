@@ -3,6 +3,7 @@ pragma solidity >=0.8.0;
 
 import '@gammaswap/v1-deltaswap/contracts/libraries/DSMath.sol';
 import '@gammaswap/v1-deltaswap/contracts/interfaces/IDeltaSwapPair.sol';
+import '@gammaswap/v1-deltaswap/contracts/interfaces/IDeltaSwapFactory.sol';
 import './UniswapV2.sol';
 
 /// @title DeltaSwap Protocol Route contract
@@ -18,6 +19,11 @@ contract DeltaSwap is UniswapV2 {
     /// @dev init code hash of DeltaSwap pools. Used to calculate pool address without external calls
     function initCodeHash() internal override pure returns(bytes32) {
         return 0xa82767a5e39a2e216962a2ebff796dcc37cd05dfd6f7a149e1f8fbb6bf487658;
+    }
+
+    /// @inheritdoc IProtocolRoute
+    function getFee(address tokenIn, address tokenOut, uint24 fee) external override virtual view returns (uint256) {
+        return IDeltaSwapFactory(factory).dsFee() * 1e3;
     }
 
     /// @inheritdoc IProtocolRoute

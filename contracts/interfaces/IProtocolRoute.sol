@@ -31,6 +31,13 @@ interface IProtocolRoute {
     /// @return amountOut - quantity of amountIn is converted to in tokenOut at marginal price between tokenIn and tokenOut
     function quote(uint256 amountIn, address tokenIn, address tokenOut, uint24 fee) external view returns (uint256 amountOut);
 
+    /// @dev Get fee charged by AMM pair as an integer. Divide by 1e6 to convert to decimal
+    /// @param tokenIn - address token of amountIn quantity that will be converted
+    /// @param tokenOut - address of token that amountIn in tokenIn will be converted to
+    /// @param fee - fee identifier of AMM pair
+    /// @return total fee charged by AMM in integer form
+    function getFee(address tokenIn, address tokenOut, uint24 fee) external view returns (uint256);
+
     /// @dev Get expected amount in tokenOut that amount in tokenIn will be converted to
     /// @param amountIn - quantity of tokenIn token to convert to tokenOut
     /// @param tokenIn - address token of amountIn quantity that will be converted

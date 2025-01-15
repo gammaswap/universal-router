@@ -76,6 +76,70 @@ contract AerodromeTestStable is TestBed {
         assertEq(amountOut, amountIn * reserveA / reserveB);
     }
 
+    function testFee() public {
+        vm.expectRevert("Aerodrome: AMM_DOES_NOT_EXIST");
+        uint256 fee = route.getFee(address(weth), address(usdc), poolFee1);
+
+        fee = route.getFee(address(dai), address(usdc), 100);
+        assertEq(fee, 500);
+
+        fee = route.getFee(address(dai), address(usdc), 2000);
+        assertEq(fee, 500);
+
+        fee = route.getFee(address(usdt), address(usdc), 100);
+        assertEq(fee, 500);
+
+        fee = route.getFee(address(usdt), address(dai), 3000);
+        assertEq(fee, 500);
+
+        fee = route.getFee(address(usdt), address(dai), 500);
+        assertEq(fee, 500);
+
+        aeroFactory.setFee(true, 300);
+
+        fee = route.getFee(address(dai), address(usdc), 100);
+        assertEq(fee, 30000);
+
+        fee = route.getFee(address(dai), address(usdc), 2000);
+        assertEq(fee, 30000);
+
+        fee = route.getFee(address(usdt), address(usdc), 100);
+        assertEq(fee, 30000);
+
+        fee = route.getFee(address(usdt), address(dai), 3000);
+        assertEq(fee, 30000);
+
+        fee = route.getFee(address(usdt), address(dai), 500);
+        assertEq(fee, 30000);
+
+        fee = route.getFee(address(usdt), address(dai), 300);
+        assertEq(fee, 30000);
+
+        (address pair,,) = route.pairFor(address(usdt), address(usdc), 300);
+
+        aeroFactory.setCustomFee(pair, 20);
+
+        aeroFactory.setFee(true, 200);
+
+        fee = route.getFee(address(dai), address(usdc), 100);
+        assertEq(fee, 20000);
+
+        fee = route.getFee(address(dai), address(usdc), 2000);
+        assertEq(fee, 20000);
+
+        fee = route.getFee(address(usdt), address(usdc), 100);
+        assertEq(fee, 2000);
+
+        fee = route.getFee(address(usdt), address(dai), 3000);
+        assertEq(fee, 20000);
+
+        fee = route.getFee(address(usdt), address(dai), 500);
+        assertEq(fee, 20000);
+
+        fee = route.getFee(address(usdt), address(dai), 300);
+        assertEq(fee, 20000);
+    }
+
     function testGetOrigin() public {
         (address pair, address origin) = route.getOrigin(address(usdt), address(usdc), 0);
         assertEq(pair, address(aeroUsdtUsdcPool));
