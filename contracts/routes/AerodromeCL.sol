@@ -70,6 +70,12 @@ contract AerodromeCL is CPMMRoute, IUniswapV3SwapCallback {
         }
     }
 
+    /// @inheritdoc IProtocolRoute
+    function getFee(address tokenIn, address tokenOut, uint24 fee) external override virtual view returns (uint256) {
+        (address pair,,) = pairFor(tokenIn, tokenOut, fee);
+        return IAeroCLPoolFactory(factory).getSwapFee(pair);
+    }
+
     /// @dev Assume sqrtPriceX96 is given as input
     /// @param sqrtPriceX96 - square root of price (in terms of token1) in AMM encoded with 2^96
     /// @param decimals - decimal factor of token0 (e.g. 10^18 if token0 is 18 decimals)

@@ -87,6 +87,11 @@ interface IUniversalRouter {
     /// @return amountOut - quantity of token path[n] obtained from swapping amountIn of token path[0] at the marginal price
     function quote(uint256 amountIn, bytes calldata path) external view returns(uint256 amountOut);
 
+    /// @dev Get total fee for executing through given path
+    /// @param path - path used to calculate fee (e.g. path[0] -> path[1] -> ... path[n])
+    /// @return pathFee - total fee of execution through the path in integer form. Divide by 1e6 to convert to decimal form
+    function calcPathFee(bytes calldata path) external view returns(uint256 pathFee);
+
     /// @dev Expected amounts to get from swapping amountIn of token path[0]. Takes slippage from price impact and fees into account
     /// @param amountIn - amount of token in the beginning of the path provided
     /// @param path - path used to perform the swap (e.g. path[0] -> path[1] -> ... path[n])

@@ -65,6 +65,23 @@ contract UniswapV3Test is TestBed {
         assertEq(amountOut, amountIn * (10**decimals) / price);
     }
 
+    function testFee() public {
+        uint256 fee = route.getFee(address(weth), address(usdc), poolFee1);
+        assertEq(fee, poolFee1);
+
+        fee = route.getFee(address(weth), address(usdc), 100);
+        assertEq(fee, 100);
+
+        fee = route.getFee(address(weth), address(usdc), 500);
+        assertEq(fee, 500);
+
+        fee = route.getFee(address(weth), address(usdc), 3000);
+        assertEq(fee, 3000);
+
+        fee = route.getFee(address(weth), address(usdc), 10000);
+        assertEq(fee, 10000);
+    }
+
     function testGetOrigin() public {
         (address pair, address origin) = route.getOrigin(address(weth), address(usdc), poolFee1);
         assertEq(pair, address(wethUsdcPoolV3));

@@ -119,6 +119,17 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
     }
 
     /// @inheritdoc IUniversalRouter
+    function calcPathFee(bytes calldata path) public override view returns(uint256 pathFee) {
+        Route[] memory routes = calcRoutes(path, address(this));
+        pathFee = 1e6;
+        for (uint256 i; i < routes.length; i++) {
+            uint256 fee = IProtocolRoute(routes[i].hop).getFee(routes[i].from, routes[i].to, routes[i].fee);
+            pathFee = pathFee * (1e6 - fee) / 1e6;
+        }
+        pathFee = 1e6 - pathFee;
+    }
+
+    /// @inheritdoc IUniversalRouter
     function calcRoutes(bytes memory path, address _to) public override virtual view returns (Route[] memory routes) {
         require(path.length >= 45 && (path.length - 20) % 25 == 0, 'UniversalRouter: INVALID_PATH');
         routes = new Route[](path.numPools());

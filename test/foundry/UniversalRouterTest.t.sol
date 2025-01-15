@@ -672,6 +672,59 @@ contract UniversalRouterTest is TestBed {
         assertEq(res,0xF6D9C101ceeA72655A13a8Cf1C88c1949Ed399bc);
     }
 
+    function testCalcPathFee() public {
+        bytes memory pathUsdcToWeth = abi.encodePacked(address(usdc), uint16(1), poolFee1, address(wbtc), uint16(1), poolFee1, address(weth));
+        uint256 pathFee = router.calcPathFee(pathUsdcToWeth);
+        assertEq(pathFee, 5991);
+
+        bytes memory pathWethToUsdc = abi.encodePacked(address(weth), uint16(1), poolFee1, address(wbtc), uint16(1), poolFee1, address(usdc));
+        pathFee = router.calcPathFee(pathWethToUsdc);
+        assertEq(pathFee, 5991);
+
+        bytes memory pathWethToDai = abi.encodePacked(address(weth), uint16(1), poolFee1, address(wbtc), uint16(1), poolFee1, address(usdc), uint16(6), poolFee1, address(dai));
+        pathFee = router.calcPathFee(pathWethToDai);
+        assertEq(pathFee, 15932);
+     }
+
+    function testPathFees(uint8 tokenChoices, uint128 seed) public {
+        bytes memory path = createPath(tokenChoices, seed);
+        IUniversalRouter.Route[] memory _routes = router.calcRoutes(path, address(this));
+        uint256 minAmountOut;
+        uint256 amountIn = getMinAmountIn(_routes[0].from);
+        uint256 amountOut = router.quote(amountIn, path);
+        uint256 pathFee = router.calcPathFee(path);
+        uint256 amountOutPostFees = amountOut - amountOut * pathFee / 1e6;
+
+        vm.startPrank(owner);
+
+        uint256 balanceTo0 = IERC20(_routes[_routes.length - 1].to).balanceOf(owner);
+        uint256 balanceFrom0 = IERC20(_routes[0].from).balanceOf(owner);
+
+        IERC20(_routes[0].from).approve(address(router), type(uint256).max);
+
+        router.swapExactTokensForTokens(amountIn, 0, path, owner, block.timestamp);
+
+        uint256 balanceTo1 = IERC20(_routes[_routes.length - 1].to).balanceOf(owner);
+        uint256 balanceFrom1 = IERC20(_routes[0].from).balanceOf(owner);
+
+        uint256 soldAmount = balanceFrom0 - balanceFrom1;
+        uint256 boughtAmount = balanceTo1 - balanceTo0;
+        assertApproxEqRel(amountOutPostFees, boughtAmount, 1e16);
+
+        vm.stopPrank();
+    }
+
+    function getMinAmountIn(address token) internal view returns(uint256) {
+        if(token == address(weth)) {
+            return 1e14;
+        } else if(token == address(wbtc)) {
+            return 1e4;
+        } else if(token == address(dai)) {
+            return 1e18;
+        }
+        return 1e6;
+    }
+
     function testExternalCallSwap(uint256 deltaUSDC, uint256 deltaWETH, bool isBuyWeth) public {
         deltaUSDC = bound(deltaUSDC, 10e6, 1_000e6);
         deltaWETH = bound(deltaWETH, 1e16, 10e18);

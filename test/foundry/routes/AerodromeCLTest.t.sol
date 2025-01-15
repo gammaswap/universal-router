@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import '../fixtures/TestBed.sol';
 import '../../../contracts/test/TestUniversalRouter.sol';
 import '../../../contracts/test/routes/TestAerodromeCL.sol';
+import '../../../contracts/interfaces/external/aerodrome-cl/IAeroCLCustomFeeModule.sol';
 
 contract AerodromeCLTest is TestBed {
 
@@ -62,6 +63,31 @@ contract AerodromeCLTest is TestBed {
         decimals = GammaSwapLibrary.decimals(aeroCLWethUsdcPool.token0());
         price = route.getDecodedPrice(sqrtPriceX96,10**decimals);
         assertEq(amountOut, amountIn * (10**decimals) / price);
+    }
+
+    function testFee1() public {
+        vm.expectRevert("AerodromeCL: AMM_DOES_NOT_EXIST");
+        uint256 fee = route.getFee(address(weth), address(usdc), poolFee1);
+
+        fee = route.getFee(address(weth), address(usdc), 100);
+        assertEq(fee, 500);
+
+        fee = route.getFee(address(usdc), address(weth), 100);
+        assertEq(fee, 500);
+
+        (address pair,,) = route.pairFor(address(usdc), address(weth), 100);
+
+        vm.startPrank(owner);
+
+        IAeroCLCustomFeeModule(aeroCLFactory.swapFeeModule()).setCustomFee(pair, uint24(3000));
+
+        fee = route.getFee(address(weth), address(usdc), 100);
+        assertEq(fee, 3000);
+
+        fee = route.getFee(address(weth), address(usdc), 100);
+        assertEq(fee, 3000);
+
+        vm.stopPrank();
     }
 
     function testGetOrigin() public {

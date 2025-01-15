@@ -28,6 +28,11 @@ contract UniswapV2 is CPMMRoute {
     }
 
     /// @inheritdoc IProtocolRoute
+    function getFee(address tokenIn, address tokenOut, uint24 fee) external override virtual view returns (uint256) {
+        return 3000;
+    }
+
+    /// @inheritdoc IProtocolRoute
     function pairFor(address tokenA, address tokenB, uint24 fee) public override virtual view returns (address pair, address token0, address token1) {
         (token0, token1) = _sortTokens(tokenA, tokenB);
         pair = address(uint160(uint256(keccak256(abi.encodePacked(
