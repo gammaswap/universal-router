@@ -1,6 +1,6 @@
 {
   "name": "@gammaswap/universal-router",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "description": "Universal Router for GammaSwap protocol",
   "homepage": "https://gammaswap.com",
   "scripts": {

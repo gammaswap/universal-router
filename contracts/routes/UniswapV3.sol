@@ -68,7 +68,11 @@ contract UniswapV3 is CPMMRoute, IUniswapV3SwapCallback {
         } else {
             uint256 decimals = 10**GammaSwapLibrary.decimals(tokenOut);
             uint256 price = decodePrice(sqrtPriceX96, decimals);
-            amountOut = amountIn * decimals / price;
+            if(price == 0) {
+                amountOut = type(uint128).max;
+            } else {
+                amountOut = amountIn * decimals / price;
+            }
         }
     }
 
