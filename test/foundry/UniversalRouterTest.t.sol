@@ -351,7 +351,7 @@ contract UniversalRouterTest is TestBed {
         address _fromToken = isAmountIn ? routes[0].from : routes[routes.length - 1].to;
         address _toToken = isAmountIn ? routes[routes.length - 1].to : routes[0].from;
         if(_fromToken == address(weth)) {
-            amount = bound(amount, 1e18, 10e18);
+            amount = boundVar(amount, 1e18, 10e18);
             if(_toToken == address(wbtc)) {
                 minAmount = 4400384;
             } else if(_toToken == address(dai)) {
@@ -360,7 +360,7 @@ contract UniversalRouterTest is TestBed {
                 minAmount = 2800e6;
             }
         } else if(_fromToken == address(wbtc)) {
-            amount = bound(amount, 1e6, 1e8);
+            amount = boundVar(amount, 1e6, 1e8);
             if(_toToken == address(weth)) {
                 minAmount = 2e17;
             } else if(_toToken == address(dai)) {
@@ -369,7 +369,7 @@ contract UniversalRouterTest is TestBed {
                 minAmount = 620e6;
             }
         } else if(_fromToken == address(dai)) {
-            amount = bound(amount, 1e18, 1000e18);
+            amount = boundVar(amount, 1e18, 1000e18);
             if(_toToken == address(weth)) {
                 minAmount = 313333333333333;
             } else if(_toToken == address(wbtc)) {
@@ -378,7 +378,7 @@ contract UniversalRouterTest is TestBed {
                 minAmount = 9e5;
             }
         } else {
-            amount = bound(amount, 1e6, 1000e6);
+            amount = boundVar(amount, 1e6, 1000e6);
             if(_toToken == address(weth)) {
                 minAmount = 313333333333333;
             } else if(_toToken == address(wbtc)) {
@@ -726,8 +726,8 @@ contract UniversalRouterTest is TestBed {
     }
 
     function testExternalCallSwap(uint256 deltaUSDC, uint256 deltaWETH, bool isBuyWeth) public {
-        deltaUSDC = bound(deltaUSDC, 10e6, 1_000e6);
-        deltaWETH = bound(deltaWETH, 1e16, 10e18);
+        deltaUSDC = boundVar(deltaUSDC, 10e6, 1_000e6);
+        deltaWETH = boundVar(deltaWETH, 1e16, 10e18);
 
         bytes memory pathUsdcToWeth = abi.encodePacked(address(usdc), uint16(1), poolFee1, address(wbtc), uint16(1), poolFee1, address(weth));
         bytes memory pathWethToUsdc = abi.encodePacked(address(weth), uint16(1), poolFee1, address(wbtc), uint16(1), poolFee1, address(usdc));
