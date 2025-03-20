@@ -60,4 +60,13 @@ contract TestBed is UniswapSetup {
         initAerodromeCL(owner,aeroVoter);
         router = new TestUniversalRouter(address(weth));
     }
+
+    function boundVar(uint256 x, uint256 min, uint256 max) internal pure virtual returns (uint256) {
+        require(min <= max, "min > max");
+        // If x is between min and max, return x directly. This is to ensure that dictionary values
+        // do not get shifted if the min is nonzero. More info: https://github.com/foundry-rs/forge-std/issues/188
+        if (x < min) return min;
+        if (x > max) return max;
+        return x;
+    }
 }
