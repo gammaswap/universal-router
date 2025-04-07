@@ -11,6 +11,8 @@ import '@gammaswap/v1-deltaswap/contracts/interfaces/IDeltaSwapPair.sol';
 import '@gammaswap/v1-deltaswap/contracts/interfaces/IDeltaSwapRouter02.sol';
 import '@gammaswap/v1-core/contracts/GammaPoolFactory.sol';
 
+import '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol';
+
 import '../../../contracts/interfaces/external/IAeroCLPool.sol';
 import '../../../contracts/interfaces/external/IAeroCLPoolFactory.sol';
 import '../../../contracts/interfaces/external/IAeroPoolFactory.sol';
@@ -21,6 +23,11 @@ import '../../../contracts/test/IAeroRouter.sol';
 import '../../../contracts/test/IAeroToken.sol';
 import '../../../contracts/test/ICLGaugeFactory.sol';
 import '../../../contracts/test/IPositionManagerMintable.sol';
+import '../../../contracts/test/IShadowCLPositionManagerMintable.sol';
+
+import '../../../contracts/interfaces/external/IRamsesV3Factory.sol';
+import '../../../contracts/interfaces/external/IRamsesV3Pool.sol';
+import '../../../contracts/interfaces/external/shadow-cl/IAccessHub.sol';
 import './TokensSetup.sol';
 
 contract UniswapSetup is TokensSetup {
@@ -124,6 +131,20 @@ contract UniswapSetup is TokensSetup {
     IAeroCLPool public aeroCLUsdtUsdcPool;
     IAeroCLPool public aeroCLDaiUsdcPool;
     IAeroCLPool public aeroCLDaiUsdtPool;
+
+    IRamsesV3Factory public shadowCLFactory;
+    address public shadowCLPositionManager;
+    int24 public shadowCLTickSpacing = 100;
+    IRamsesV3Pool public shadowCLWethUsdcPool;
+    IRamsesV3Pool public shadowCLWethUsdtPool;
+    IRamsesV3Pool public shadowCLWethDaiPool;
+    IRamsesV3Pool public shadowCLWbtcWethPool;
+    IRamsesV3Pool public shadowCLWbtcUsdcPool;
+    IRamsesV3Pool public shadowCLWbtcUsdtPool;
+    IRamsesV3Pool public shadowCLWbtcDaiPool;
+    IRamsesV3Pool public shadowCLUsdtUsdcPool;
+    IRamsesV3Pool public shadowCLDaiUsdcPool;   
+    IRamsesV3Pool public shadowCLDaiUsdtPool;
 
     function initUniswapV3(address owner) public {
         bytes memory factoryBytecode = abi.encodePacked(vm.getCode("./node_modules/@uniswap/v3-core/artifacts/contracts/UniswapV3Factory.sol/UniswapV3Factory.json"));
@@ -634,6 +655,95 @@ contract UniswapSetup is TokensSetup {
         vm.stopPrank();
     }
 
+    function initShadowCL(address owner) public {
+
+        address implementation = createContractFromBytecode("./test/foundry/bytecodes/shadow-cl/AccessHub.json");
+        address accessHubAddress = address(new ERC1967Proxy(implementation, ""));        
+
+        shadowCLFactory = IRamsesV3Factory(createContractFromBytecodeWithArgs("./test/foundry/bytecodes/shadow-cl/CLFactory.json",
+            abi.encode(accessHubAddress)));
+
+        address shadowCLNFTDescriptor = createContractFromBytecodeWithArgs(("test/foundry/bytecodes/shadow-cl/NonfungibleTokenPositionDescriptor.json"),
+            abi.encode(address(weth)));
+
+        shadowCLPositionManager = createContractFromBytecodeWithArgs("test/foundry/bytecodes/shadow-cl/NonfungiblePositionManager.json",
+            abi.encode(address(shadowCLFactory), address(weth), shadowCLNFTDescriptor, accessHubAddress));
+
+        // Create pools with initial prices similar to other protocols
+        shadowCLWethUsdcPool = IRamsesV3Pool(shadowCLFactory.createPool(
+            address(weth), address(usdc), shadowCLTickSpacing, wethUsdcSqrtPriceX96
+        ));
+        shadowCLWethUsdtPool = IRamsesV3Pool(shadowCLFactory.createPool(
+            address(weth), address(usdt), shadowCLTickSpacing, wethUsdcSqrtPriceX96
+        ));
+        shadowCLWethDaiPool = IRamsesV3Pool(shadowCLFactory.createPool(
+            address(weth), address(dai), shadowCLTickSpacing, wethDaiSqrtPriceX96
+        ));
+        shadowCLWbtcWethPool = IRamsesV3Pool(shadowCLFactory.createPool(
+            address(wbtc), address(weth), shadowCLTickSpacing, wbtcWethSqrtPriceX96
+        ));
+        shadowCLWbtcUsdcPool = IRamsesV3Pool(shadowCLFactory.createPool(
+            address(wbtc), address(usdc), shadowCLTickSpacing, wbtcUsdcSqrtPriceX96
+        ));
+        shadowCLWbtcUsdtPool = IRamsesV3Pool(shadowCLFactory.createPool(
+            address(wbtc), address(usdt), shadowCLTickSpacing, wbtcUsdcSqrtPriceX96
+        ));
+        shadowCLWbtcDaiPool = IRamsesV3Pool(shadowCLFactory.createPool(
+            address(wbtc), address(dai), shadowCLTickSpacing, wbtcDaiSqrtPriceX96
+        ));
+        shadowCLUsdtUsdcPool = IRamsesV3Pool(shadowCLFactory.createPool(
+            address(usdt), address(usdc), shadowCLTickSpacing, usdtUsdcSqrtPriceX96
+        ));
+        shadowCLDaiUsdcPool = IRamsesV3Pool(shadowCLFactory.createPool(
+            address(dai), address(usdc), shadowCLTickSpacing, daiUsdcSqrtPriceX96
+        ));
+        shadowCLDaiUsdtPool = IRamsesV3Pool(shadowCLFactory.createPool(
+            address(dai), address(usdt), shadowCLTickSpacing, daiUsdcSqrtPriceX96
+        ));
+        
+        weth.mint(owner, 120);
+        usdc.mint(owner, 350_000);
+        weth.mint(owner, 890);
+        usdt.mint(owner, 2_700_000);
+        weth.mint(owner, 120);
+        dai.mint(owner, 350_000);
+        weth.mint(owner, 220);
+        wbtc.mint(owner, 11);
+        wbtc.mint(owner, 11);
+        usdc.mint(owner, 660_000);
+        wbtc.mint(owner, 11);
+        usdt.mint(owner, 660_000);
+        wbtc.mint(owner, 11);
+        dai.mint(owner, 660_000);
+        usdc.mint(owner, 660_000);
+        usdt.mint(owner, 660_000);
+        usdc.mint(owner, 660_000);
+        dai.mint(owner, 660_000);
+        usdt.mint(owner, 660_000);
+        dai.mint(owner, 660_000);
+        
+        vm.startPrank(owner);
+        
+        weth.approve(shadowCLPositionManager, type(uint256).max);
+        usdc.approve(shadowCLPositionManager, type(uint256).max);
+        usdt.approve(shadowCLPositionManager, type(uint256).max);
+        wbtc.approve(shadowCLPositionManager, type(uint256).max);
+        dai.approve(shadowCLPositionManager, type(uint256).max);
+        
+        addLiquidityShadowCL(shadowCLPositionManager, address(weth), address(usdc), shadowCLTickSpacing, 115594502247137145239, 345648123455);
+        addLiquidityShadowCL(shadowCLPositionManager, address(weth), address(usdt), shadowCLTickSpacing, 887209737429288199534, 2680657431182);
+        addLiquidityShadowCL(shadowCLPositionManager, address(weth), address(dai), shadowCLTickSpacing, 115594502247137145239, 345648123455000000000000);
+        addLiquidityShadowCL(shadowCLPositionManager, address(wbtc), address(weth), shadowCLTickSpacing, 1012393293, 217378372286812000000);
+        addLiquidityShadowCL(shadowCLPositionManager, address(wbtc), address(usdc), shadowCLTickSpacing, 1012393293, 658055640487);
+        addLiquidityShadowCL(shadowCLPositionManager, address(wbtc), address(usdt), shadowCLTickSpacing, 1013393293, 659055640487);
+        addLiquidityShadowCL(shadowCLPositionManager, address(wbtc), address(dai), shadowCLTickSpacing, 1011393293, 657055640487000000000000);
+        addLiquidityShadowCL(shadowCLPositionManager, address(usdt), address(usdc), shadowCLTickSpacing, 658055640487, 659055640487);
+        addLiquidityShadowCL(shadowCLPositionManager, address(dai), address(usdc), shadowCLTickSpacing, 657055640487000000000000, 658055640487);
+        addLiquidityShadowCL(shadowCLPositionManager, address(dai), address(usdt), shadowCLTickSpacing, 657055640487000000000000, 656055640487);
+
+        vm.stopPrank();
+    }
+
     function addLiquidity(address token0, address token1, uint256 amount0, uint256 amount1, address to) public returns (uint256 amountA, uint256 amountB, uint256 liquidity) {
         (amountA, amountB, liquidity) = uniRouter.addLiquidity(token0, token1, amount0, amount1, 0, 0, to, type(uint256).max);
     }
@@ -687,5 +797,22 @@ contract UniswapSetup is TokensSetup {
             sqrtPriceX96: 0
         });
         IAeroPositionManagerMintable(nftPositionManager).mint(mintParams);
+    }
+
+    function addLiquidityShadowCL(address nftPositionManager, address token0, address token1, int24 tickSpacing, uint256 amount0, uint256 amount1) internal {
+        IShadowCLPositionManagerMintable.MintParams memory params = IShadowCLPositionManagerMintable.MintParams({
+            token0: token0,
+            token1: token1,
+            tickSpacing: tickSpacing,
+            tickLower: -887200,
+            tickUpper: 887200,
+            amount0Desired: amount0,
+            amount1Desired: amount1,
+            amount0Min: 0,
+            amount1Min: 0,
+            recipient: msg.sender,
+            deadline: type(uint256).max
+        });
+        IShadowCLPositionManagerMintable(nftPositionManager).mint(params);
     }
 }

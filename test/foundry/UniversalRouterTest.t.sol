@@ -7,6 +7,7 @@ import '../../contracts/routes/DeltaSwap.sol';
 import '../../contracts/routes/Aerodrome.sol';
 import '../../contracts/routes/UniswapV3.sol';
 import '../../contracts/routes/AerodromeCL.sol';
+import '../../contracts/routes/ShadowCL.sol';
 import "../../contracts/interfaces/IRouterExternalCallee.sol";
 import '../../contracts/interfaces/IUniversalRouter.sol';
 import './fixtures/TestBed.sol';
@@ -25,6 +26,7 @@ contract UniversalRouterTest is TestBed {
     Aerodrome aeroStableRoute;
     UniswapV3 uniV3Route;
     AerodromeCL aeroCLRoute;
+    ShadowCL shadowCLRoute;
     Random random;
     address[] tokens;
 
@@ -64,6 +66,7 @@ contract UniversalRouterTest is TestBed {
         aeroStableRoute = new Aerodrome(5, address(aeroFactory), true, address(weth));
         uniV3Route = new UniswapV3(6, address(uniFactoryV3), address(weth));
         aeroCLRoute = new AerodromeCL(7, address(aeroCLFactory), address(weth));
+        shadowCLRoute = new ShadowCL(8, address(shadowCLFactory), address(weth));
 
         // set up routes
         router.addProtocolRoute(address(uniV2Route));
@@ -73,6 +76,7 @@ contract UniversalRouterTest is TestBed {
         router.addProtocolRoute(address(aeroStableRoute));
         router.addProtocolRoute(address(uniV3Route));
         router.addProtocolRoute(address(aeroCLRoute));
+        router.addProtocolRoute(address(shadowCLRoute));
     }
 
     function testAddRemoveProtocol() public {
@@ -437,6 +441,8 @@ contract UniversalRouterTest is TestBed {
             return uniFactoryV3.getPool(from, to, fee);
         } else if(protocolId == 7) {
             return aeroCLFactory.getPool(from, to, int24(fee));
+        } else if(protocolId == 8) {
+            return shadowCLFactory.getPool(from, to, int24(shadowCLTickSpacing));
         }
         return address(0);
     }
@@ -456,6 +462,8 @@ contract UniversalRouterTest is TestBed {
             return address(uniFactoryV3);
         } else if(protocolId == 7) {
             return address(aeroCLFactory);
+        } else if(protocolId == 8) {
+            return address(shadowCLFactory);
         }
         return address(0);
     }
