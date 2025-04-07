@@ -2,7 +2,7 @@
 pragma solidity >=0.5.0;
 
 /// @title Provides functions for deriving a pool address from the deployer, tokens, and the fee
-library PoolAddress {
+library ShadowPoolAddress {
     bytes32 internal constant POOL_INIT_CODE_HASH = 0xc701ee63862761c31d620a4a083c61bdc1e81761e6b9c9267fd19afd22e0821d;
 
     /// @notice The identifying key of the pool

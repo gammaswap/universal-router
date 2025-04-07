@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
-import '../interfaces/external/IShadowCLPool.sol';
+import '../interfaces/external/IRamsesV3Pool.sol';
 import './ShadowPoolAddress.sol';
 
 /// @notice Provides validation for callbacks from Ramses V3 Pools
-library CallbackValidation {
+library ShadowCallbackValidation {
     /// @notice Returns the address of a valid Ramses V3 Pool
     /// @param deployer The contract address of the Ramses V3 deployer
     /// @param tokenA The contract address of either token0 or token1
@@ -18,7 +18,7 @@ library CallbackValidation {
         address tokenB,
         int24 tickSpacing
     ) internal view returns (IRamsesV3Pool pool) {
-        return verifyCallback(deployer, PoolAddress.getPoolKey(tokenA, tokenB, tickSpacing));
+        return verifyCallback(deployer, ShadowPoolAddress.getPoolKey(tokenA, tokenB, tickSpacing));
     }
 
     /// @notice Returns the address of a valid Ramses V3 Pool
@@ -27,9 +27,9 @@ library CallbackValidation {
     /// @return pool The V3 pool contract address
     function verifyCallback(
         address deployer,
-        PoolAddress.PoolKey memory poolKey
+        ShadowPoolAddress.PoolKey memory poolKey
     ) internal view returns (IRamsesV3Pool pool) {
-        pool = IRamsesV3Pool(PoolAddress.computeAddress(deployer, poolKey));
+        pool = IRamsesV3Pool(ShadowPoolAddress.computeAddress(deployer, poolKey));
         require(msg.sender == address(pool));
     }
 }
