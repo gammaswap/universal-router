@@ -9,7 +9,7 @@ import '../interfaces/external/IRamsesV3Pool.sol';
 import '../interfaces/external/IRamsesV3Factory.sol';
 import '../libraries/ShadowCallbackValidation.sol';
 import '../libraries/ShadowPoolAddress.sol';
-import '../libraries/PoolTicksCounter.sol';
+import '../libraries/ShadowPoolTicksCounter.sol';
 import '../libraries/BytesLib2.sol';
 import '../libraries/Path2.sol';
 import '../libraries/TickMath.sol';
@@ -18,7 +18,7 @@ import './CPMMRoute.sol';
 contract ShadowCL is CPMMRoute, IUniswapV3SwapCallback {
     using BytesLib2 for bytes;
     using Path2 for bytes;
-    using PoolTicksCounter for IShadowCLPool;
+    using ShadowPoolTicksCounter for IRamsesV3Pool;
     using SafeCast for uint256;
 
     struct SwapCallbackData {
@@ -42,7 +42,7 @@ contract ShadowCL is CPMMRoute, IUniswapV3SwapCallback {
     }
 
     function quote(uint256 amountIn, address tokenIn, address tokenOut, uint24 fee) public override view returns (uint256 amountOut) {
-        (uint256 sqrtPriceX96,,,,,) = IShadowCLPool(_pairFor(tokenIn, tokenOut, fee)).slot0();
+        (uint256 sqrtPriceX96,,,,,,) = IRamsesV3Pool(_pairFor(tokenIn, tokenOut, fee)).slot0();
         if (tokenIn < tokenOut) {
             uint256 decimals = 10**GammaSwapLibrary.decimals(tokenIn);
             uint256 price = decodePrice(sqrtPriceX96, decimals);
@@ -56,7 +56,7 @@ contract ShadowCL is CPMMRoute, IUniswapV3SwapCallback {
 
     function getFee(address tokenIn, address tokenOut, uint24 fee) external override view returns (uint256) {
         (address pair,,) = pairFor(tokenIn, tokenOut, fee);
-        return IShadowCLFactory(factory).getSwapFee(pair);
+        return IRamsesV3Pool(pair).fee();
     }
 
     function decodePrice(uint256 sqrtPriceX96, uint256 decimals) internal pure returns (uint256 price) {
@@ -88,7 +88,7 @@ contract ShadowCL is CPMMRoute, IUniswapV3SwapCallback {
     function _quoteAmountOut(uint256 amountIn, address tokenIn, address tokenOut, uint24 fee) internal returns (uint256 amountOut, address pair) {
         bool zeroForOne = tokenIn < tokenOut;
         (pair,,) = pairFor(tokenIn, tokenOut, fee);
-        try IShadowCLPool(pair).swap(
+        try IRamsesV3Pool(pair).swap(
             address(this),
             zeroForOne,
             amountIn.toInt256(),
@@ -107,7 +107,7 @@ contract ShadowCL is CPMMRoute, IUniswapV3SwapCallback {
     function _quoteAmountIn(uint256 amountOut, address tokenIn, address tokenOut, uint24 fee) internal returns (uint256 amountIn, address pair) {
         (pair,,) = pairFor(tokenIn, tokenOut, fee);
         amountOutCached = amountOut;
-        try IShadowCLPool(pair).swap(
+        try IRamsesV3Pool(pair).swap(
             address(this),
             tokenIn < tokenOut,
             -amountOut.toInt256(),
@@ -122,9 +122,9 @@ contract ShadowCL is CPMMRoute, IUniswapV3SwapCallback {
     function handleRevert(bytes memory reason, address pair) private view returns (uint256 amount, uint160 sqrtPriceX96After, uint32 initializedTicksCrossed) {
         int24 tickBefore;
         int24 tickAfter;
-        (, tickBefore, , , ,) = IShadowCLPool(pair).slot0();
+        (,tickBefore,,,,,) = IRamsesV3Pool(pair).slot0();
         (amount, sqrtPriceX96After, tickAfter) = parseRevertReason(reason);
-        initializedTicksCrossed = IShadowCLPool(pair).countInitializedTicksCrossed(tickBefore, tickAfter);
+        initializedTicksCrossed = IRamsesV3Pool(pair).countInitializedTicksCrossed(tickBefore, tickAfter);
     }
 
     function parseRevertReason(bytes memory reason) private pure returns (uint256 amount, uint160 sqrtPriceX96After, int24 tickAfter) {
@@ -154,7 +154,7 @@ contract ShadowCL is CPMMRoute, IUniswapV3SwapCallback {
         require(params.recipient != address(0), 'INVALID_RECIPIENT');
 
         bool zeroForOne = params.tokenIn < params.tokenOut;
-        (int256 amount0, int256 amount1) = IShadowCLPool(_pairFor(params.tokenIn, params.tokenOut, params.tickSpacing)).swap(
+        (int256 amount0, int256 amount1) = IRamsesV3Pool(_pairFor(params.tokenIn, params.tokenOut, params.tickSpacing)).swap(
             params.recipient,
             zeroForOne,
             int256(params.amount),
@@ -175,7 +175,7 @@ contract ShadowCL is CPMMRoute, IUniswapV3SwapCallback {
             ? (tokenIn < tokenOut, uint256(amount0Delta), uint256(-amount1Delta))
             : (tokenOut < tokenIn, uint256(amount1Delta), uint256(-amount0Delta));
 
-        (uint160 sqrtPriceX96After, int24 tickAfter,,,,) = IShadowCLPool(_pairFor(tokenIn, tokenOut, fee)).slot0();
+        (uint160 sqrtPriceX96After, int24 tickAfter,,,,,) = IRamsesV3Pool(_pairFor(tokenIn, tokenOut, fee)).slot0();
 
         if (isExactInput) {
             if (data.payer != address(0)) {
