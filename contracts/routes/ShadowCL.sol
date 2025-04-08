@@ -38,7 +38,7 @@ contract ShadowCL is CPMMRoute, IUniswapV3SwapCallback {
 
     constructor(uint16 _protocolId, address _factory, address _WETH) Transfers(_WETH) {
         protocolId = _protocolId;
-        factory = _factory;
+        factory = _factory; // this is the ramsesV3PoolDeployer
     }
 
     function quote(uint256 amountIn, address tokenIn, address tokenOut, uint24 fee) public override view returns (uint256 amountOut) {

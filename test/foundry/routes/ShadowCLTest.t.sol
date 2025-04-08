@@ -13,11 +13,11 @@ contract ShadowCLTest is TestBed {
         owner = vm.addr(1);
         initSetup(owner);
 
-        route = new TestShadowCL(13, address(shadowCLFactory), address(weth));
+        route = new TestShadowCL(8, address(shadowCLPoolDeployer), address(weth));
     }
 
     function testConstants() public {
-        assertEq(route.protocolId(), 13);
+        assertEq(route.protocolId(), 8);
         assertEq(route.factory(), address(shadowCLFactory));
         assertEq(route.WETH(), address(weth));
     }
