@@ -27,6 +27,7 @@ import '../../../contracts/test/IShadowCLPositionManagerMintable.sol';
 
 import '../../../contracts/interfaces/external/IRamsesV3Factory.sol';
 import '../../../contracts/interfaces/external/IRamsesV3Pool.sol';
+import '../../../contracts/interfaces/external/shadow-cl/IRamsesV3PoolDeployer.sol';
 import '../../../contracts/interfaces/external/shadow-cl/IAccessHub.sol';
 import './TokensSetup.sol';
 
@@ -133,6 +134,7 @@ contract UniswapSetup is TokensSetup {
     IAeroCLPool public aeroCLDaiUsdtPool;
 
     IRamsesV3Factory public shadowCLFactory;
+    IRamsesV3PoolDeployer public shadowCLPoolDeployer;
     address public shadowCLPositionManager;
     int24 public shadowCLTickSpacing = 100;
     IRamsesV3Pool public shadowCLWethUsdcPool;
@@ -656,23 +658,49 @@ contract UniswapSetup is TokensSetup {
     }
 
     function initShadowCL(address owner) public {
+        console.log("Starting ShadowCL initialization with owner:", owner);
+
 
         address implementation = createContractFromBytecode("./test/foundry/bytecodes/shadow-cl/AccessHub.json");
-        address accessHubAddress = address(new ERC1967Proxy(implementation, ""));        
+        console.log("AccessHub implementation deployed at:", implementation);
 
-        shadowCLFactory = IRamsesV3Factory(createContractFromBytecodeWithArgs("./test/foundry/bytecodes/shadow-cl/CLFactory.json",
+        address accessHubAddress = address(new ERC1967Proxy(implementation, ""));
+        console.log("AccessHub proxy deployed at:", accessHubAddress);
+
+
+        shadowCLFactory = IRamsesV3Factory(createContractFromBytecodeWithArgs("./test/foundry/bytecodes/shadow-cl/RamsesV3Factory.json",
             abi.encode(accessHubAddress)));
+
+        console.log("Factory deployed at:", address(shadowCLFactory));
+
+        shadowCLPoolDeployer = IRamsesV3PoolDeployer(createContractFromBytecodeWithArgs("./test/foundry/bytecodes/shadow-cl/RamsesV3PoolDeployer.json",
+            abi.encode(address(shadowCLFactory))));
+
+        console.log("PoolDeployer deployed at:", address(shadowCLPoolDeployer));
+
+        try shadowCLFactory.initialize(address(shadowCLPoolDeployer)) {
+            console.log("Factory initialized successfully");
+        } catch Error(string memory reason) {
+            console.log("Factory initialization failed:", reason);
+        } catch (bytes memory) {
+            console.log("Factory initialization failed with unknown error");
+        }
 
         address shadowCLNFTDescriptor = createContractFromBytecodeWithArgs(("test/foundry/bytecodes/shadow-cl/NonfungibleTokenPositionDescriptor.json"),
             abi.encode(address(weth)));
 
+        console.log('shadowCLNFTDescriptor deployed at: ', shadowCLNFTDescriptor);
+        
         shadowCLPositionManager = createContractFromBytecodeWithArgs("test/foundry/bytecodes/shadow-cl/NonfungiblePositionManager.json",
             abi.encode(address(shadowCLFactory), address(weth), shadowCLNFTDescriptor, accessHubAddress));
+        
+        console.log('shadowCLPositionManager deployed at: ', address(shadowCLPositionManager));
 
         // Create pools with initial prices similar to other protocols
         shadowCLWethUsdcPool = IRamsesV3Pool(shadowCLFactory.createPool(
             address(weth), address(usdc), shadowCLTickSpacing, wethUsdcSqrtPriceX96
         ));
+        console.log('shadowCLWethUsdcPool deployed at: ', address(shadowCLWethUsdcPool));
         shadowCLWethUsdtPool = IRamsesV3Pool(shadowCLFactory.createPool(
             address(weth), address(usdt), shadowCLTickSpacing, wethUsdcSqrtPriceX96
         ));
