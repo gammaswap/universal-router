@@ -28,7 +28,6 @@ import '../../../contracts/test/IShadowCLPositionManagerMintable.sol';
 import '../../../contracts/interfaces/external/IRamsesV3Factory.sol';
 import '../../../contracts/interfaces/external/IRamsesV3Pool.sol';
 import '../../../contracts/interfaces/external/shadow-cl/IRamsesV3PoolDeployer.sol';
-import '../../../contracts/interfaces/external/shadow-cl/IAccessHub.sol';
 import './TokensSetup.sol';
 
 contract UniswapSetup is TokensSetup {
@@ -659,117 +658,151 @@ contract UniswapSetup is TokensSetup {
 
     function initShadowCL(address owner) public {
         console.log("Starting ShadowCL initialization with owner:", owner);
+        console.log("msg.sender");
+        console.logAddress(msg.sender);
+        address accessHub = address(0x1);
 
-
-        address implementation = createContractFromBytecode("./test/foundry/bytecodes/shadow-cl/AccessHub.json");
-        console.log("AccessHub implementation deployed at:", implementation);
-
-        address accessHubAddress = address(new ERC1967Proxy(implementation, ""));
-        console.log("AccessHub proxy deployed at:", accessHubAddress);
-
-
-        shadowCLFactory = IRamsesV3Factory(createContractFromBytecodeWithArgs("./test/foundry/bytecodes/shadow-cl/RamsesV3Factory.json",
-            abi.encode(accessHubAddress)));
-
-        console.log("Factory deployed at:", address(shadowCLFactory));
-
-        shadowCLPoolDeployer = IRamsesV3PoolDeployer(createContractFromBytecodeWithArgs("./test/foundry/bytecodes/shadow-cl/RamsesV3PoolDeployer.json",
-            abi.encode(address(shadowCLFactory))));
-
+        // Deploy the pool deployer first with a dummy factory address
+        // We'll update this bytecode to use the correct factory address later
+        bytes memory poolDeployerArgs = abi.encode(address(0x123)); // Dummy address
+        bytes memory poolDeployerBytecode = abi.encodePacked(
+            vm.getCode("./test/foundry/bytecodes/shadow-cl/RamsesV3PoolDeployer.json"), 
+            poolDeployerArgs
+        );
+        address poolDeployerAddress;
+        assembly {
+            poolDeployerAddress := create(0, add(poolDeployerBytecode, 0x20), mload(poolDeployerBytecode))
+        }
+        shadowCLPoolDeployer = IRamsesV3PoolDeployer(poolDeployerAddress);
         console.log("PoolDeployer deployed at:", address(shadowCLPoolDeployer));
 
+        // Get the expected factory address
+        address expectedFactoryAddress = shadowCLPoolDeployer.RamsesV3Factory();
+        console.log("expectedFactoryAddress", expectedFactoryAddress);
+
+        // First, we need to find the deployer and nonce that will give us this address
+        bytes memory factoryArgs = abi.encode(accessHub);
+        bytes memory factoryBytecode = abi.encodePacked(
+            vm.getCode("./test/foundry/bytecodes/shadow-cl/RamsesV3Factory.json"), 
+            factoryArgs
+        );
+        
+        vm.etch(expectedFactoryAddress, hex"00"); // Create empty contract
+        vm.etch(expectedFactoryAddress, factoryBytecode); // Replace with factory bytecode
+        
+        // Initialize interfaces
+        shadowCLFactory = IRamsesV3Factory(expectedFactoryAddress);
+        console.log('shadowCLFactory: ', address(shadowCLFactory));
+        
+        // Verify setup
+        address factoryFromPoolDeployer = shadowCLPoolDeployer.RamsesV3Factory();
+        console.log('factoryFromPoolDeployer: ', factoryFromPoolDeployer);
+        
+        // Initialize the factory with the pool deployer address
+        vm.prank(owner);
         try shadowCLFactory.initialize(address(shadowCLPoolDeployer)) {
             console.log("Factory initialized successfully");
-        } catch Error(string memory reason) {
-            console.log("Factory initialization failed:", reason);
-        } catch (bytes memory) {
-            console.log("Factory initialization failed with unknown error");
+        } catch {
+            console.log("Factory initialization failed - might already be initialized");
         }
-
-        address shadowCLNFTDescriptor = createContractFromBytecodeWithArgs(("test/foundry/bytecodes/shadow-cl/NonfungibleTokenPositionDescriptor.json"),
-            abi.encode(address(weth)));
-
-        console.log('shadowCLNFTDescriptor deployed at: ', shadowCLNFTDescriptor);
         
-        shadowCLPositionManager = createContractFromBytecodeWithArgs("test/foundry/bytecodes/shadow-cl/NonfungiblePositionManager.json",
-            abi.encode(address(shadowCLFactory), address(weth), shadowCLNFTDescriptor, accessHubAddress));
+        try shadowCLFactory.ramsesV3PoolDeployer() returns (address poolDeployerFromFactory) {
+            console.log('poolDeployerFromFactory: ', poolDeployerFromFactory);
+            require(poolDeployerFromFactory == address(shadowCLPoolDeployer), "pool deployer mismatch");
+        } catch {
+            console.log("Could not get pool deployer from factory - function might not exist");
+        }
         
-        console.log('shadowCLPositionManager deployed at: ', address(shadowCLPositionManager));
+        factoryFromPoolDeployer = shadowCLPoolDeployer.RamsesV3Factory();
+        console.log('factoryFromPoolDeployer (recheck): ', factoryFromPoolDeployer);
+        require(factoryFromPoolDeployer == address(shadowCLFactory), "factory mismatch");
 
-        // Create pools with initial prices similar to other protocols
+        console.log("weth", address(weth));
+        console.log("usdc", address(usdc));
+        console.log("shadowCLTickSpacing");
+        console.logInt(shadowCLTickSpacing);
+        console.log("wethUsdcSqrtPriceX96");
+        console.logUint(wethUsdcSqrtPriceX96);    
+        uint24 fee = shadowCLFactory.tickSpacingInitialFee(shadowCLTickSpacing);
+        console.log("fee");
+        console.logUint(fee);
+        address factory = shadowCLPoolDeployer.RamsesV3Factory();
+        console.log("poolAddress", factory);
+        require(factory == address(shadowCLFactory), "FT");
+        
         shadowCLWethUsdcPool = IRamsesV3Pool(shadowCLFactory.createPool(
             address(weth), address(usdc), shadowCLTickSpacing, wethUsdcSqrtPriceX96
         ));
         console.log('shadowCLWethUsdcPool deployed at: ', address(shadowCLWethUsdcPool));
-        shadowCLWethUsdtPool = IRamsesV3Pool(shadowCLFactory.createPool(
-            address(weth), address(usdt), shadowCLTickSpacing, wethUsdcSqrtPriceX96
-        ));
-        shadowCLWethDaiPool = IRamsesV3Pool(shadowCLFactory.createPool(
-            address(weth), address(dai), shadowCLTickSpacing, wethDaiSqrtPriceX96
-        ));
-        shadowCLWbtcWethPool = IRamsesV3Pool(shadowCLFactory.createPool(
-            address(wbtc), address(weth), shadowCLTickSpacing, wbtcWethSqrtPriceX96
-        ));
-        shadowCLWbtcUsdcPool = IRamsesV3Pool(shadowCLFactory.createPool(
-            address(wbtc), address(usdc), shadowCLTickSpacing, wbtcUsdcSqrtPriceX96
-        ));
-        shadowCLWbtcUsdtPool = IRamsesV3Pool(shadowCLFactory.createPool(
-            address(wbtc), address(usdt), shadowCLTickSpacing, wbtcUsdcSqrtPriceX96
-        ));
-        shadowCLWbtcDaiPool = IRamsesV3Pool(shadowCLFactory.createPool(
-            address(wbtc), address(dai), shadowCLTickSpacing, wbtcDaiSqrtPriceX96
-        ));
-        shadowCLUsdtUsdcPool = IRamsesV3Pool(shadowCLFactory.createPool(
-            address(usdt), address(usdc), shadowCLTickSpacing, usdtUsdcSqrtPriceX96
-        ));
-        shadowCLDaiUsdcPool = IRamsesV3Pool(shadowCLFactory.createPool(
-            address(dai), address(usdc), shadowCLTickSpacing, daiUsdcSqrtPriceX96
-        ));
-        shadowCLDaiUsdtPool = IRamsesV3Pool(shadowCLFactory.createPool(
-            address(dai), address(usdt), shadowCLTickSpacing, daiUsdcSqrtPriceX96
-        ));
+        // shadowCLWethUsdtPool = IRamsesV3Pool(shadowCLFactory.createPool(
+        //     address(weth), address(usdt), shadowCLTickSpacing, wethUsdcSqrtPriceX96
+        // ));
+        // shadowCLWethDaiPool = IRamsesV3Pool(shadowCLFactory.createPool(
+        //     address(weth), address(dai), shadowCLTickSpacing, wethDaiSqrtPriceX96
+        // ));
+        // shadowCLWbtcWethPool = IRamsesV3Pool(shadowCLFactory.createPool(
+        //     address(wbtc), address(weth), shadowCLTickSpacing, wbtcWethSqrtPriceX96
+        // ));
+        // shadowCLWbtcUsdcPool = IRamsesV3Pool(shadowCLFactory.createPool(
+        //     address(wbtc), address(usdc), shadowCLTickSpacing, wbtcUsdcSqrtPriceX96
+        // ));
+        // shadowCLWbtcUsdtPool = IRamsesV3Pool(shadowCLFactory.createPool(
+        //     address(wbtc), address(usdt), shadowCLTickSpacing, wbtcUsdcSqrtPriceX96
+        // ));
+        // shadowCLWbtcDaiPool = IRamsesV3Pool(shadowCLFactory.createPool(
+        //     address(wbtc), address(dai), shadowCLTickSpacing, wbtcDaiSqrtPriceX96
+        // ));
+        // shadowCLUsdtUsdcPool = IRamsesV3Pool(shadowCLFactory.createPool(
+        //     address(usdt), address(usdc), shadowCLTickSpacing, usdtUsdcSqrtPriceX96
+        // ));
+        // shadowCLDaiUsdcPool = IRamsesV3Pool(shadowCLFactory.createPool(
+        //     address(dai), address(usdc), shadowCLTickSpacing, daiUsdcSqrtPriceX96
+        // ));
+        // shadowCLDaiUsdtPool = IRamsesV3Pool(shadowCLFactory.createPool(
+        //     address(dai), address(usdt), shadowCLTickSpacing, daiUsdcSqrtPriceX96
+        // ));
         
-        weth.mint(owner, 120);
-        usdc.mint(owner, 350_000);
-        weth.mint(owner, 890);
-        usdt.mint(owner, 2_700_000);
-        weth.mint(owner, 120);
-        dai.mint(owner, 350_000);
-        weth.mint(owner, 220);
-        wbtc.mint(owner, 11);
-        wbtc.mint(owner, 11);
-        usdc.mint(owner, 660_000);
-        wbtc.mint(owner, 11);
-        usdt.mint(owner, 660_000);
-        wbtc.mint(owner, 11);
-        dai.mint(owner, 660_000);
-        usdc.mint(owner, 660_000);
-        usdt.mint(owner, 660_000);
-        usdc.mint(owner, 660_000);
-        dai.mint(owner, 660_000);
-        usdt.mint(owner, 660_000);
-        dai.mint(owner, 660_000);
+        // weth.mint(owner, 120);
+        // usdc.mint(owner, 350_000);
+        // weth.mint(owner, 890);
+        // usdt.mint(owner, 2_700_000);
+        // weth.mint(owner, 120);
+        // dai.mint(owner, 350_000);
+        // weth.mint(owner, 220);
+        // wbtc.mint(owner, 11);
+        // wbtc.mint(owner, 11);
+        // usdc.mint(owner, 660_000);
+        // wbtc.mint(owner, 11);
+        // usdt.mint(owner, 660_000);
+        // wbtc.mint(owner, 11);
+        // dai.mint(owner, 660_000);
+        // usdc.mint(owner, 660_000);
+        // usdt.mint(owner, 660_000);
+        // usdc.mint(owner, 660_000);
+        // dai.mint(owner, 660_000);
+        // usdt.mint(owner, 660_000);
+        // dai.mint(owner, 660_000);
         
-        vm.startPrank(owner);
+        // vm.startPrank(owner);
         
-        weth.approve(shadowCLPositionManager, type(uint256).max);
-        usdc.approve(shadowCLPositionManager, type(uint256).max);
-        usdt.approve(shadowCLPositionManager, type(uint256).max);
-        wbtc.approve(shadowCLPositionManager, type(uint256).max);
-        dai.approve(shadowCLPositionManager, type(uint256).max);
+        // weth.approve(shadowCLPositionManager, type(uint256).max);
+        // usdc.approve(shadowCLPositionManager, type(uint256).max);
+        // usdt.approve(shadowCLPositionManager, type(uint256).max);
+        // wbtc.approve(shadowCLPositionManager, type(uint256).max);
+        // dai.approve(shadowCLPositionManager, type(uint256).max);
         
-        addLiquidityShadowCL(shadowCLPositionManager, address(weth), address(usdc), shadowCLTickSpacing, 115594502247137145239, 345648123455);
-        addLiquidityShadowCL(shadowCLPositionManager, address(weth), address(usdt), shadowCLTickSpacing, 887209737429288199534, 2680657431182);
-        addLiquidityShadowCL(shadowCLPositionManager, address(weth), address(dai), shadowCLTickSpacing, 115594502247137145239, 345648123455000000000000);
-        addLiquidityShadowCL(shadowCLPositionManager, address(wbtc), address(weth), shadowCLTickSpacing, 1012393293, 217378372286812000000);
-        addLiquidityShadowCL(shadowCLPositionManager, address(wbtc), address(usdc), shadowCLTickSpacing, 1012393293, 658055640487);
-        addLiquidityShadowCL(shadowCLPositionManager, address(wbtc), address(usdt), shadowCLTickSpacing, 1013393293, 659055640487);
-        addLiquidityShadowCL(shadowCLPositionManager, address(wbtc), address(dai), shadowCLTickSpacing, 1011393293, 657055640487000000000000);
-        addLiquidityShadowCL(shadowCLPositionManager, address(usdt), address(usdc), shadowCLTickSpacing, 658055640487, 659055640487);
-        addLiquidityShadowCL(shadowCLPositionManager, address(dai), address(usdc), shadowCLTickSpacing, 657055640487000000000000, 658055640487);
-        addLiquidityShadowCL(shadowCLPositionManager, address(dai), address(usdt), shadowCLTickSpacing, 657055640487000000000000, 656055640487);
+        // addLiquidityShadowCL(shadowCLPositionManager, address(weth), address(usdc), shadowCLTickSpacing, 115594502247137145239, 345648123455);
+        // addLiquidityShadowCL(shadowCLPositionManager, address(weth), address(usdt), shadowCLTickSpacing, 887209737429288199534, 2680657431182);
+        // addLiquidityShadowCL(shadowCLPositionManager, address(weth), address(dai), shadowCLTickSpacing, 115594502247137145239, 345648123455000000000000);
+        // addLiquidityShadowCL(shadowCLPositionManager, address(wbtc), address(weth), shadowCLTickSpacing, 1012393293, 217378372286812000000);
+        // addLiquidityShadowCL(shadowCLPositionManager, address(wbtc), address(usdc), shadowCLTickSpacing, 1012393293, 658055640487);
+        // addLiquidityShadowCL(shadowCLPositionManager, address(wbtc), address(usdt), shadowCLTickSpacing, 1013393293, 659055640487);
+        // addLiquidityShadowCL(shadowCLPositionManager, address(wbtc), address(dai), shadowCLTickSpacing, 1011393293, 657055640487000000000000);
+        // addLiquidityShadowCL(shadowCLPositionManager, address(usdt), address(usdc), shadowCLTickSpacing, 658055640487, 659055640487);
+        // addLiquidityShadowCL(shadowCLPositionManager, address(dai), address(usdc), shadowCLTickSpacing, 657055640487000000000000, 658055640487);
+        // addLiquidityShadowCL(shadowCLPositionManager, address(dai), address(usdt), shadowCLTickSpacing, 657055640487000000000000, 656055640487);
 
-        vm.stopPrank();
+        // vm.stopPrank();
     }
 
     function addLiquidity(address token0, address token1, uint256 amount0, uint256 amount1, address to) public returns (uint256 amountA, uint256 amountB, uint256 liquidity) {

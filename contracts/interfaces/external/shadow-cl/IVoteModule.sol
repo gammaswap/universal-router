@@ -1,35 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity ^0.8.21;
+pragma solidity ^0.8.0;
 
 interface IVoteModule {
-    /** Custom Errors */
-
-    /// @dev == 0
-    error ZERO_AMOUNT();
-
-    /// @dev if address is not xShadow
-    error NOT_XSHADOW();
-
-    /// @dev error for when the cooldown period has not been passed yet
-    error COOLDOWN_ACTIVE();
-
-    /// @dev error for when you try to deposit or withdraw for someone who isn't the msg.sender
-    error NOT_VOTEMODULE();
-
-    /// @dev error for when the caller is not authorized
-    error UNAUTHORIZED();
-
-    /// @dev error for accessHub gated functions
-    error NOT_ACCESSHUB();
-
-    /// @dev error for when there is no change of state
-    error NO_CHANGE();
-
-    /// @dev error for when address is invalid
-    error INVALID_ADDRESS();
-
-    /** Events */
-
+    /**
+     * Events
+     */
     event Deposit(address indexed from, uint256 amount);
 
     event Withdraw(address indexed from, uint256 amount);
@@ -44,38 +19,52 @@ interface IVoteModule {
 
     event NewCooldown(uint256 oldCooldown, uint256 newCooldown);
 
-    event Delegate(
-        address indexed delegator,
-        address indexed delegatee,
-        bool indexed isAdded
-    );
+    event Delegate(address indexed delegator, address indexed delegatee, bool indexed isAdded);
 
-    event SetAdmin(
-        address indexed owner,
-        address indexed operator,
-        bool indexed isAdded
-    );
+    event SetAdmin(address indexed owner, address indexed operator, bool indexed isAdded);
 
-    /** Functions */
+    /**
+     * Functions
+     */
     function delegates(address) external view returns (address);
     /// @notice mapping for admins for a specific address
     /// @param owner the owner to check against
     /// @return operator the address that is designated as an admin/operator
     function admins(address owner) external view returns (address operator);
 
-    function accessHub() external view returns(address);
+    function accessHub() external view returns (address);
 
-    /// @notice returns the last time the reward was modified or periodFinish if the reward has ended
-    function lastTimeRewardApplicable() external view returns (uint256 _ltra);
+    /// @notice reward supply for a period
+    function rewardSupply(uint256 period) external view returns (uint256);
 
+    /// @notice user claimed reward amount for a period
+    /// @dev same mapping order as FeeDistributor so the name is a bit odd
+    function userClaimed(uint256 period, address owner) external view returns (uint256);
+
+    /// @notice last claimed period for a user
+    function userLastClaimPeriod(address owner) external view returns (uint256);
+
+    /// @notice returns the current period
+    function getPeriod() external view returns (uint256);
+
+    /// @notice returns the amount of unclaimed rebase earned by the user
     function earned(address account) external view returns (uint256 _reward);
+
+    /// @notice returns the amount of unclaimed rebase earned by the user for a period
+    function periodEarned(uint256 period, address user) external view returns (uint256 amount);
+
     /// @notice the time which users can deposit and withdraw
     function unlockTime() external view returns (uint256 _timestamp);
 
     /// @notice claims pending rebase rewards
     function getReward() external;
 
-    function rewardPerToken() external view returns (uint256 _rewardPerToken);
+    /// @notice claims pending rebase rewards for a period
+    function getPeriodReward(uint256 period) external;
+
+    /// @notice allows users to set their own last claimed period in case they haven't claimed in a while
+    /// @param period the new period to start loops from
+    function setUserLastClaimPeriod(uint256 period) external;
 
     /// @notice deposits all xShadow in the caller's wallet
     function depositAll() external;
@@ -92,22 +81,12 @@ interface IVoteModule {
     /// @notice check for admin perms
     /// @param operator the address to check
     /// @param owner the owner to check against for permissions
-    function isAdminFor(
-        address operator,
-        address owner
-    ) external view returns (bool approved);
+    function isAdminFor(address operator, address owner) external view returns (bool approved);
 
     /// @notice check for delegations
     /// @param delegate the address to check
     /// @param owner the owner to check against for permissions
-    function isDelegateFor(
-        address delegate,
-        address owner
-    ) external view returns (bool approved);
-
-    /// @notice rewards pending to be distributed for the reward period
-    /// @return _left rewards remaining in the period
-    function left() external view returns (uint256 _left);
+    function isDelegateFor(address delegate, address owner) external view returns (bool approved);
 
     /// @notice used by the xShadow contract to notify pending rebases
     /// @param amount the amount of Shadow to be notified from exit penalties
@@ -125,39 +104,10 @@ interface IVoteModule {
     /// @return _totalSupply the total voting power
     function totalSupply() external view returns (uint256 _totalSupply);
 
-    /// @notice last time the rewards system was updated
-    function lastUpdateTime() external view returns (uint256 _lastUpdateTime);
-
-    /// @notice rewards per xShadow
-    /// @return _rewardPerToken the amount of rewards per xShadow
-    function rewardPerTokenStored()
-        external
-        view
-        returns (uint256 _rewardPerToken);
-
-    /// @notice when the 1800 seconds after notifying are up
-    function periodFinish() external view returns (uint256 _periodFinish);
-
-    /// @notice calculates the rewards per second
-    /// @return _rewardRate the rewards distributed per second
-    function rewardRate() external view returns (uint256 _rewardRate);
-
     /// @notice voting power
     /// @param user the address to check
     /// @return amount the staked balance
     function balanceOf(address user) external view returns (uint256 amount);
-
-    /// @notice rewards per amount of xShadow's staked
-    function userRewardPerTokenStored(
-        address user
-    ) external view returns (uint256 rewardPerToken);
-
-    /// @notice the amount of rewards claimable for the user
-    /// @param user the address of the user to check
-    /// @return rewards the stored rewards
-    function storedRewardsPerUser(
-        address user
-    ) external view returns (uint256 rewards);
 
     /// @notice delegate voting perms to another address
     /// @param delegatee who you delegate to
@@ -173,7 +123,8 @@ interface IVoteModule {
 
     function setCooldownExemption(address, bool) external;
 
-    function setNewDuration(uint) external;
+    /// @notice lock period after rebase starts accruing
+    function cooldown() external returns (uint256);
 
-    function setNewCooldown(uint) external;
+    function setNewCooldown(uint256) external;
 }
