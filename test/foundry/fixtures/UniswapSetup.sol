@@ -839,12 +839,6 @@ contract UniswapSetup is TokensSetup {
         );
         console.log("Pool address:", poolAddress);
         console.log("Is this the expected pool address?", poolAddress == address(shadowCLWethUsdcPool));
-        try IRamsesV3Pool(poolAddress).liquidity() returns (uint128 currentLiquidity) {
-            console.log("Pool has liquidity:");
-            console.logUint(currentLiquidity);
-        } catch {
-            console.log("Failed to query pool liquidity");
-        }
 
         console.log("Pool fee:");
         uint24 poolFee = shadowCLWethUsdcPool.fee();
@@ -863,6 +857,13 @@ contract UniswapSetup is TokensSetup {
         (uint256 tokenId,,,) = addLiquidityShadowCL(shadowCLPositionManager, address(weth), address(usdc), shadowCLTickSpacing, 115594502247137145239, 345648123455);
         console.log("added liquidity");
         console.logUint(tokenId);
+        try IRamsesV3Pool(poolAddress).liquidity() returns (uint128 currentLiquidity) {
+            console.log("Pool has liquidity:");
+            console.logUint(currentLiquidity);
+        } catch {
+            console.log("Failed to query pool liquidity");
+        }
+
         // addLiquidityShadowCL(shadowCLPositionManager, address(weth), address(usdt), shadowCLTickSpacing, 887209737429288199534, 2680657431182);
         // addLiquidityShadowCL(shadowCLPositionManager, address(weth), address(dai), shadowCLTickSpacing, 115594502247137145239, 345648123455000000000000);
         // addLiquidityShadowCL(shadowCLPositionManager, address(wbtc), address(weth), shadowCLTickSpacing, 1012393293, 217378372286812000000);
@@ -937,7 +938,7 @@ contract UniswapSetup is TokensSetup {
         address token1,
         int24 tickSpacing,
         uint256 amount0,
-        uint256 amount1,
+        uint256 amount1
     ) internal returns (uint256 tokenId, uint128 liquidity, uint256 amount0Used, uint256 amount1Used) {
         console.log('msg.sender: ');
         console.logAddress(msg.sender);
@@ -959,7 +960,7 @@ contract UniswapSetup is TokensSetup {
             amount1Desired: amount1,
             amount0Min: 0,
             amount1Min: 0,
-            recipient: recipient,
+            recipient: msg.sender,
             deadline: type(uint256).max
         });
         // return IShadowCLPositionManagerMintable(nftPositionManager).mint(params);
