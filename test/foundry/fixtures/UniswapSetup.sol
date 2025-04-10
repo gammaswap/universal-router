@@ -28,6 +28,8 @@ import '../../../contracts/test/IShadowCLPositionManagerMintable.sol';
 import '../../../contracts/interfaces/external/IRamsesV3Factory.sol';
 import '../../../contracts/interfaces/external/IRamsesV3Pool.sol';
 import '../../../contracts/interfaces/external/shadow-cl/IRamsesV3PoolDeployer.sol';
+import '../../../contracts/libraries/ShadowPoolAddress.sol';
+import '../../../contracts/interfaces/external/shadow-cl/periphery/IShadowCLNonfungiblePositionManager.sol';
 import './TokensSetup.sol';
 
 contract UniswapSetup is TokensSetup {
@@ -827,8 +829,40 @@ contract UniswapSetup is TokensSetup {
         // wbtc.approve(shadowCLPositionManager, type(uint256).max);
         // dai.approve(shadowCLPositionManager, type(uint256).max);
         
-        addLiquidityShadowCL(shadowCLPositionManager, address(weth), address(usdc), shadowCLTickSpacing, 115594502247137145239, 345648123455);
+        address poolAddress = ShadowPoolAddress.computeAddress(
+            address(shadowCLPoolDeployer),
+            ShadowPoolAddress.PoolKey({
+                token0: address(weth) < address(usdc) ? address(weth) : address(usdc),
+                token1: address(weth) < address(usdc) ? address(usdc) : address(weth),
+                tickSpacing: shadowCLTickSpacing
+            })
+        );
+        console.log("Pool address:", poolAddress);
+        console.log("Is this the expected pool address?", poolAddress == address(shadowCLWethUsdcPool));
+        try IRamsesV3Pool(poolAddress).liquidity() returns (uint128 currentLiquidity) {
+            console.log("Pool has liquidity:");
+            console.logUint(currentLiquidity);
+        } catch {
+            console.log("Failed to query pool liquidity");
+        }
+
+        console.log("Pool fee:");
+        uint24 poolFee = shadowCLWethUsdcPool.fee();
+        console.logUint(poolFee);
+
+        address deployerFromManager = IShadowCLNonfungiblePositionManager(shadowCLPositionManager).deployer();
+        console.log("Deployer from position manager:", deployerFromManager);
+        console.log("Shadow CL pool deployer:", address(shadowCLPoolDeployer));
+        console.log("Match?", deployerFromManager == address(shadowCLPoolDeployer));
+        address wethFromManager = IShadowCLNonfungiblePositionManager(shadowCLPositionManager).WETH9();
+        console.log("WETH9 from position manager:", wethFromManager);
+        console.log("WETH9 from pool deployer:", address(weth));
+        console.log("Match?", wethFromManager == address(weth));
+
+
+        (uint256 tokenId,,,) = addLiquidityShadowCL(shadowCLPositionManager, address(weth), address(usdc), shadowCLTickSpacing, 115594502247137145239, 345648123455);
         console.log("added liquidity");
+        console.logUint(tokenId);
         // addLiquidityShadowCL(shadowCLPositionManager, address(weth), address(usdt), shadowCLTickSpacing, 887209737429288199534, 2680657431182);
         // addLiquidityShadowCL(shadowCLPositionManager, address(weth), address(dai), shadowCLTickSpacing, 115594502247137145239, 345648123455000000000000);
         // addLiquidityShadowCL(shadowCLPositionManager, address(wbtc), address(weth), shadowCLTickSpacing, 1012393293, 217378372286812000000);
@@ -897,8 +931,25 @@ contract UniswapSetup is TokensSetup {
         IAeroPositionManagerMintable(nftPositionManager).mint(mintParams);
     }
 
-    function addLiquidityShadowCL(address nftPositionManager, address token0, address token1, int24 tickSpacing, uint256 amount0, uint256 amount1) internal {
-        IShadowCLPositionManagerMintable.MintParams memory params = IShadowCLPositionManagerMintable.MintParams({
+    function addLiquidityShadowCL(
+        address nftPositionManager,
+        address token0,
+        address token1,
+        int24 tickSpacing,
+        uint256 amount0,
+        uint256 amount1,
+    ) internal returns (uint256 tokenId, uint128 liquidity, uint256 amount0Used, uint256 amount1Used) {
+        console.log('msg.sender: ');
+        console.logAddress(msg.sender);
+        (address token0, address token1) = token0 < token1
+            ? (token0, token1) 
+            : (token1, token0);
+
+        (uint256 amount0, uint256 amount1) = token0 < token1
+            ? (amount0, amount1)
+            : (amount1, amount0);
+
+        IShadowCLNonfungiblePositionManager.MintParams memory params = IShadowCLNonfungiblePositionManager.MintParams({
             token0: token0,
             token1: token1,
             tickSpacing: tickSpacing,
@@ -908,10 +959,29 @@ contract UniswapSetup is TokensSetup {
             amount1Desired: amount1,
             amount0Min: 0,
             amount1Min: 0,
-            recipient: msg.sender,
+            recipient: recipient,
             deadline: type(uint256).max
         });
-        IShadowCLPositionManagerMintable(nftPositionManager).mint(params);
+        // return IShadowCLPositionManagerMintable(nftPositionManager).mint(params);
+        try IShadowCLNonfungiblePositionManager(shadowCLPositionManager).mint(params) returns (
+            uint256 tokenId, 
+            uint128 liquidity, 
+            uint256 amount0, 
+            uint256 amount1
+        ) {
+            console.log("Mint successful!");
+            console.log("Token ID:", tokenId);
+            console.log("Liquidity:", uint256(liquidity));
+            console.log("Amount0 used:", amount0);
+            console.log("Amount1 used:", amount1);
+            return (tokenId, liquidity, amount0, amount1);
+        } catch Error(string memory reason) {
+            console.log("Mint failed with reason:", reason);
+            return (0, 0, 0, 0);
+        } catch {
+            console.log("Mint failed with unknown error");
+            return (0, 0, 0, 0);
+        }
     }
 
     function replaceAddressAtEnd(bytes memory bytecode, address newAddress) internal pure returns (bytes memory) {
