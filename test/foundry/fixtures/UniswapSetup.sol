@@ -662,41 +662,39 @@ contract UniswapSetup is TokensSetup {
         console.logAddress(msg.sender);
         address accessHub = address(0x1);
 
-        // Deploy the pool deployer first with a dummy factory address
-        // We'll update this bytecode to use the correct factory address later
-        bytes memory poolDeployerArgs = abi.encode(address(0x123)); // Dummy address
-        bytes memory poolDeployerBytecode = abi.encodePacked(
-            vm.getCode("./test/foundry/bytecodes/shadow-cl/RamsesV3PoolDeployer.json"), 
-            poolDeployerArgs
+        bytes memory factoryArgs = abi.encode(accessHub);
+        vm.prank(owner);
+        bytes memory factoryBytecode = abi.encodePacked(
+            vm.getCode("./test/foundry/bytecodes/shadow-cl/RamsesV3Factory.json"),
+            factoryArgs
         );
-        address poolDeployerAddress;
+
+        address factoryAddress;
         assembly {
-            poolDeployerAddress := create(0, add(poolDeployerBytecode, 0x20), mload(poolDeployerBytecode))
+            factoryAddress := create(0, add(factoryBytecode, 0x20), mload(factoryBytecode))
         }
+        shadowCLFactory = IRamsesV3Factory(factoryAddress);
+        console.log('shadowCLFactory: ', address(shadowCLFactory));
+
+        bytes memory poolDeployerBytecode = vm.getCode("./test/foundry/bytecodes/shadow-cl/RamsesV3PoolDeployer.json");
+
+        bytes memory modifiedPoolDeployerBytecode = replaceAddressAtEnd(
+            poolDeployerBytecode,
+            factoryAddress
+        );
+
+        console.log("modified pooldeployer bytecode");
+        console.logBytes(modifiedPoolDeployerBytecode);
+        
+        address poolDeployerAddress;
+        console.logAddress(msg.sender);
+        assembly {
+            poolDeployerAddress := create(0, add(modifiedPoolDeployerBytecode, 0x20), mload(modifiedPoolDeployerBytecode))
+        }
+
         shadowCLPoolDeployer = IRamsesV3PoolDeployer(poolDeployerAddress);
         console.log("PoolDeployer deployed at:", address(shadowCLPoolDeployer));
 
-        // Get the expected factory address
-        address expectedFactoryAddress = shadowCLPoolDeployer.RamsesV3Factory();
-        console.log("expectedFactoryAddress", expectedFactoryAddress);
-
-        bytes memory factoryArgs = abi.encode(accessHub);
-        bytes memory factoryBytecode = abi.encodePacked(
-            vm.getCode("./test/foundry/bytecodes/shadow-cl/RamsesV3Factory.json"), 
-            factoryArgs
-        );
-        
-        vm.etch(expectedFactoryAddress, hex"00"); // Create empty contract
-        vm.etch(expectedFactoryAddress, factoryBytecode); // Replace with factory bytecode
-        
-        // Initialize interfaces
-        shadowCLFactory = IRamsesV3Factory(expectedFactoryAddress);
-        console.log('shadowCLFactory: ', address(shadowCLFactory));
-        
-        // Verify setup
-        address factoryFromPoolDeployer = shadowCLPoolDeployer.RamsesV3Factory();
-        console.log('factoryFromPoolDeployer: ', factoryFromPoolDeployer);
-        
         // Initialize the factory with the pool deployer address
         vm.prank(owner);
         try shadowCLFactory.initialize(address(shadowCLPoolDeployer)) {
@@ -712,9 +710,46 @@ contract UniswapSetup is TokensSetup {
             console.log("Could not get pool deployer from factory - function might not exist");
         }
         
-        factoryFromPoolDeployer = shadowCLPoolDeployer.RamsesV3Factory();
+        address factoryFromPoolDeployer = shadowCLPoolDeployer.RamsesV3Factory();
         console.log('factoryFromPoolDeployer (recheck): ', factoryFromPoolDeployer);
         require(factoryFromPoolDeployer == address(shadowCLFactory), "factory mismatch");
+
+        bytes memory descriptorBytecode = vm.getCode("./test/foundry/bytecodes/shadow-cl/NonfungibleTokenPositionDescriptor.json");
+        bytes memory modifiedDescriptorBytecode = replaceAddressAtEnd(
+            descriptorBytecode,
+            address(weth)
+        );
+
+        address shadowCLNFTDescriptor;
+        assembly {
+            shadowCLNFTDescriptor := create(0, add(modifiedDescriptorBytecode, 0x20), mload(modifiedDescriptorBytecode))
+        }
+        console.log("shadowCLNFTDescriptor", shadowCLNFTDescriptor);
+
+        bytes memory positionManagerBytecode = vm.getCode("./test/foundry/bytecodes/shadow-cl/NonfungiblePositionManager.json");
+
+
+        address[] memory replacementAddresses = new address[](4);
+        replacementAddresses[0] = address(shadowCLPoolDeployer);
+        replacementAddresses[1] = address(weth);
+        replacementAddresses[2] = shadowCLNFTDescriptor;
+        replacementAddresses[3] = accessHub;
+
+        bytes memory modifiedPositionManagerBytecode = replaceImmutableAddresses(
+            positionManagerBytecode,
+            replacementAddresses
+        );
+        console.log("modified bytecode for position manager");
+        console.logBytes(modifiedPositionManagerBytecode);
+
+        address positionManager;
+        assembly {
+            positionManager := create(0, add(modifiedPositionManagerBytecode, 0x20), mload(modifiedPositionManagerBytecode))
+        }
+
+        shadowCLPositionManager = positionManager;
+        console.log('shadowCLPositionManager: ', shadowCLPositionManager);
+
 
         console.log("weth", address(weth));
         console.log("usdc", address(usdc));
@@ -761,8 +796,8 @@ contract UniswapSetup is TokensSetup {
         //     address(dai), address(usdt), shadowCLTickSpacing, daiUsdcSqrtPriceX96
         // ));
         
-        // weth.mint(owner, 120);
-        // usdc.mint(owner, 350_000);
+        weth.mint(owner, 120);
+        usdc.mint(owner, 350_000);
         // weth.mint(owner, 890);
         // usdt.mint(owner, 2_700_000);
         // weth.mint(owner, 120);
@@ -782,15 +817,18 @@ contract UniswapSetup is TokensSetup {
         // usdt.mint(owner, 660_000);
         // dai.mint(owner, 660_000);
         
-        // vm.startPrank(owner);
+        vm.startPrank(owner);
         
-        // weth.approve(shadowCLPositionManager, type(uint256).max);
-        // usdc.approve(shadowCLPositionManager, type(uint256).max);
+        weth.approve(shadowCLPositionManager, type(uint256).max);
+        console.log("approved weth");
+        usdc.approve(shadowCLPositionManager, type(uint256).max);
+        console.log("approved usdc");
         // usdt.approve(shadowCLPositionManager, type(uint256).max);
         // wbtc.approve(shadowCLPositionManager, type(uint256).max);
         // dai.approve(shadowCLPositionManager, type(uint256).max);
         
-        // addLiquidityShadowCL(shadowCLPositionManager, address(weth), address(usdc), shadowCLTickSpacing, 115594502247137145239, 345648123455);
+        addLiquidityShadowCL(shadowCLPositionManager, address(weth), address(usdc), shadowCLTickSpacing, 115594502247137145239, 345648123455);
+        console.log("added liquidity");
         // addLiquidityShadowCL(shadowCLPositionManager, address(weth), address(usdt), shadowCLTickSpacing, 887209737429288199534, 2680657431182);
         // addLiquidityShadowCL(shadowCLPositionManager, address(weth), address(dai), shadowCLTickSpacing, 115594502247137145239, 345648123455000000000000);
         // addLiquidityShadowCL(shadowCLPositionManager, address(wbtc), address(weth), shadowCLTickSpacing, 1012393293, 217378372286812000000);
@@ -801,7 +839,7 @@ contract UniswapSetup is TokensSetup {
         // addLiquidityShadowCL(shadowCLPositionManager, address(dai), address(usdc), shadowCLTickSpacing, 657055640487000000000000, 658055640487);
         // addLiquidityShadowCL(shadowCLPositionManager, address(dai), address(usdt), shadowCLTickSpacing, 657055640487000000000000, 656055640487);
 
-        // vm.stopPrank();
+        vm.stopPrank();
     }
 
     function addLiquidity(address token0, address token1, uint256 amount0, uint256 amount1, address to) public returns (uint256 amountA, uint256 amountB, uint256 liquidity) {
@@ -874,5 +912,54 @@ contract UniswapSetup is TokensSetup {
             deadline: type(uint256).max
         });
         IShadowCLPositionManagerMintable(nftPositionManager).mint(params);
+    }
+
+    function replaceAddressAtEnd(bytes memory bytecode, address newAddress) internal pure returns (bytes memory) {
+        // Create a copy of the original bytecode
+        bytes memory result = new bytes(bytecode.length);
+        for (uint i = 0; i < bytecode.length; i++) {
+            result[i] = bytecode[i];
+        }
+        
+        // Replace the last 20 bytes (address size) with the new address
+        // Note: This assumes the address is at the very end and not encoded with additional padding
+        
+        bytes memory addressBytes = abi.encodePacked(newAddress);
+        for (uint i = 0; i < 20; i++) {
+            result[result.length - 20 + i] = addressBytes[i];
+        }
+        
+        return result;
+    }
+
+    function replaceImmutableAddresses(
+        bytes memory bytecode,
+        address[] memory replacementAddresses
+    ) internal pure returns (bytes memory) {
+        // Create a copy of the original bytecode
+        bytes memory result = new bytes(bytecode.length);
+        for (uint i = 0; i < bytecode.length; i++) {
+            result[i] = bytecode[i];
+        }
+        
+        // For immutables, we know they're at the end of the bytecode
+        // Each address is 20 bytes, packed in 32-byte slots at the end
+        uint256 startPos = result.length - (replacementAddresses.length * 32);
+        
+        // Replace each address in reverse order (starting from the last one)
+        for (uint i = 0; i < replacementAddresses.length; i++) {
+            address replacement = replacementAddresses[i];
+            bytes memory replacementBytes = abi.encodePacked(replacement);
+            
+            // Calculate position for this immutable (20 bytes at the end of a 32-byte slot)
+            uint256 position = startPos + (i * 32) + 12; // 32 bytes slot - 20 bytes address = 12 bytes offset
+            
+            // Replace the address (20 bytes)
+            for (uint j = 0; j < 20; j++) {
+                result[position + j] = replacementBytes[j];
+            }
+        }
+        
+        return result;
     }
 }
