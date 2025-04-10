@@ -680,7 +680,6 @@ contract UniswapSetup is TokensSetup {
         address expectedFactoryAddress = shadowCLPoolDeployer.RamsesV3Factory();
         console.log("expectedFactoryAddress", expectedFactoryAddress);
 
-        // First, we need to find the deployer and nonce that will give us this address
         bytes memory factoryArgs = abi.encode(accessHub);
         bytes memory factoryBytecode = abi.encodePacked(
             vm.getCode("./test/foundry/bytecodes/shadow-cl/RamsesV3Factory.json"), 
