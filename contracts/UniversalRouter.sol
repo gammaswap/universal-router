@@ -174,7 +174,19 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
 
     /// @dev Not a view function to support UniswapV3 quoting
     /// @inheritdoc IUniversalRouter
+    function getAmountsOutNoSwap(uint256 amountIn, bytes memory path) public override virtual returns (uint256[] memory amounts, Route[] memory routes) {
+        return _getAmountsOut(amountIn, path, true);
+    }
+
+    /// @dev Not a view function to support UniswapV3 quoting
+    /// @inheritdoc IUniversalRouter
     function getAmountsOut(uint256 amountIn, bytes memory path) public override virtual returns (uint256[] memory amounts, Route[] memory routes) {
+        return _getAmountsOut(amountIn, path, false);
+    }
+
+    /// dev Not a view function to support UniswapV3 quoting
+    /// inheritdoc IUniversalRouter
+    function _getAmountsOut(uint256 amountIn, bytes memory path, bool noSwap) internal virtual returns (uint256[] memory amounts, Route[] memory routes) {
         require(path.length >= 45 && (path.length - 20) % 25 == 0, 'UniversalRouter: INVALID_PATH');
         routes = new Route[](path.numPools());
         amounts = new uint256[](path.numPools() + 1);
@@ -200,8 +212,13 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
             routes[i].hop = protocolRoutes[routes[i].protocolId];
             require(routes[i].hop != address(0), 'UniversalRouter: PROTOCOL_ROUTE_NOT_SET');
 
-            (amounts[i + 1], routes[i].pair, routes[i].fee) = IProtocolRoute(routes[i].hop).getAmountOut(amounts[i],
-                routes[i].from, routes[i].to, routes[i].fee);
+            if(noSwap) {
+                (amounts[i + 1], routes[i].pair, routes[i].fee) = IProtocolRoute(routes[i].hop).getAmountOutNoSwap(amounts[i],
+                    routes[i].from, routes[i].to, routes[i].fee);
+            } else {
+                (amounts[i + 1], routes[i].pair, routes[i].fee) = IProtocolRoute(routes[i].hop).getAmountOut(amounts[i],
+                    routes[i].from, routes[i].to, routes[i].fee);
+            }
 
             // decide whether to continue or terminate
             if (hasMultiplePools) {

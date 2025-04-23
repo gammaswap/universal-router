@@ -93,6 +93,14 @@ interface IUniversalRouter {
     function calcPathFee(bytes calldata path) external view returns(uint256 pathFee);
 
     /// @dev Expected amounts to get from swapping amountIn of token path[0]. Takes slippage from price impact and fees into account
+    /// @dev Accepts possibility of an intermediate amount of a multi hop path turning into zero. This situations would revert when executing in most AMMs
+    /// @param amountIn - amount of token in the beginning of the path provided
+    /// @param path - path used to perform the swap (e.g. path[0] -> path[1] -> ... path[n])
+    /// @return amounts - amounts of tokens swapped through the path provided
+    /// @return routes - array of route parameters to perform swap through the path provided
+    function getAmountsOutNoSwap(uint256 amountIn, bytes memory path) external returns (uint256[] memory amounts, Route[] memory routes);
+
+    /// @dev Expected amounts to get from swapping amountIn of token path[0]. Takes slippage from price impact and fees into account
     /// @param amountIn - amount of token in the beginning of the path provided
     /// @param path - path used to perform the swap (e.g. path[0] -> path[1] -> ... path[n])
     /// @return amounts - amounts of tokens swapped through the path provided

@@ -49,6 +49,17 @@ interface IProtocolRoute {
     function getAmountOut(uint256 amountIn, address tokenIn, address tokenOut, uint256 fee) external
         returns(uint256 amountOut, address pair, uint24 swapFee);
 
+    /// @dev Get expected amount in tokenOut that amount in tokenIn will be converted to. Zero amountIn is acceptable result
+    /// @param amountIn - quantity of tokenIn token to convert to tokenOut
+    /// @param tokenIn - address token of amountIn quantity that will be converted
+    /// @param tokenOut - address of token that amountIn in tokenIn will be converted to
+    /// @param fee - fee of AMM pair
+    /// @return amountOut - quantity of amountIn is converted to in tokenOut between tokenIn and tokenOut (takes slippage into account)
+    /// @return pair - address of AMM for tokenIn and tokenOut used to perform swap
+    /// @return swapFee - fee charged to swap by AMM pair contract
+    function getAmountOutNoSwap(uint256 amountIn, address tokenIn, address tokenOut, uint256 fee) external
+        returns(uint256 amountOut, address pair, uint24 swapFee);
+
     /// @dev Get expected amount in tokenIn that must be swapped in to get amountOut in tokenOut
     /// @param amountIn - quantity of tokenIn token to convert to tokenOut
     /// @param tokenIn - address token of amountIn quantity that will be converted

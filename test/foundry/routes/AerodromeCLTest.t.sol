@@ -154,6 +154,20 @@ contract AerodromeCLTest is TestBed {
         vm.stopPrank();
     }
 
+    function testGetAmountOutNoSwap1() public {
+        (uint256 amountOut, address pair, uint24 swapFee) = route.getAmountOutNoSwap(0, address(weth), address(usdc), uint24(aeroCLTickSpacing));
+        assertEq(swapFee, uint24(aeroCLTickSpacing));
+        assertEq(pair, address(aeroCLWethUsdcPool));
+        assertEq(amountOut, 0);
+    }
+
+    function testGetAmountOutNoSwap2() public {
+        (uint256 amountOut, address pair, uint24 swapFee) = route.getAmountOutNoSwap(0, address(usdc), address(weth), uint24(aeroCLTickSpacing));
+        assertEq(swapFee, uint24(aeroCLTickSpacing));
+        assertEq(pair, address(aeroCLWethUsdcPool));
+        assertEq(amountOut, 0);
+    }
+
     function testGetAmountIn1() public {
         uint256 amountOut = 1e6;
         (uint256 amountIn, address pair, uint24 swapFee) = route.getAmountIn(amountOut, address(weth), address(usdc), uint24(aeroCLTickSpacing));

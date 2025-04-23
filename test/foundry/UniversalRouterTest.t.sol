@@ -123,6 +123,41 @@ contract UniversalRouterTest is TestBed {
         assertGt(amountOut,minAmountOut);
     }
 
+    function testGetAmountsOutNoSwap(uint8 tokenChoices, uint128 seed, uint256 amountIn) public {
+        bytes memory path = createPath(tokenChoices, seed);
+        IUniversalRouter.Route[] memory _routes = router.calcRoutes(path, address(this));
+        uint256 minAmountOut;
+        (amountIn, minAmountOut) = calcMinAmountNoSwap(amountIn, path, true);
+        (uint256[] memory amounts, IUniversalRouter.Route[] memory routes) = router.getAmountsOutNoSwap(amountIn, path);
+        assertEq(routes.length, _routes.length);
+        assertEq(routes.length, amounts.length - 1);
+        for(uint256 i = 0; i < _routes.length; i++) {
+            assertEq(routes[i].from,_routes[i].from);
+            assertEq(routes[i].to,_routes[i].to);
+            assertEq(routes[i].pair,_routes[i].pair);
+            assertEq(routes[i].protocolId,_routes[i].protocolId);
+            if(routes[i].protocolId == 6 || routes[i].protocolId == 7) {
+                assertEq(routes[i].fee,_routes[i].fee);
+            }
+            assertEq(routes[i].origin,address(0));
+            assertEq(routes[i].destination,address(0));
+            assertEq(routes[i].hop,_routes[i].hop);
+        }
+        assertEq(amounts[0], amountIn);
+        for(uint256 i = 0; i < amounts.length; i++) {
+            if(amounts[0] >= 1e16) {
+                assertGt(amounts[i],0);
+            } else {
+                assertGe(amounts[i],0);
+            }
+        }
+        if(amounts[0] >= 1e16) {
+            assertGt(amounts[amounts.length - 1], minAmountOut);
+        } else {
+            assertGe(amounts[amounts.length - 1], minAmountOut);
+        }
+    }
+
     function testGetAmountsOut(uint8 tokenChoices, uint128 seed, uint256 amountIn) public {
         bytes memory path = createPath(tokenChoices, seed);
         IUniversalRouter.Route[] memory _routes = router.calcRoutes(path, address(this));
@@ -387,6 +422,61 @@ contract UniversalRouterTest is TestBed {
                 minAmount = 9e17;
             } else {
                 minAmount = 9e5;
+            }
+        }
+        return (amount, minAmount);
+    }
+
+    function calcMinAmountNoSwap(uint256 amount, bytes memory path, bool isAmountIn) internal view returns(uint256, uint256) {
+        IUniversalRouter.Route[] memory routes = router.calcRoutes(path, address(router));
+        uint256 minAmount;
+        address _fromToken = isAmountIn ? routes[0].from : routes[routes.length - 1].to;
+        address _toToken = isAmountIn ? routes[routes.length - 1].to : routes[0].from;
+        if(_fromToken == address(weth)) {
+            amount = boundVar(amount, 0, 10e18);
+            if(amount >= 1e18) {
+                if(_toToken == address(wbtc)) {
+                    minAmount = 4400384;
+                } else if(_toToken == address(dai)) {
+                    minAmount = 2800e18;
+                } else {
+                    minAmount = 2800e6;
+                }
+            }
+        } else if(_fromToken == address(wbtc)) {
+            amount = boundVar(amount, 0, 1e8);
+            if(amount >= 1e6) {
+                if(_toToken == address(weth)) {
+                    minAmount = 2e17;
+                } else if(_toToken == address(dai)) {
+                    minAmount = 620e18;
+                } else {
+                    minAmount = 620e6;
+                }
+            }
+        } else if(_fromToken == address(dai)) {
+            amount = boundVar(amount, 0, 1000e18);
+            if(amount >= 1e18) {
+                if(_toToken == address(weth)) {
+                    minAmount = 313333333333333;
+                } else if(_toToken == address(wbtc)) {
+                    minAmount = 1450;
+                } else {
+                    minAmount = 9e5;
+                }
+            }
+        } else {
+            amount = boundVar(amount, 0, 1000e6);
+            if(amount >= 1e6) {
+                if(_toToken == address(weth)) {
+                    minAmount = 313333333333333;
+                } else if(_toToken == address(wbtc)) {
+                    minAmount = 1450;
+                } else if(_toToken == address(dai)) {
+                    minAmount = 9e17;
+                } else {
+                    minAmount = 9e5;
+                }
             }
         }
         return (amount, minAmount);

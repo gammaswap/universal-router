@@ -33,7 +33,17 @@ contract DeltaSwap is UniswapV2 {
         uint256 reserveOut;
         (reserveIn, reserveOut, pair) = getReserves(tokenA, tokenB);
         swapFee = uint24(calcPairTradingFee(amountIn, reserveIn, reserveOut, pair)); // for information purposes only, matches UniV3 format
-        amountOut = _getAmountOut(amountIn, reserveIn, reserveOut, swapFee);
+        amountOut = _getAmountOut(amountIn, reserveIn, reserveOut, swapFee, false);
+    }
+
+    /// @inheritdoc IProtocolRoute
+    function getAmountOutNoSwap(uint256 amountIn, address tokenA, address tokenB, uint256 fee) public override virtual
+        returns(uint256 amountOut, address pair, uint24 swapFee) {
+        uint256 reserveIn;
+        uint256 reserveOut;
+        (reserveIn, reserveOut, pair) = getReserves(tokenA, tokenB);
+        swapFee = uint24(calcPairTradingFee(amountIn, reserveIn, reserveOut, pair)); // for information purposes only, matches UniV3 format
+        amountOut = _getAmountOut(amountIn, reserveIn, reserveOut, swapFee, true);
     }
 
     /// @inheritdoc IProtocolRoute
@@ -68,9 +78,10 @@ contract DeltaSwap is UniswapV2 {
     /// @param reserveIn - reserve amount of token swapped in
     /// @param reserveOut - reserve amount of token swapped out
     /// @param fee - fee to perform swap
+    /// @param noSwap - reserve amount of token swapped out
     /// @return amountOut - amount of token being swapped out
-    function _getAmountOut(uint256 amountIn, uint256 reserveIn, uint256 reserveOut, uint256 fee) internal pure returns (uint256 amountOut) {
-        require(amountIn > 0, 'DeltaSwap: INSUFFICIENT_INPUT_AMOUNT');
+    function _getAmountOut(uint256 amountIn, uint256 reserveIn, uint256 reserveOut, uint256 fee, bool noSwap) internal pure returns (uint256 amountOut) {
+        require(amountIn > 0 || noSwap, 'DeltaSwap: INSUFFICIENT_INPUT_AMOUNT');
         require(reserveIn > 0 && reserveOut > 0, 'DeltaSwap: INSUFFICIENT_LIQUIDITY');
         uint256 amountInWithFee = amountIn * (1000 - fee);
         uint256 numerator = amountInWithFee * reserveOut;
@@ -101,7 +112,7 @@ contract DeltaSwap is UniswapV2 {
             (uint256 reserveIn, uint256 reserveOut,) = getReserves(from, to);
             amountInput = GammaSwapLibrary.balanceOf(from, pair) - reserveIn;
             fee = uint24(calcPairTradingFee(amountInput, reserveIn, reserveOut, pair));
-            amountOutput = _getAmountOut(amountInput, reserveIn, reserveOut, fee);
+            amountOutput = _getAmountOut(amountInput, reserveIn, reserveOut, fee, false);
         }
         (uint256 amount0Out, uint256 amount1Out) = from == token0 ? (uint256(0), amountOutput) : (amountOutput, uint256(0));
         IDeltaSwapPair(pair).swap(amount0Out, amount1Out, dest, new bytes(0));
