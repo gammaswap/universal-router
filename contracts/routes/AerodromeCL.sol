@@ -150,7 +150,14 @@ contract AerodromeCL is CPMMRoute, IUniswapV3SwapCallback {
     function getAmountOut(uint256 amountIn, address tokenIn, address tokenOut, uint256 fee) public override
         virtual returns(uint256 amountOut, address pair, uint24 swapFee) {
         swapFee = uint24(fee);
-        (amountOut, pair) = _quoteAmountOut(amountIn, tokenIn, tokenOut, swapFee);
+        (amountOut, pair) = _quoteAmountOut(amountIn, tokenIn, tokenOut, swapFee, false);
+    }
+
+    /// @inheritdoc IProtocolRoute
+    function getAmountOutNoSwap(uint256 amountIn, address tokenIn, address tokenOut, uint256 fee) public override
+        virtual returns(uint256 amountOut, address pair, uint24 swapFee) {
+        swapFee = uint24(fee);
+        (amountOut, pair) = _quoteAmountOut(amountIn, tokenIn, tokenOut, swapFee, true);
     }
 
     /// @notice Calculate amountOut of tokenOut that will be received from swapping in amountIn in tokenIn
@@ -160,14 +167,30 @@ contract AerodromeCL is CPMMRoute, IUniswapV3SwapCallback {
     /// @param tokenIn - token to swap into AMM pool
     /// @param tokenOut - token to swap out of AMM pool
     /// @param fee - fee charged by AMM, used to identify AMM in Aerodrome CL
+    /// @param noSwap - if true accept zero amountIn
     /// @return amountOut - amount of tokenOut that will be received from the swap
     /// @return pair - address of AMM contract in Aerodrome CL
-    function _quoteAmountOut(uint256 amountIn, address tokenIn, address tokenOut, uint24 fee) internal virtual
+    function _quoteAmountOut(uint256 amountIn, address tokenIn, address tokenOut, uint24 fee, bool noSwap) internal virtual
         returns(uint256 amountOut, address pair) {
 
-        bool zeroForOne = tokenIn < tokenOut;
         (pair,,) = pairFor(tokenIn, tokenOut, fee);
 
+        if(noSwap && amountIn == 0) {
+            return (0, pair);
+        }
+
+        bytes memory path = abi.encodePacked(tokenIn, protocolId, fee, tokenOut);
+
+        amountOut = _simSwap(pair, tokenIn < tokenOut, amountIn, path);
+    }
+
+    /// @dev Simulate swap across path. No exchange of quantities happens
+    /// @param pair - address of UniswapV3 pool to swap
+    /// @param zeroForOne - true if address tokenIn < address tokenOut in swap path
+    /// @param amountIn - amount of tokenIn to swap in
+    /// @param path - swap path of from tokenIn to tokenOut
+    /// @return amountOut - amount of tokenOut that will be received from the swap
+    function _simSwap(address pair, bool zeroForOne, uint256 amountIn, bytes memory path) internal virtual returns(uint256 amountOut){
         try
             IAeroCLPool(pair).swap(
                 address(this), // address(0) might cause issues with some tokens
@@ -175,7 +198,7 @@ contract AerodromeCL is CPMMRoute, IUniswapV3SwapCallback {
                 amountIn.toInt256(),
                 zeroForOne ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1,
                 abi.encode(SwapCallbackData({
-                    path: abi.encodePacked(tokenIn, protocolId, fee, tokenOut),
+                    path: path,
                     payer: address(0)
                 }))
             )

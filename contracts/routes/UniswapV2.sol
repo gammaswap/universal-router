@@ -64,7 +64,17 @@ contract UniswapV2 is CPMMRoute {
         uint256 reserveOut;
         (reserveIn, reserveOut, pair) = getReserves(tokenA, tokenB);
         swapFee = 3000; // for information purposes only, matches UniV3 format
-        amountOut = _getAmountOut(amountIn, reserveIn, reserveOut);
+        amountOut = _getAmountOut(amountIn, reserveIn, reserveOut, false);
+    }
+
+    /// @inheritdoc IProtocolRoute
+    function getAmountOutNoSwap(uint256 amountIn, address tokenA, address tokenB, uint256 fee) public override virtual
+        returns(uint256 amountOut, address pair, uint24 swapFee) {
+        uint256 reserveIn;
+        uint256 reserveOut;
+        (reserveIn, reserveOut, pair) = getReserves(tokenA, tokenB);
+        swapFee = 3000; // for information purposes only, matches UniV3 format
+        amountOut = _getAmountOut(amountIn, reserveIn, reserveOut, true);
     }
 
     /// @inheritdoc IProtocolRoute
@@ -88,9 +98,10 @@ contract UniswapV2 is CPMMRoute {
     /// @param amountIn - amount of token being swapped in
     /// @param reserveIn - reserve amount of token swapped in
     /// @param reserveOut - reserve amount of token swapped out
+    /// @param noSwap - reserve amount of token swapped out
     /// @return amountOut - amount of token being swapped out
-    function _getAmountOut(uint256 amountIn, uint256 reserveIn, uint256 reserveOut) internal pure returns (uint256 amountOut) {
-        require(amountIn > 0, 'UniswapV2: INSUFFICIENT_INPUT_AMOUNT');
+    function _getAmountOut(uint256 amountIn, uint256 reserveIn, uint256 reserveOut, bool noSwap) internal pure returns (uint256 amountOut) {
+        require(amountIn > 0 || noSwap, 'UniswapV2: INSUFFICIENT_INPUT_AMOUNT');
         require(reserveIn > 0 && reserveOut > 0, 'UniswapV2: INSUFFICIENT_LIQUIDITY');
         uint256 amountInWithFee = amountIn * 997;
         uint256 numerator = amountInWithFee * reserveOut;
@@ -119,7 +130,7 @@ contract UniswapV2 is CPMMRoute {
         { // scope to avoid stack too deep errors
             (uint256 reserveIn, uint256 reserveOut,) = getReserves(from, to);
             amountInput = GammaSwapLibrary.balanceOf(from, pair) - reserveIn;
-            amountOutput = _getAmountOut(amountInput, reserveIn, reserveOut);
+            amountOutput = _getAmountOut(amountInput, reserveIn, reserveOut, false);
         }
         (uint256 amount0Out, uint256 amount1Out) = from == token0 ? (uint256(0), amountOutput) : (amountOutput, uint256(0));
         ICPMM(pair).swap(amount0Out, amount1Out, dest, new bytes(0));

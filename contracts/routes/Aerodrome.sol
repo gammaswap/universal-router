@@ -68,6 +68,14 @@ contract Aerodrome is CPMMRoute {
     }
 
     /// @inheritdoc IProtocolRoute
+    function getAmountOutNoSwap(uint256 amountIn, address tokenA, address tokenB, uint256 fee) public override virtual
+        returns(uint256 amountOut, address pair, uint24 swapFee) {
+        (pair,,) = pairFor(tokenA, tokenB, 0);
+        swapFee = uint24(IAeroPoolFactory(factory).getFee(pair, isStable));
+        amountOut = amountIn > 0 ? IAeroPool(pair).getAmountOut(amountIn, tokenA) : 0;
+    }
+
+    /// @inheritdoc IProtocolRoute
     function getAmountIn(uint256 amountOut, address tokenA, address tokenB, uint256 fee) public override virtual
         returns(uint256 amountIn, address pair, uint24 swapFee) {
         uint256 reserveIn;

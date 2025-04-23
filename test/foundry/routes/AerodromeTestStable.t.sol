@@ -204,6 +204,20 @@ contract AerodromeTestStable is TestBed {
         vm.stopPrank();
     }
 
+    function testGetAmountOutNoSwap1() public {
+        (uint256 amountOut, address pair, uint24 swapFee) = route.getAmountOutNoSwap(0, address(dai), address(usdc), 0);
+        assertEq(swapFee, 5);
+        assertEq(pair, address(aeroDaiUsdcPool));
+        assertEq(amountOut, 0);
+    }
+
+    function testGetAmountOutNoSwap2() public {
+        (uint256 amountOut, address pair, uint24 swapFee) = route.getAmountOutNoSwap(0, address(usdc), address(dai), 0);
+        assertEq(swapFee, 5);
+        assertEq(pair, address(aeroDaiUsdcPool));
+        assertEq(amountOut, 0);
+    }
+
     function testGetAmountIn1() public {
         uint256 amountOut = 1e6;
         (uint256 amountIn, address pair, uint24 swapFee) = route.getAmountIn(amountOut, address(dai), address(usdc), 0);

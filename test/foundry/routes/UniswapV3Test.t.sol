@@ -146,6 +146,20 @@ contract UniswapV3Test is TestBed {
         vm.stopPrank();
     }
 
+    function testGetAmountOutNoSwap1() public {
+        (uint256 amountOut, address pair, uint24 swapFee) = route.getAmountOutNoSwap(0, address(weth), address(usdc), poolFee1);
+        assertEq(swapFee, poolFee1);
+        assertEq(pair, address(wethUsdcPoolV3));
+        assertEq(amountOut, 0);
+    }
+
+    function testGetAmountOutNoSwap2() public {
+        (uint256 amountOut, address pair, uint24 swapFee) = route.getAmountOutNoSwap(0, address(usdc), address(weth), poolFee1);
+        assertEq(swapFee, poolFee1);
+        assertEq(pair, address(wethUsdcPoolV3));
+        assertEq(amountOut, 0);
+    }
+
     function testGetAmountIn1() public {
         uint256 amountOut = 1e6;
         (uint256 amountIn, address pair, uint24 swapFee) = route.getAmountIn(amountOut, address(weth), address(usdc), poolFee1);
