@@ -75,6 +75,32 @@ interface IUniversalRouter {
     /// @param deadline - timestamp (block.timestamp) after which transaction will expire (revert)
     function swapExactTokensForTokens(uint256 amountIn, uint256 amountOutMin, bytes calldata path, address to, uint256 deadline) external;
 
+    /// @dev Swap amountIn of ERC20 token at path[k][0] for ERC20 token at path[k][n] through provided k paths
+    /// @param amountIn - quantity of tokenIn to swap for tokenOut
+    /// @param amountOutMin - minimum quantity of tokenOut willing to receive or revert
+    /// @param path - paths of tokenIn to tokenOut over which to perform swap
+    /// @param weights - percentage of amountIn to swap in each path. Must add up to 1. If there's some left over, it will be swapped in the last path
+    /// @param to - address to receive output of token swap
+    /// @param deadline - timestamp (block.timestamp) after which transaction will expire (revert)
+    function swapExactTokensForTokensSplit(uint256 amountIn, uint256 amountOutMin, bytes[] calldata path, uint256[] calldata weights, address to, uint256 deadline) external;
+
+    /// @dev Swap amountIn of ERC20 token at path[k][0] for ETH through provided k paths
+    /// @param amountIn - quantity of tokenIn to swap for ETH
+    /// @param amountOutMin - minimum quantity of ETH willing to receive or revert
+    /// @param path - paths of tokenIn to ETH over which to perform swap. The last token in the path should be WETH, which will be unwrapped to ETH
+    /// @param weights - percentage of amountIn to swap in each path. Must add up to 1. If there's some left over, it will be swapped in the last path
+    /// @param to - address to receive output of token swap
+    /// @param deadline - timestamp (block.timestamp) after which transaction will expire (revert)
+    function swapExactTokensForETHSplit(uint256 amountIn, uint256 amountOutMin, bytes[] calldata path, uint256[] calldata weights, address to, uint256 deadline) external;
+
+    /// @dev Swap amountIn of ETH for ERC20 token at path[k][n] through provided k paths. AmountIn is passed as msg.value. It's wrapped to WETH then swapped
+    /// @param amountOutMin - minimum quantity of tokenOut willing to receive or revert
+    /// @param path - paths of tokenIn to tokenOut over which to perform swap
+    /// @param weights - percentage of ETH to swap in each path. Must add up to 1. If there's some left over, it will be swapped in the last path
+    /// @param to - address to receive output of token swap
+    /// @param deadline - timestamp (block.timestamp) after which transaction will expire (revert)
+    function swapExactETHForTokensSplit(uint256 amountOutMin, bytes[] calldata path, uint256[] calldata weights, address to, uint256 deadline) external payable;
+
     /// @dev Calculate array of route instructions from `path` to perform swap across `path`
     /// @param path - path of tokens to perform swap
     /// @param to - address that will receive final output of swap
@@ -106,6 +132,25 @@ interface IUniversalRouter {
     /// @return amounts - amounts of tokens swapped through the path provided
     /// @return routes - array of route parameters to perform swap through the path provided
     function getAmountsOut(uint256 amountIn, bytes memory path) external returns (uint256[] memory amounts, Route[] memory routes);
+
+    /// @dev Expected amounts to get from swapping amountIn of token at path[0][] across multiple paths. Takes slippage from price impact and fees into account
+    /// @param amountIn - total amount of token being swapped in
+    /// @param path - paths used to perform the swap (e.g. path[0] -> path[1] -> ... path[n]). The amountIn is split across multiple paths
+    /// @param weights - percentage of amountIn to allocate to each path for swapping
+    /// @return amountOut - total amount received from swap
+    /// @return amounts - amounts of tokens swapped through each path provided
+    /// @return routes - array of route parameters to perform swap through each path provided
+    function getAmountsOutSplit(uint256 amountIn, bytes[] memory path, uint256[] memory weights) external returns (uint256 amountOut, uint256[][] memory amounts, Route[][] memory routes);
+
+    /// @dev Expected amounts to get from swapping amountIn of token at path[0][] across multiple paths. Takes slippage from price impact and fees into account
+    /// @dev Accepts possibility of an intermediate amount of a multi hop path turning into zero. This situations would revert when executing in most AMMs
+    /// @param amountIn - total amount of token being swapped in
+    /// @param path - paths used to perform the swap (e.g. path[0] -> path[1] -> ... path[n]). The amountIn is split across multiple paths
+    /// @param weights - percentage of amountIn to allocate to each path for swapping
+    /// @return amountOut - total amount received from swap
+    /// @return amounts - amounts of tokens swapped through each path provided
+    /// @return routes - array of route parameters to perform swap through each path provided
+    function getAmountsOutSplitNoSwap(uint256 amountIn, bytes[] memory path, uint256[] memory weights) external returns (uint256 amountOut, uint256[][] memory amounts, Route[][] memory routes);
 
     /// @dev Expected amounts to provide to obtain amountOut of token path[n]. Takes slippage from price impact and fees into account
     /// @param amountOut - desired amount to get of token[n] when swap finishes

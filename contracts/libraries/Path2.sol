@@ -85,4 +85,18 @@ library Path2 {
     function hopToken(bytes memory path) internal pure returns (bytes memory) {
         return path.slice(0, path.length - NEXT_OFFSET);
     }
+
+    /// @notice Get first token in path (token of the amountIn)
+    /// @param path The swap path
+    /// @return The first token in the swap path
+    function getTokenIn(bytes memory path) internal pure returns (address) {
+        return path.toAddress(0);
+    }
+
+    /// @notice Get last token in path (token of the amountOut)
+    /// @param path The swap path
+    /// @return The last token in the swap path
+    function getTokenOut(bytes memory path) internal pure returns (address) {
+        return getLastPool(path).toAddress(NEXT_OFFSET);
+    }
 }
