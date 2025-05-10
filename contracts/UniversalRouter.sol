@@ -109,50 +109,38 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
         _swap(amountIn, amountOutMin, routes, msg.sender);
     }
 
-    /// @inheritdoc IUniversalRouter
-    function swapExactTokensForTokensSplit(uint256 amountIn, uint256 amountOutMin, bytes[] calldata path, uint256[] calldata weights, address to, uint256 deadline)
-        public override virtual ensure(deadline) {
-        _validatePathsAndWeights(path, weights, 2);
+    function _swapSplit(uint256 amountIn, uint256 amountOutMin, bytes[] memory paths, uint256[] memory weights, address to, uint8 swapType, address sender) internal virtual returns (uint256 amountOut) {
+        _validatePathsAndWeights(paths, weights, swapType);
         uint256 amountOut = 0;
         uint256[] memory amountsIn = _calcSplitAmountsIn(amountIn, weights);
-        for(uint256 i = 0; i < path.length;) {
+        for(uint256 i = 0; i < paths.length;) {
             if(amountsIn[i] == 0) continue;
-            Route[] memory routes = calcRoutes(path[i], to);
-            amountOut += _swap(amountsIn[i], 0, routes, msg.sender);
+            Route[] memory routes = calcRoutes(paths[i], swapType == 1 ? address(this) : to);
+            amountOut += _swap(amountsIn[i], 0, routes, sender);
+            if(swapType == 1) {
+                unwrapWETH(0, to);
+            }
             unchecked { ++i; }
         }
         _validateAmountOut(amountOut, amountOutMin);
     }
 
     /// @inheritdoc IUniversalRouter
-    function swapExactTokensForETHSplit(uint256 amountIn, uint256 amountOutMin, bytes[] calldata path, uint256[] calldata weights, address to, uint256 deadline)
+    function swapExactTokensForTokensSplit(uint256 amountIn, uint256 amountOutMin, bytes[] calldata paths, uint256[] calldata weights, address to, uint256 deadline)
         public override virtual ensure(deadline) {
-        _validatePathsAndWeights(path, weights, 1);
-        uint256 amountOut = 0;
-        uint256[] memory amountsIn = _calcSplitAmountsIn(amountIn, weights);
-        for(uint256 i = 0; i < path.length;) {
-            if(amountsIn[i] == 0) continue;
-            Route[] memory routes = calcRoutes(path[i], address(this));
-            amountOut += _swap(amountsIn[i], 0, routes, msg.sender);
-            unwrapWETH(0, to);
-            unchecked { ++i; }
-        }
-        _validateAmountOut(amountOut, amountOutMin);
+        _swapSplit(amountIn, amountOutMin, paths, weights, to, 2, msg.sender);
     }
 
     /// @inheritdoc IUniversalRouter
-    function swapExactETHForTokensSplit(uint256 amountOutMin, bytes[] calldata path, uint256[] calldata weights, address to, uint256 deadline)
+    function swapExactTokensForETHSplit(uint256 amountIn, uint256 amountOutMin, bytes[] calldata paths, uint256[] calldata weights, address to, uint256 deadline)
+        public override virtual ensure(deadline) {
+        _swapSplit(amountIn, amountOutMin, paths, weights, address(this), 1, msg.sender);
+    }
+
+    /// @inheritdoc IUniversalRouter
+    function swapExactETHForTokensSplit(uint256 amountOutMin, bytes[] calldata paths, uint256[] calldata weights, address to, uint256 deadline)
         public override virtual payable ensure(deadline) {
-        _validatePathsAndWeights(path, weights, 0);
-        uint256 amountOut = 0;
-        uint256[] memory amountsIn = _calcSplitAmountsIn(msg.value, weights);
-        for(uint256 i = 0; i < path.length;) {
-            if(amountsIn[i] == 0) continue;
-            Route[] memory routes = calcRoutes(path[i], to);
-            amountOut += _swap(amountsIn[i], 0, routes, msg.sender);
-            unchecked { ++i; }
-        }
-        _validateAmountOut(amountOut, amountOutMin);
+        _swapSplit(msg.value, amountOutMin, paths, weights, to, 0, msg.sender);
     }
 
     // **** Estimate swap results functions ****
@@ -260,7 +248,6 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
         return _getAmountsOutSplit(amountIn, path, weights, true);
     }
 
-    // must check that weights add up to 1
     function _getAmountsOutSplit(uint256 amountIn, bytes[] memory path, uint256[] memory weights, bool noSwap) internal
         virtual returns (uint256 amountOut, uint256[][] memory amountsSplit, Route[][] memory routesSplit) {
         require(path.length == weights.length);
@@ -297,8 +284,7 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
         return _getAmountsOut(amountIn, path, false);
     }
 
-    /// dev Not a view function to support UniswapV3 quoting
-    /// inheritdoc IUniversalRouter
+    /// @dev Not a view function to support UniswapV3 quoting
     function _getAmountsOut(uint256 amountIn, bytes memory path, bool noSwap) internal virtual returns (uint256[] memory amounts, Route[] memory routes) {
         _validatePath(path);
         routes = new Route[](path.numPools());
@@ -411,7 +397,8 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
     }
 
     /// @inheritdoc IUniversalRouter
-    function getPairInfo(address tokenA, address tokenB, uint24 fee, uint16 protocolId) public virtual override view returns(address pair, address token0, address token1, address factory) {
+    function getPairInfo(address tokenA, address tokenB, uint24 fee, uint16 protocolId) public virtual override view
+        returns(address pair, address token0, address token1, address factory) {
         _validateNonZeroAddress(tokenA);
         _validateNonZeroAddress(tokenB);
 
@@ -431,10 +418,26 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
 
         require(data.deadline >= block.timestamp, 'ExternalCall: EXPIRED');
 
-        Route[] memory routes = calcRoutes(data.path, address(this));
+        bool isSplit = _isSplitPath(data.path);
 
-        address tokenIn = routes[0].from;
-        address tokenOut = routes[routes.length - 1].to;
+        _processSwap(sender, amounts, lpTokens, data, isSplit);
+    }
+
+    function _processSwap(address sender, uint128[] memory amounts, uint256 lpTokens, ExternalCallData memory data, bool isSplit) internal virtual {
+        address tokenIn;
+        address tokenOut;
+
+        bytes[] memory paths;
+        uint256[] memory weights;
+
+        if(isSplit) {
+            (paths, weights) = data.path.toPathsAndWeightsArray();
+            tokenIn = paths[0].getTokenIn();
+            tokenOut = paths[0].getTokenOut();
+        } else {
+            tokenIn = data.path.getTokenIn();
+            tokenOut = data.path.getTokenOut();
+        }
 
         uint256 balanceIn = IERC20(tokenIn).balanceOf(address(this));
         uint256 balanceOut = IERC20(tokenOut).balanceOf(address(this));
@@ -443,8 +446,14 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
         require(data.amountIn > 0 && balanceIn >= data.amountIn, "ExternalCall: Insufficient amountIn"); // only sells
 
         address caller = msg.sender;
+        uint256 amountOut;
 
-        uint256 amountOut = _swap(data.amountIn, data.minAmountOut, routes, address(this));
+        if(isSplit) {
+            amountOut = _swapSplit(data.amountIn, data.minAmountOut, paths, weights, address(this), 2, address(this));
+        } else {
+            Route[] memory routes = calcRoutes(data.path, address(this));
+            amountOut = _swap(data.amountIn, data.minAmountOut, routes, address(this));
+        }
 
         balanceIn = IERC20(tokenIn).balanceOf(address(this));
         balanceOut = IERC20(tokenOut).balanceOf(address(this));
@@ -453,6 +462,11 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
         if (balanceOut > 0) GammaSwapLibrary.safeTransfer(tokenOut, caller, balanceOut);
 
         emit ExternalCallSwap(sender, caller, data.tokenId, tokenIn, tokenOut, data.amountIn, amountOut);
+    }
+
+    /// @dev Returns true if path has multi path format
+    function _isSplitPath(bytes memory path) internal virtual view returns(bool) {
+        return path.length >= 48 && (path.length - 23) % 25 == 0;
     }
 
     /// @dev Validate the paths and weights to use in split swaps

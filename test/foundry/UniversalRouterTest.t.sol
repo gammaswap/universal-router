@@ -762,6 +762,41 @@ contract UniversalRouterTest is TestBed {
         assertEq(res,0xF6D9C101ceeA72655A13a8Cf1C88c1949Ed399bc);
     }
 
+    // TODO: Replace the 1 byte tag with a 25 block of empty bytes
+    function testPathAndWeightsArray() public {
+        uint8 tag = 1;
+        uint16 weight1 = 4000;
+        uint16 weight2 = 2000;
+        bytes memory path0 = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e80001000bb882af49447d8a07e3bd95bd0d56f35241523fbab100010001f4af88d065e77c8cc2239327c5edb3a432268e5831';
+        bytes memory path1 = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e80001000bb882af49447d8a07e3bd95bd0d56f35241523fbab100010001f4af88d065e77c8cc2239327c5edb3a432268e5831000100010076991314cEE341ebE37e6E2712cb04F5d56dE355';
+        bytes memory path2 = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e80001000bb882af49447d8a07e3bd95bd0d56f35241523fbab100010001f4af88d065e77c8cc2239327c5edb3a432268e5831000100010076991314cEE341ebE37e6E2712cb04F5d56dE3550001000100F6D9C101ceeA72655A13a8Cf1C88c1949Ed399bc';
+
+        bytes memory path = abi.encodePacked(tag,weight1,path0);
+        path = abi.encodePacked(path,tag,weight1,path1);
+        path = abi.encodePacked(path,tag,weight2,path2);
+
+        (bytes[] memory paths, uint256[] memory weights)= path.toPathsAndWeightsArray();
+
+        console.log("============Paths=============");
+        console.logBytes(paths[0]);
+        console.logBytes(paths[1]);
+        console.logBytes(paths[2]);
+        console.log("weights0:",weights[0]);
+        console.log("weights1:",weights[1]);
+        console.log("weights2:",weights[2]);
+        //assertEq(paths[0],path0);
+        //assertEq(res,0x82aF49447D8a07e3bd95BD0d56f35241523fBab1);
+        /*val = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e80001000bb882af49447d8a07e3bd95bd0d56f35241523fbab100010001f4af88d065e77c8cc2239327c5edb3a432268e5831';
+        res = router._getTokenOut(val);
+        assertEq(res,0xaf88d065e77c8cC2239327C5EDb3A432268e5831);
+        val = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e80001000bb882af49447d8a07e3bd95bd0d56f35241523fbab100010001f4af88d065e77c8cc2239327c5edb3a432268e5831000100010076991314cEE341ebE37e6E2712cb04F5d56dE355';
+        res = router._getTokenOut(val);
+        assertEq(res,0x76991314cEE341ebE37e6E2712cb04F5d56dE355);
+        val = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e80001000bb882af49447d8a07e3bd95bd0d56f35241523fbab100010001f4af88d065e77c8cc2239327c5edb3a432268e5831000100010076991314cEE341ebE37e6E2712cb04F5d56dE3550001000100F6D9C101ceeA72655A13a8Cf1C88c1949Ed399bc';
+        res = router._getTokenOut(val);
+        assertEq(res,0xF6D9C101ceeA72655A13a8Cf1C88c1949Ed399bc);/**/
+    }
+
     function testCalcPathFee() public {
         bytes memory pathUsdcToWeth = abi.encodePacked(address(usdc), uint16(1), poolFee1, address(wbtc), uint16(1), poolFee1, address(weth));
         uint256 pathFee = router.calcPathFee(pathUsdcToWeth);
