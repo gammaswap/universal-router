@@ -232,11 +232,15 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
             amountsIn[i] = alloc;
             remainder -= alloc;
             if (remainder == 0) break;
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         if (remainder > 0) {
-            unchecked { amountsIn[len - 1] += remainder; }
+            unchecked {
+                amountsIn[len - 1] += remainder;
+            }
         }
     }
 

@@ -132,9 +132,30 @@ contract UniversalRouterTest is TestBed {
         assertGt(amountOut,minAmountOut);
     }
 
+    function testCalcSplitAmountsIn(uint256 amountIn, uint8 numOfPaths) public {
+        amountIn = boundVar(amountIn, 1e2, type(uint128).max);
+        numOfPaths = numOfPaths == 0 ? 1 : numOfPaths;
+
+        uint256 totalSum = 0;
+        uint256[] memory weights = random.generateWeights(numOfPaths);
+        for(uint256 i = 0; i < weights.length; i++) {
+            totalSum += weights[i];
+        }
+        assertEq(totalSum, 1e18);
+
+        uint256 totalAmountsIn = 0;
+        uint256[] memory amountsIn = router2.calcSplitAmountsIn(amountIn, weights);
+        for(uint256 i = 0; i < amountsIn.length; i++) {
+            totalAmountsIn += amountsIn[i];
+        }
+        assertEq(totalAmountsIn, amountIn);
+
+        assertEq(amountsIn.length, weights.length);
+    }
+
     function testGetAmountsOutSplit(uint8 tokenChoices, uint128 seed, uint256 amountIn) public {
-        /*bytes memory path = createPath(tokenChoices, seed);
-        IUniversalRouter.Route[] memory _routes = router.calcRoutes(path, address(this));
+        bytes memory path = createPath(tokenChoices, seed);
+        /*IUniversalRouter.Route[] memory _routes = router.calcRoutes(path, address(this));
         uint256 minAmountOut;
         (amountIn, minAmountOut) = calcMinAmount(amountIn, path, true);
         (uint256[] memory amounts, IUniversalRouter.Route[] memory routes) = router.getAmountsOut(amountIn, path);
