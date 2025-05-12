@@ -115,4 +115,28 @@ library BytesLib2 {
 
         return tempUint;
     }
+
+    function toUint200(bytes memory _bytes, uint256 _start) internal pure returns (uint200) {
+        require(_start + 25 >= _start, 'toUint200_overflow');
+        require(_bytes.length >= _start + 25, 'toUint200_outOfBounds');
+        uint200 tempUint;
+
+        assembly {
+            tempUint := mload(add(add(_bytes, 0x19), _start))
+        }
+
+        return tempUint;
+    }
+
+    function toUint64(bytes memory _bytes, uint256 _start) internal pure returns (uint64) {
+        require(_start + 8 >= _start, 'toUint64_overflow');
+        require(_bytes.length >= _start + 8, 'toUint64_outOfBounds');
+        uint64 tempUint;
+
+        assembly {
+            tempUint := mload(add(add(_bytes, 0x8), _start))
+        }
+
+        return tempUint;
+    }
 }

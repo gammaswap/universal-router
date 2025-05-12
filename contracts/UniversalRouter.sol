@@ -111,7 +111,6 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
 
     function _swapSplit(uint256 amountIn, uint256 amountOutMin, bytes[] memory paths, uint256[] memory weights, address to, uint8 swapType, address sender) internal virtual returns (uint256 amountOut) {
         _validatePathsAndWeights(paths, weights, swapType);
-        uint256 amountOut = 0;
         uint256[] memory amountsIn = _calcSplitAmountsIn(amountIn, weights);
         for(uint256 i = 0; i < paths.length;) {
             if(amountsIn[i] == 0) continue;
@@ -418,25 +417,31 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
 
         require(data.deadline >= block.timestamp, 'ExternalCall: EXPIRED');
 
-        bool isSplit = _isSplitPath(data.path);
+        bool isSinglePath = _isSinglePath(data.path);
 
-        _processSwap(sender, amounts, lpTokens, data, isSplit);
+        _processSwap(sender, amounts, lpTokens, data, isSinglePath);
     }
 
-    function _processSwap(address sender, uint128[] memory amounts, uint256 lpTokens, ExternalCallData memory data, bool isSplit) internal virtual {
+    /// @dev Perform swap that is of multiple paths or single path
+    /// @param sender - address that requested the flash loan
+    /// @param amounts - collateral token amounts flash loaned from GammaPool
+    /// @param lpTokens - quantity of CFMM LP tokens flash loaned
+    /// @param data - optional bytes parameter for custom user defined data
+    /// @param isSinglePath - true if path in data struct is a path of multiple paths
+    function _processSwap(address sender, uint128[] memory amounts, uint256 lpTokens, ExternalCallData memory data, bool isSinglePath) internal virtual {
         address tokenIn;
         address tokenOut;
 
         bytes[] memory paths;
         uint256[] memory weights;
 
-        if(isSplit) {
+        if(isSinglePath) {
+            tokenIn = data.path.getTokenIn();
+            tokenOut = data.path.getTokenOut();
+        } else {
             (paths, weights) = data.path.toPathsAndWeightsArray();
             tokenIn = paths[0].getTokenIn();
             tokenOut = paths[0].getTokenOut();
-        } else {
-            tokenIn = data.path.getTokenIn();
-            tokenOut = data.path.getTokenOut();
         }
 
         uint256 balanceIn = IERC20(tokenIn).balanceOf(address(this));
@@ -448,11 +453,11 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
         address caller = msg.sender;
         uint256 amountOut;
 
-        if(isSplit) {
-            amountOut = _swapSplit(data.amountIn, data.minAmountOut, paths, weights, address(this), 2, address(this));
-        } else {
+        if(isSinglePath) {
             Route[] memory routes = calcRoutes(data.path, address(this));
             amountOut = _swap(data.amountIn, data.minAmountOut, routes, address(this));
+        } else {
+            amountOut = _swapSplit(data.amountIn, data.minAmountOut, paths, weights, address(this), 2, address(this));
         }
 
         balanceIn = IERC20(tokenIn).balanceOf(address(this));
@@ -462,11 +467,6 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
         if (balanceOut > 0) GammaSwapLibrary.safeTransfer(tokenOut, caller, balanceOut);
 
         emit ExternalCallSwap(sender, caller, data.tokenId, tokenIn, tokenOut, data.amountIn, amountOut);
-    }
-
-    /// @dev Returns true if path has multi path format
-    function _isSplitPath(bytes memory path) internal virtual view returns(bool) {
-        return path.length >= 48 && (path.length - 23) % 25 == 0;
     }
 
     /// @dev Validate the paths and weights to use in split swaps
@@ -496,10 +496,15 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
         }
     }
 
+    /// @dev Returns true if path has multi path format
+    function _isSinglePath(bytes memory path) internal virtual view returns(bool) {
+        return path.length >= 45 && (path.length - 20) % 25 == 0;
+    }
+
     /// @dev Validate individual path format: addr - protocolId - fee - addr
     /// @param path - swap path to validate
     function _validatePath(bytes memory path) internal virtual view {
-        require(path.length >= 45 && (path.length - 20) % 25 == 0, 'UniversalRouter: INVALID_PATH');
+        require(_isSinglePath(path), 'UniversalRouter: INVALID_PATH');
     }
 
     /// @dev Validate route by checking if hop exists
