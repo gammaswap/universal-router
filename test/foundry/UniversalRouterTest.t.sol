@@ -73,6 +73,15 @@ contract UniversalRouterTest is TestBed {
         router.addProtocolRoute(address(aeroStableRoute));
         router.addProtocolRoute(address(uniV3Route));
         router.addProtocolRoute(address(aeroCLRoute));
+
+        // set up routes for router2
+        router2.addProtocolRoute(address(uniV2Route));
+        router2.addProtocolRoute(address(sushiV2Route));
+        router2.addProtocolRoute(address(dsRoute));
+        router2.addProtocolRoute(address(aeroRoute));
+        router2.addProtocolRoute(address(aeroStableRoute));
+        router2.addProtocolRoute(address(uniV3Route));
+        router2.addProtocolRoute(address(aeroCLRoute));
     }
 
     function testAddRemoveProtocol() public {
@@ -80,7 +89,7 @@ contract UniversalRouterTest is TestBed {
         router.addProtocolRoute(address(0));
 
         UniswapV2 route0 = new UniswapV2(0, address(uniFactory), address(weth));
-        vm.expectRevert('UniversalRouter: INVALID_PROTOCOL_ROUTE_ID');
+        vm.expectRevert(bytes4(keccak256('InvalidProtocolRouteID()')));
         router.addProtocolRoute(address(route0));
 
         UniswapV2 route2 = new UniswapV2(20, address(uniFactory), address(weth));
@@ -98,17 +107,17 @@ contract UniversalRouterTest is TestBed {
         assertEq(router.protocolRoutes(20),address(route2));
 
         UniswapV2 route2a = new UniswapV2(20, address(uniFactory), address(weth));
-        vm.expectRevert('UniversalRouter: PROTOCOL_ROUTE_ID_USED');
+        vm.expectRevert(bytes4(keccak256('UsedProtocolRouteID()')));
         router.addProtocolRoute(address(route2a));
 
         vm.prank(userX);
         vm.expectRevert('Ownable: caller is not the owner');
         router.removeProtocolRoute(0);
 
-        vm.expectRevert('UniversalRouter: INVALID_PROTOCOL_ROUTE_ID');
+        vm.expectRevert(bytes4(keccak256('InvalidProtocolRouteID()')));
         router.removeProtocolRoute(0);
 
-        vm.expectRevert('UniversalRouter: PROTOCOL_ROUTE_ID_UNUSED');
+        vm.expectRevert(bytes4(keccak256('UnusedProtocolRouteID()')));
         router.removeProtocolRoute(30);
 
         router.removeProtocolRoute(20);
@@ -121,6 +130,33 @@ contract UniversalRouterTest is TestBed {
         (amountIn, minAmountOut) = calcMinAmount(amountIn, path, true);
         uint256 amountOut = router.quote(amountIn, path);
         assertGt(amountOut,minAmountOut);
+    }
+
+    function testGetAmountsOutSplit(uint8 tokenChoices, uint128 seed, uint256 amountIn) public {
+        /*bytes memory path = createPath(tokenChoices, seed);
+        IUniversalRouter.Route[] memory _routes = router.calcRoutes(path, address(this));
+        uint256 minAmountOut;
+        (amountIn, minAmountOut) = calcMinAmount(amountIn, path, true);
+        (uint256[] memory amounts, IUniversalRouter.Route[] memory routes) = router.getAmountsOut(amountIn, path);
+        assertEq(routes.length, _routes.length);
+        assertEq(routes.length, amounts.length - 1);
+        for(uint256 i = 0; i < _routes.length; i++) {
+            assertEq(routes[i].from,_routes[i].from);
+            assertEq(routes[i].to,_routes[i].to);
+            assertEq(routes[i].pair,_routes[i].pair);
+            assertEq(routes[i].protocolId,_routes[i].protocolId);
+            if(routes[i].protocolId == 6 || routes[i].protocolId == 7) {
+                assertEq(routes[i].fee,_routes[i].fee);
+            }
+            assertEq(routes[i].origin,address(0));
+            assertEq(routes[i].destination,address(0));
+            assertEq(routes[i].hop,_routes[i].hop);
+        }
+        assertEq(amounts[0], amountIn);
+        for(uint256 i = 0; i < amounts.length; i++) {
+            assertGt(amounts[i],0);
+        }
+        assertGt(amounts[amounts.length - 1], minAmountOut);/**/
     }
 
     function testGetAmountsOutNoSwap(uint8 tokenChoices, uint128 seed, uint256 amountIn) public {
@@ -628,27 +664,27 @@ contract UniversalRouterTest is TestBed {
         router.calcRoutes(path, address(this));
 
         path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C5847';
-        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        vm.expectRevert('INVALID_PATH');
         router.calcRoutes(path, address(this));
 
         path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b';
-        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        vm.expectRevert('INVALID_PATH');
         router.calcRoutes(path, address(this));
 
         path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470bff';
-        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        vm.expectRevert('INVALID_PATH');
         router.calcRoutes(path, address(this));
 
         path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b00ff000bb8';
-        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        vm.expectRevert('INVALID_PATH');
         router.calcRoutes(path, address(this));
 
         path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b00ff000b';
-        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        vm.expectRevert('INVALID_PATH');
         router.calcRoutes(path, address(this));
 
         path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b00ff00';
-        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        vm.expectRevert('INVALID_PATH');
         router.calcRoutes(path, address(this));
 
         path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b00ff000bb8F62849F9A0B5Bf2913b396098F7c7019b51A820a';
@@ -659,7 +695,7 @@ contract UniversalRouterTest is TestBed {
         router.calcRoutes(path, address(this));
 
         path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A90001000bb82e234DAe75C793f67A35089C9d99245E1C58470b00ff000bb8F62849F9A0B5Bf2913b396098F7c7019b51A82';
-        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        vm.expectRevert('INVALID_PATH');
         router.calcRoutes(path, address(this));
     }
 
@@ -670,27 +706,27 @@ contract UniversalRouterTest is TestBed {
         router.getAmountsOut(1e18, path);
 
         path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C5847';
-        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        vm.expectRevert('INVALID_PATH');
         router.getAmountsOut(1e18, path);
 
         path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b';
-        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        vm.expectRevert('INVALID_PATH');
         router.getAmountsOut(1e18, path);
 
         path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470bff';
-        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        vm.expectRevert('INVALID_PATH');
         router.getAmountsOut(1e18, path);
 
         path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b00ff000bb8';
-        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        vm.expectRevert('INVALID_PATH');
         router.getAmountsOut(1e18, path);
 
         path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b00ff000b';
-        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        vm.expectRevert('INVALID_PATH');
         router.getAmountsOut(1e18, path);
 
         path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b00ff00';
-        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        vm.expectRevert('INVALID_PATH');
         router.getAmountsOut(1e18, path);
 
         path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b00ff000bb8F62849F9A0B5Bf2913b396098F7c7019b51A820a';
@@ -701,7 +737,7 @@ contract UniversalRouterTest is TestBed {
         router.getAmountsOut(1e18, path);
 
         path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A90001000bb82e234DAe75C793f67A35089C9d99245E1C58470b00ff000bb8F62849F9A0B5Bf2913b396098F7c7019b51A82';
-        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        vm.expectRevert('INVALID_PATH');
         router.getAmountsOut(1e18, path);
     }
 
@@ -712,27 +748,27 @@ contract UniversalRouterTest is TestBed {
         router.getAmountsIn(1e6, path);
 
         path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C5847';
-        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        vm.expectRevert('INVALID_PATH');
         router.getAmountsIn(1e6, path);
 
         path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b';
-        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        vm.expectRevert('INVALID_PATH');
         router.getAmountsIn(1e6, path);
 
         path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470bff';
-        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        vm.expectRevert('INVALID_PATH');
         router.getAmountsIn(1e6, path);
 
         path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b00ff000bb8';
-        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        vm.expectRevert('INVALID_PATH');
         router.getAmountsIn(1e6, path);
 
         path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b00ff000b';
-        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        vm.expectRevert('INVALID_PATH');
         router.getAmountsIn(1e6, path);
 
         path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b00ff00';
-        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        vm.expectRevert('INVALID_PATH');
         router.getAmountsIn(1e6, path);
 
         path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900ff000bb82e234DAe75C793f67A35089C9d99245E1C58470b00ff000bb8F62849F9A0B5Bf2913b396098F7c7019b51A820a';
@@ -743,7 +779,7 @@ contract UniversalRouterTest is TestBed {
         router.getAmountsIn(1e6, path);
 
         path = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A90001000bb82e234DAe75C793f67A35089C9d99245E1C58470b00ff000bb8F62849F9A0B5Bf2913b396098F7c7019b51A82';
-        vm.expectRevert('UniversalRouter: INVALID_PATH');
+        vm.expectRevert('INVALID_PATH');
         router.getAmountsIn(1e6, path);
     }
 
@@ -784,6 +820,88 @@ contract UniversalRouterTest is TestBed {
         assertEq(weights[0],weight1);
         assertEq(weights[1],weight1);
         assertEq(weights[2],weight2);
+    }
+
+    function testValidatePathsAndWeights() public {
+        bytes[] memory paths = new bytes[](0);
+        uint256[] memory weights = new uint256[](2);
+
+        vm.expectRevert("UniversalRouter: MISSING_PATHS");
+        router2.validatePathsAndWeights(paths, weights, 2);
+
+        paths = new bytes[](1);
+        vm.expectRevert("UniversalRouter: INVALID_WEIGHTS");
+        router2.validatePathsAndWeights(paths, weights, 2);
+
+        paths = new bytes[](3);
+        vm.expectRevert("UniversalRouter: INVALID_WEIGHTS");
+        router2.validatePathsAndWeights(paths, weights, 2);
+
+        paths = new bytes[](2);
+        vm.expectRevert("INVALID_PATH");
+        router2.validatePathsAndWeights(paths, weights, 2);
+
+        paths[0] = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e80001000bb882af49447d8a07e3bd95bd0d56f35241523fbab100010001f40c880f6761f1af8d9aa9c466984b80dab9a8c9e8';
+        vm.expectRevert("UniversalRouter: INVALID_PATH_TOKENS");
+        router2.validatePathsAndWeights(paths, weights, 2);
+
+        paths[0] = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e80001000bb882af49447d8a07e3bd95bd0d56f35241523fbab1';
+        vm.expectRevert("UniversalRouter: AMOUNT_IN_NOT_ETH");
+        router2.validatePathsAndWeights(paths, weights, 0);
+
+        paths[0] = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e80001000bb882af49447d8a07e3bd95bd0d56f35241523fbab1';
+        vm.expectRevert("UniversalRouter: AMOUNT_OUT_NOT_ETH");
+        router2.validatePathsAndWeights(paths, weights, 1);
+
+        paths[0] = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e80001000bb882af49447d8a07e3bd95bd0d56f35241523fbab1';
+        vm.expectRevert("INVALID_PATH");
+        router2.validatePathsAndWeights(paths, weights, 2);
+
+        paths[0] = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e80001000bb882af49447d8a07e3bd95bd0d56f35241523fbab100010001f4af88d065e77c8cc2239327c5edb3a432268e5831';
+        paths[1] = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e80001000bb882af49447d8a07e3bd95bd0d56f35241523fbab1';
+        vm.expectRevert("UniversalRouter: INVALID_PATH_TOKENS");
+        router2.validatePathsAndWeights(paths, weights, 2);
+
+        paths[0] = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e80001000bb882af49447d8a07e3bd95bd0d56f35241523fbab1';
+        paths[1] = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e80001000bb882af49447d8a07e3bd95bd0d56f35241523fbab1';
+        vm.expectRevert('UniversalRouter: INVALID_WEIGHTS');
+        router2.validatePathsAndWeights(paths, weights, 2);
+
+        weights[0] = 2e17;
+        weights[1] = 8e17 + 1;
+        vm.expectRevert('UniversalRouter: INVALID_WEIGHTS');
+        router2.validatePathsAndWeights(paths, weights, 2);
+
+        weights[1] = 8e17 - 1;
+        router2.validatePathsAndWeights(paths, weights, 2);
+
+        weights[0] = 2e17 + 1;
+        router2.validatePathsAndWeights(paths, weights, 2);
+
+        weights[1] = 8e17;
+        vm.expectRevert('UniversalRouter: INVALID_WEIGHTS');
+        router2.validatePathsAndWeights(paths, weights, 2);
+
+        weights[0] = 2e17;
+        weights[1] = 8e17;
+        router2.validatePathsAndWeights(paths, weights, 2);
+
+        paths[0] = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A90001000bb882af49447d8a07e3bd95bd0d56f35241523fbab1';
+        vm.expectRevert('UniversalRouter: INVALID_PATH_TOKENS');
+        router2.validatePathsAndWeights(paths, weights, 0);
+
+        paths[0] = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A90001000bb882af49447d8a07e3bd95bd0d56f35241523fbab1';
+        paths[1] = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900010001f4af88d065e77c8cc2239327c5edb3a432268e58310001000bb882af49447d8a07e3bd95bd0d56f35241523fbab1';
+        router2.validatePathsAndWeights(paths, weights, 0);
+
+        paths[0] = hex'af49447d8a07e3bd95bd0d56f35241523fbab10001000bb8825991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9';
+        paths[1] = hex'af49447d8a07e3bd95bd0d56f35241523fbab10001000bb8825991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9';
+        vm.expectRevert("UniversalRouter: AMOUNT_IN_NOT_ETH");
+        router2.validatePathsAndWeights(paths, weights, 0);
+
+        paths[0] = hex'af49447d8a07e3bd95bd0d56f35241523fbab10001000bb8825991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9';
+        paths[1] = hex'af49447d8a07e3bd95bd0d56f35241523fbab10001000bb8825991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9';
+        router2.validatePathsAndWeights(paths, weights, 1);
     }
 
     function testCalcPathFee() public {

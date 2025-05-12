@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import '../../../contracts/test/TestUniversalRouter.sol';
 import './UniswapSetup.sol';
+import "../../../contracts/test/TestUniversalRouter2.sol";
 
 contract TestBed is UniswapSetup {
     event ExternalRebalanceSingleSwap(
@@ -49,6 +50,7 @@ contract TestBed is UniswapSetup {
     }
 
     TestUniversalRouter router;
+    TestUniversalRouter2 router2;
 
     function initSetup(address owner) public {
         initTokens();
@@ -59,6 +61,7 @@ contract TestBed is UniswapSetup {
         initAerodrome(owner);
         initAerodromeCL(owner,aeroVoter);
         router = new TestUniversalRouter(address(weth));
+        router2 = new TestUniversalRouter2(address(weth));
     }
 
     function boundVar(uint256 x, uint256 min, uint256 max) internal pure virtual returns (uint256) {

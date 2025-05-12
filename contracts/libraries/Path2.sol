@@ -166,12 +166,23 @@ library Path2 {
 
             // If zero block found, skip it
             if (i + NEXT_OFFSET <= path.length && isZeroBlock(path, i)) {
+                validatePath(pathK);
                 paths[k] = pathK;
                 i += NEXT_OFFSET;
                 k++;
             }
         }
+        validatePath(pathK);
         paths[k] = pathK;
+    }
+
+    /// @dev Returns true if path is single path format
+    function isSinglePath(bytes memory path) internal pure returns(bool) {
+        return path.length >= 45 && (path.length - 20) % 25 == 0;
+    }
+
+    function validatePath(bytes memory path) internal pure {
+        require(isSinglePath(path), "INVALID_PATH");
     }
 
     /// @dev Check if next 25 bytes in data is made up of only zero bytes

@@ -22,6 +22,11 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
     using Path2 for bytes;
     using BytesLib2 for bytes;
 
+    error InvalidProtocolRouteID();
+    error RouterInitialized();
+    error UsedProtocolRouteID();
+    error UnusedProtocolRouteID();
+
     /// @inheritdoc IUniversalRouter
     mapping(uint16 => address) public override protocolRoutes;
 
@@ -34,7 +39,7 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
 
     /// @dev Initialize UniversalRouter when used as a proxy contract
     function initialize() public virtual override initializer {
-        require(owner() == address(0), "UniversalRouter: INITIALIZED");
+        if(owner() != address(0)) revert RouterInitialized();
         _transferOwnership(msg.sender);
     }
 
@@ -50,7 +55,7 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
         _validateNonZeroAddress(protocol);
         uint16 protocolId = IProtocolRoute(protocol).protocolId();
         _validateProtocolId(protocolId);
-        require(protocolRoutes[protocolId] == address(0), 'UniversalRouter: PROTOCOL_ROUTE_ID_USED');
+        if(protocolRoutes[protocolId] != address(0)) revert UsedProtocolRouteID();
         protocolRoutes[protocolId] = protocol;
         emit AddProtocolRoute(protocolId, protocol);
     }
@@ -58,7 +63,7 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
     /// @inheritdoc IUniversalRouter
     function removeProtocolRoute(uint16 protocolId) external virtual override onlyOwner {
         _validateProtocolId(protocolId);
-        require(protocolRoutes[protocolId] != address(0), 'UniversalRouter: PROTOCOL_ROUTE_ID_UNUSED');
+        if(protocolRoutes[protocolId] == address(0)) revert UnusedProtocolRouteID();
         address protocol = protocolRoutes[protocolId];
         protocolRoutes[protocolId] = address(0);
         emit RemoveProtocolRoute(protocolId, protocol);
@@ -417,9 +422,7 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
 
         require(data.deadline >= block.timestamp, 'ExternalCall: EXPIRED');
 
-        bool isSinglePath = _isSinglePath(data.path);
-
-        _processSwap(sender, amounts, lpTokens, data, isSinglePath);
+        _processSwap(sender, amounts, lpTokens, data, data.path.isSinglePath());
     }
 
     /// @dev Perform swap that is of multiple paths or single path
@@ -470,15 +473,16 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
     }
 
     /// @dev Validate the paths and weights to use in split swaps
-    /// @param path - paths through which tokens will be swapped
+    /// @param paths - paths through which tokens will be swapped
     /// @param weights - percentage of amountIn to swap in each path. Must add up to 1. If there's some left over, it will be swapped in the last path
     /// @param swapType - 0: swap ETH for token, 1: swap token for ETH, 2: swap token for token
-    function _validatePathsAndWeights(bytes[] memory path, uint256[] memory weights, uint8 swapType) internal virtual {
-        require(path.length > 0, 'UniversalRouter: MISSING_PATHS');
-        require(path.length == weights.length, 'UniversalRouter: INVALID_WEIGHTS');
+    function _validatePathsAndWeights(bytes[] memory paths, uint256[] memory weights, uint8 swapType) internal virtual {
+        require(paths.length > 0, 'UniversalRouter: MISSING_PATHS');
+        require(paths.length == weights.length, 'UniversalRouter: INVALID_WEIGHTS');
 
-        address tokenIn = path[0].getTokenIn();
-        address tokenOut = path[0].getTokenOut();
+        _validatePath(paths[0]);
+        address tokenIn = paths[0].getTokenIn();
+        address tokenOut = paths[0].getTokenOut();
 
         require(tokenIn != tokenOut, 'UniversalRouter: INVALID_PATH_TOKENS');
 
@@ -488,23 +492,22 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
             require(tokenOut == WETH, 'UniversalRouter: AMOUNT_OUT_NOT_ETH'); // we can check the path ends in ETH somewhere else
         }
 
-        for(uint256 i = 1; i < path.length;) {
-            require(tokenIn == path[i].getTokenIn() && tokenOut == path[i].getTokenOut(), 'UniversalRouter: INVALID_PATH_TOKENS');
+        uint256 totalWeights = weights[0];
+        for(uint256 i = 1; i < paths.length;) {
+            _validatePath(paths[i]);
+            require(tokenIn == paths[i].getTokenIn() && tokenOut == paths[i].getTokenOut(), 'UniversalRouter: INVALID_PATH_TOKENS');
             unchecked {
+                totalWeights += weights[i];
                 ++i;
             }
         }
-    }
-
-    /// @dev Returns true if path has multi path format
-    function _isSinglePath(bytes memory path) internal virtual view returns(bool) {
-        return path.length >= 45 && (path.length - 20) % 25 == 0;
+        require(totalWeights > 0 && totalWeights <= 1e18, 'UniversalRouter: INVALID_WEIGHTS');
     }
 
     /// @dev Validate individual path format: addr - protocolId - fee - addr
     /// @param path - swap path to validate
     function _validatePath(bytes memory path) internal virtual view {
-        require(_isSinglePath(path), 'UniversalRouter: INVALID_PATH');
+        path.validatePath();
     }
 
     /// @dev Validate route by checking if hop exists
@@ -519,7 +522,7 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
 
     /// @dev Check protocolId used to identify protocols in routes is not zero
     function _validateProtocolId(uint16 protocolId) internal virtual view {
-        require(protocolId > 0, 'UniversalRouter: INVALID_PROTOCOL_ROUTE_ID');
+        if(protocolId == 0) revert InvalidProtocolRouteID();
     }
 
     /// @dev Used when executing swaps to check amountOut is at least above the minimum threshold amountOutMin
