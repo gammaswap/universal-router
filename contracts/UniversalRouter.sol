@@ -245,31 +245,35 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
     }
 
     /// @inheritdoc IUniversalRouter
-    function getAmountsOutSplit(uint256 amountIn, bytes[] memory path, uint256[] memory weights) public override virtual
+    function getAmountsOutSplit(uint256 amountIn, bytes[] memory paths, uint256[] memory weights) public override virtual
         returns (uint256 amountOut, uint256[][] memory amountsSplit, Route[][] memory routesSplit) {
-        return _getAmountsOutSplit(amountIn, path, weights, false);
+        return _getAmountsOutSplit(amountIn, paths, weights, false);
     }
 
     /// @inheritdoc IUniversalRouter
-    function getAmountsOutSplitNoSwap(uint256 amountIn, bytes[] memory path, uint256[] memory weights) public override
+    function getAmountsOutSplitNoSwap(uint256 amountIn, bytes[] memory paths, uint256[] memory weights) public override
         virtual returns (uint256 amountOut, uint256[][] memory amountsSplit, Route[][] memory routesSplit) {
-        return _getAmountsOutSplit(amountIn, path, weights, true);
+        return _getAmountsOutSplit(amountIn, paths, weights, true);
     }
 
-    function _getAmountsOutSplit(uint256 amountIn, bytes[] memory path, uint256[] memory weights, bool noSwap) internal
+    function _getAmountsOutSplit(uint256 amountIn, bytes[] memory paths, uint256[] memory weights, bool noSwap) internal
         virtual returns (uint256 amountOut, uint256[][] memory amountsSplit, Route[][] memory routesSplit) {
-        require(path.length == weights.length);
-        _validatePathsAndWeights(path, weights, 2);
-        amountsSplit = new uint256[][](path.length);
-        routesSplit = new Route[][](path.length);
+        require(paths.length == weights.length);
+        _validatePathsAndWeights(paths, weights, 2);
+        amountsSplit = new uint256[][](paths.length);
+        routesSplit = new Route[][](paths.length);
         uint256[] memory amountsIn = _calcSplitAmountsIn(amountIn, weights);
         for(uint256 i = 0; i < amountsIn.length;) {
             if(amountsIn[i] == 0) continue;
-            (uint256[] memory amounts, Route[] memory routes) = _getAmountsOut(amountsIn[i], path[i], noSwap);
+            (uint256[] memory amounts, Route[] memory routes) = _getAmountsOut(amountsIn[i], paths[i], noSwap);
+            amountsSplit[i] = new uint256[](amounts.length);
+            routesSplit[i] = new Route[](routes.length);
             for(uint256 j = 0; j < amounts.length;) {
                 amountsSplit[i][j] = amounts[j];
-                routesSplit[i][j] = routes[j];
-                amountOut += amounts[i];
+                if(j < routes.length) {
+                    routesSplit[i][j] = routes[j];
+                }
+                amountOut += amounts[j];
                 unchecked {
                     ++j;
                 }
