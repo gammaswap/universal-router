@@ -264,7 +264,6 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
         routesSplit = new Route[][](paths.length);
         uint256[] memory amountsIn = _calcSplitAmountsIn(amountIn, weights);
         for(uint256 i = 0; i < amountsIn.length;) {
-            if(amountsIn[i] == 0) continue;
             (uint256[] memory amounts, Route[] memory routes) = _getAmountsOut(amountsIn[i], paths[i], noSwap);
             amountsSplit[i] = new uint256[](amounts.length);
             routesSplit[i] = new Route[](routes.length);

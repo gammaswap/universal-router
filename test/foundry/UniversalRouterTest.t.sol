@@ -206,6 +206,59 @@ contract UniversalRouterTest is TestBed {
         assertGt(sumAmounts(amountsSplit,false), minAmountOut);
     }
 
+    function testGetAmountsOutSplitNoSwap(uint8 tokenChoices, uint64 seed, uint256 amountIn) public {
+        bytes[] memory paths = createPaths(createPath(tokenChoices, seed), seed, 2);
+        uint256 minAmountOut;
+        {
+            (amountIn, minAmountOut) = calcMinAmountNoSwap(amountIn, paths[0], true);
+            address tokenIn = paths[0].getTokenIn();
+            address tokenOut = paths[0].getTokenOut();
+            for(uint256 i = 0; i < paths.length; i++) {
+                assertEq(tokenIn,paths[i].getTokenIn());
+                assertEq(tokenOut,paths[i].getTokenOut());
+            }
+        }
+        uint256[] memory weights = random.generateWeights(paths.length);
+        assertEq(paths.length,weights.length);
+
+        (uint256 amountOut, uint256[][] memory amountsSplit, IUniversalRouter.Route[][] memory routesSplit) =
+            router.getAmountsOutSplitNoSwap(amountIn, paths, weights);
+
+        for(uint256 i = 0; i < paths.length; i++) {
+            IUniversalRouter.Route[] memory _routes = router.calcRoutes(paths[i], address(this));
+            assertEq(_routes.length,routesSplit[i].length);
+            for(uint256 j = 0; j < _routes.length;j++) {
+                assertEq(_routes[j].from,routesSplit[i][j].from);
+                assertEq(_routes[j].to,routesSplit[i][j].to);
+                assertEq(_routes[j].pair,routesSplit[i][j].pair);
+                assertEq(_routes[j].protocolId,routesSplit[i][j].protocolId);
+                if(_routes[j].protocolId == 6 || _routes[j].protocolId == 7) {
+                    assertEq(_routes[j].fee,routesSplit[i][j].fee);
+                }
+                assertEq(address(0),routesSplit[i][j].origin);
+                assertEq(address(0),routesSplit[i][j].destination);
+                assertEq(_routes[j].hop,routesSplit[i][j].hop);
+            }
+        }
+
+        assertEq(amountsSplit.length, paths.length);
+        assertEq(sumAmounts(amountsSplit,true), amountIn);
+        for(uint256 i = 0; i < amountsSplit.length; i++) {
+            for(uint256 j = 0; j < amountsSplit[i].length; j++) {
+                if(amountIn >= 1e16) {
+                    assertGt(amountsSplit[i][j],0);
+                } else {
+                    assertGe(amountsSplit[i][j],0);
+                }
+            }
+        }
+        if(amountIn >= 1e16) {
+            assertGt(sumAmounts(amountsSplit,false), minAmountOut);
+        } else {
+            assertGe(sumAmounts(amountsSplit,false), minAmountOut);
+        }
+    }
+
     function testGetAmountsOutNoSwap(uint8 tokenChoices, uint128 seed, uint256 amountIn) public {
         bytes memory path = createPath(tokenChoices, seed);
         IUniversalRouter.Route[] memory _routes = router.calcRoutes(path, address(this));
