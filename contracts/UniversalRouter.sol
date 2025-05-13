@@ -22,6 +22,7 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
     using Path2 for bytes;
     using BytesLib2 for bytes;
 
+    error Expired();
     error InvalidProtocolRouteID();
     error RouterInitialized();
     error UsedProtocolRouteID();
@@ -46,7 +47,7 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
     /// @dev Check current timestamp is not past blockchain's timestamp
     /// @param deadline - timestamp of transaction in seconds
     modifier ensure(uint256 deadline) {
-        require(deadline >= block.timestamp, 'UniversalRouter: EXPIRED');
+        if(deadline < block.timestamp) revert Expired();
         _;
     }
 

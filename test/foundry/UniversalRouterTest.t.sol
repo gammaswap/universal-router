@@ -414,7 +414,7 @@ contract UniversalRouterTest is TestBed {
         vm.startPrank(owner);
         IERC20(routesSplit[0][0].from).approve(address(router2), type(uint256).max);
 
-        vm.expectRevert('UniversalRouter: EXPIRED');
+        vm.expectRevert(bytes4(keccak256("Expired()")));
         router2.swapExactTokensForTokensSplit(amountIn, minAmountOut, paths, weights, _to, block.timestamp - 1);
 
         vm.expectRevert('UniversalRouter: ZERO_AMOUNT_IN');
@@ -451,7 +451,7 @@ contract UniversalRouterTest is TestBed {
         vm.startPrank(owner);
         IERC20(routesSplit[0][0].from).approve(address(router2), type(uint256).max);
 
-        vm.expectRevert('UniversalRouter: EXPIRED');
+        vm.expectRevert(bytes4(keccak256("Expired()")));
         router2.swapExactTokensForTokensSplit(amountIn, amountOut, paths, weights, _to, block.timestamp - 1);
 
         vm.expectRevert('UniversalRouter: ZERO_AMOUNT_IN');
@@ -485,7 +485,7 @@ contract UniversalRouterTest is TestBed {
         vm.startPrank(owner);
         IERC20(_routes[0].from).approve(address(router), type(uint256).max);
 
-        vm.expectRevert('UniversalRouter: EXPIRED');
+        vm.expectRevert(bytes4(keccak256("Expired()")));
         router.swapExactTokensForTokens(amountIn, minAmountOut, path, _to, block.timestamp - 1);
 
         vm.expectRevert('UniversalRouter: ZERO_AMOUNT_IN');
@@ -519,7 +519,7 @@ contract UniversalRouterTest is TestBed {
         vm.startPrank(owner);
         IERC20(_routes[0].from).approve(address(router), type(uint256).max);
 
-        vm.expectRevert('UniversalRouter: EXPIRED');
+        vm.expectRevert(bytes4(keccak256("Expired()")));
         router.swapExactTokensForTokens(amountIn, amountOut, path, _to, block.timestamp - 1);
 
         vm.expectRevert('UniversalRouter: ZERO_AMOUNT_IN');
@@ -564,7 +564,7 @@ contract UniversalRouterTest is TestBed {
         uint256 minAmountOut = amounts[amounts.length - 1];
         address _to = vm.addr(0x123);
 
-        vm.expectRevert('UniversalRouter: EXPIRED');
+        vm.expectRevert(bytes4(keccak256("Expired()")));
         router.swapExactETHForTokens(minAmountOut, path, _to, block.timestamp - 1);
 
         vm.expectRevert('UniversalRouter: ZERO_AMOUNT_IN');
@@ -619,7 +619,7 @@ contract UniversalRouterTest is TestBed {
         vm.startPrank(owner);
         IERC20(_routes[0].from).approve(address(router), type(uint256).max);
 
-        vm.expectRevert("UniversalRouter: EXPIRED");
+        vm.expectRevert(bytes4(keccak256("Expired()")));
         router.swapExactTokensForETH(amountIn, minAmountOut, path, _to, block.timestamp - 1);
 
         vm.expectRevert("UniversalRouter: ZERO_AMOUNT_IN");
