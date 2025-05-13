@@ -114,17 +114,19 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
         _swap(amountIn, amountOutMin, routes, msg.sender);
     }
 
-    function _swapSplit(uint256 amountIn, uint256 amountOutMin, bytes[] memory paths, uint256[] memory weights, address to, uint8 swapType, address sender) internal virtual returns (uint256 amountOut) {
+    function _swapSplit(uint256 amountIn, uint256 amountOutMin, bytes[] memory paths, uint256[] memory weights, address to,
+        uint8 swapType, address sender) internal virtual returns (uint256 amountOut) {
         _validatePathsAndWeights(paths, weights, swapType);
         uint256[] memory amountsIn = _calcSplitAmountsIn(amountIn, weights);
         for(uint256 i = 0; i < paths.length;) {
-            if(amountsIn[i] == 0) continue;
             Route[] memory routes = calcRoutes(paths[i], swapType == 1 ? address(this) : to);
             amountOut += _swap(amountsIn[i], 0, routes, sender);
             if(swapType == 1) {
                 unwrapWETH(0, to);
             }
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
         _validateAmountOut(amountOut, amountOutMin);
     }
@@ -272,11 +274,11 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
                 if(j < routes.length) {
                     routesSplit[i][j] = routes[j];
                 }
-                amountOut += amounts[j];
                 unchecked {
                     ++j;
                 }
             }
+            amountOut += amounts[amounts.length - 1];
             unchecked {
                 ++i;
             }

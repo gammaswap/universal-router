@@ -163,11 +163,17 @@ contract UniversalRouterTest is TestBed {
         }
     }
 
-    function testGetAmountsOutSplit(uint8 tokenChoices, uint64 seed, uint256 amountIn) public {
-        bytes[] memory paths = createPaths(createPath(tokenChoices, seed), seed, 2);
+    function getPathsAndWeights(uint8 tokenChoices, uint64 seed, uint256 amountIn, bool isUniquePaths) internal returns(bytes[] memory, uint256[] memory, uint256, uint256) {
+        bytes[] memory paths;
+        if(isUniquePaths) {
+            paths = createPaths2(createPath(tokenChoices, seed), seed);
+        } else {
+            paths = createPaths(createPath(tokenChoices, seed), seed, 2);
+        }
         uint256 minAmountOut;
         {
             (amountIn, minAmountOut) = calcMinAmount(amountIn, paths[0], true);
+            minAmountOut = minAmountOut * 99/100;
             address tokenIn = paths[0].getTokenIn();
             address tokenOut = paths[0].getTokenOut();
             for(uint256 i = 0; i < paths.length; i++) {
@@ -176,7 +182,20 @@ contract UniversalRouterTest is TestBed {
             }
         }
         uint256[] memory weights = random.generateWeights(paths.length);
+        uint256 sumOfWeights = 0;
+        for(uint256 i = 0; i < weights.length; i++) {
+            sumOfWeights += weights[i];
+        }
+        assertEq(sumOfWeights,1e18);
         assertEq(paths.length,weights.length);
+        return(paths, weights, amountIn, minAmountOut);
+    }
+
+    function testGetAmountsOutSplit(uint8 tokenChoices, uint64 seed, uint256 amountIn) public {
+        bytes[] memory paths;
+        uint256[] memory weights;
+        uint256 minAmountOut;
+        (paths, weights, amountIn, minAmountOut) = getPathsAndWeights(tokenChoices, seed, amountIn, false);
 
         (uint256 amountOut, uint256[][] memory amountsSplit, IUniversalRouter.Route[][] memory routesSplit) =
             router.getAmountsOutSplit(amountIn, paths, weights);
@@ -203,23 +222,15 @@ contract UniversalRouterTest is TestBed {
                 assertGt(amountsSplit[i][j],0);
             }
         }
+        assertEq(sumAmounts(amountsSplit,false), amountOut);
         assertGt(sumAmounts(amountsSplit,false), minAmountOut);
     }
 
     function testGetAmountsOutSplitNoSwap(uint8 tokenChoices, uint64 seed, uint256 amountIn) public {
-        bytes[] memory paths = createPaths(createPath(tokenChoices, seed), seed, 2);
+        bytes[] memory paths;
+        uint256[] memory weights;
         uint256 minAmountOut;
-        {
-            (amountIn, minAmountOut) = calcMinAmountNoSwap(amountIn, paths[0], true);
-            address tokenIn = paths[0].getTokenIn();
-            address tokenOut = paths[0].getTokenOut();
-            for(uint256 i = 0; i < paths.length; i++) {
-                assertEq(tokenIn,paths[i].getTokenIn());
-                assertEq(tokenOut,paths[i].getTokenOut());
-            }
-        }
-        uint256[] memory weights = random.generateWeights(paths.length);
-        assertEq(paths.length,weights.length);
+        (paths, weights, amountIn, minAmountOut) = getPathsAndWeights(tokenChoices, seed, amountIn, false);
 
         (uint256 amountOut, uint256[][] memory amountsSplit, IUniversalRouter.Route[][] memory routesSplit) =
             router.getAmountsOutSplitNoSwap(amountIn, paths, weights);
@@ -346,6 +357,44 @@ contract UniversalRouterTest is TestBed {
             assertGt(amounts[i],0);
         }
         assertGt(amounts[0], minAmountIn);
+    }
+
+    function testSwapExactTokensForTokensSplit1(uint8 tokenChoices, uint64 seed, uint256 amountIn) public {
+        bytes[] memory paths;
+        uint256[] memory weights;
+        uint256 minAmountOut;
+        (paths, weights, amountIn, minAmountOut) = getPathsAndWeights(tokenChoices, seed, amountIn, true);
+
+        (uint256 amountOut, uint256[][] memory amountsSplit, IUniversalRouter.Route[][] memory routesSplit) = router.getAmountsOutSplit(amountIn, paths, weights);
+
+        assertEq(amountOut,sumAmounts(amountsSplit,false));
+
+        minAmountOut = amountOut;
+        address _to = vm.addr(0x123);
+
+        uint256 balanceTo0 = IERC20(routesSplit[0][routesSplit[0].length - 1].to).balanceOf(_to);
+        uint256 balanceFrom0 = IERC20(routesSplit[0][0].from).balanceOf(owner);
+
+        vm.startPrank(owner);
+        IERC20(routesSplit[0][0].from).approve(address(router), type(uint256).max);
+
+        vm.expectRevert('UniversalRouter: EXPIRED');
+        router.swapExactTokensForTokensSplit(amountIn, minAmountOut, paths, weights, _to, block.timestamp - 1);
+
+        vm.expectRevert('UniversalRouter: ZERO_AMOUNT_IN');
+        router.swapExactTokensForTokensSplit(0, minAmountOut, paths, weights, _to, block.timestamp);
+
+        vm.expectRevert('UniversalRouter: INSUFFICIENT_OUTPUT_AMOUNT');
+        router.swapExactTokensForTokensSplit(amountIn, minAmountOut + 1, paths, weights, _to, block.timestamp);
+
+        router.swapExactTokensForTokensSplit(amountIn, minAmountOut, paths, weights, _to, block.timestamp);
+
+        uint256 balanceTo1 = IERC20(routesSplit[0][routesSplit[0].length - 1].to).balanceOf(_to);
+        uint256 balanceFrom1 = IERC20(routesSplit[0][0].from).balanceOf(owner);
+
+        assertEq(amountIn, balanceFrom0 - balanceFrom1);
+        assertEq(minAmountOut, balanceTo1 - balanceTo0);
+        vm.stopPrank();
     }
 
     function testSwapExactTokensForTokens1(uint8 tokenChoices, uint128 seed, uint256 amountIn) public {
@@ -715,6 +764,10 @@ contract UniversalRouterTest is TestBed {
                 protocolId = 4;
             }
         }
+        fee = getProtocolFee(protocolId);
+    }
+
+    function getProtocolFee(uint16 protocolId) internal view returns(uint24 fee) {
         fee = protocolId == 6 ? poolFee1 : protocolId == 7 ? uint24(aeroCLTickSpacing): 0;
     }
 
@@ -738,6 +791,32 @@ contract UniversalRouterTest is TestBed {
 
             (protocolId, fee) = getProtocolIdAndFee(midTokens[midTokens.length-1],tokenOut, seed + midTokens.length + 10);
             paths[k] = abi.encodePacked(_path, protocolId, fee, tokenOut);
+        }
+    }
+
+    function createPaths2(bytes memory path, uint128 seed) internal view returns(bytes[] memory paths) {
+        paths = new bytes[](path.numPools());
+
+        address tokenIn = path.getTokenIn();
+        address tokenOut = path.getTokenOut();
+
+        uint16 protocolId = 1;
+        for(uint256 k = 0; k < path.numPools(); k++) {
+            address[] memory midTokens = getTokensEx(tokenIn, tokenOut);
+            midTokens = random.shuffleAddresses(midTokens, seed);
+
+            uint24 fee = getProtocolFee(protocolId);
+            bytes memory _path = abi.encodePacked(tokenIn,protocolId,fee,midTokens[0]);
+            for(uint256 i = 1; i < midTokens.length; i++) {
+                _path = abi.encodePacked(_path, protocolId, fee, midTokens[i]);
+            }
+
+            paths[k] = abi.encodePacked(_path, protocolId, fee, tokenOut);
+
+            protocolId++;
+            if(protocolId == 4 || protocolId == 5) {
+                protocolId = 6;
+            }
         }
     }
 
