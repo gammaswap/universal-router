@@ -163,7 +163,7 @@ contract UniversalRouterTest is TestBed {
         }
     }
 
-    function getPathsAndWeights(uint8 tokenChoices, uint64 seed, uint256 amountIn, bool isUniquePaths) internal returns(bytes[] memory, uint256[] memory, uint256, uint256) {
+    function getPathsAndWeights(uint8 tokenChoices, uint64 seed, uint256 amountIn, bool isUniquePaths, bool isAmountIn) internal returns(bytes[] memory, uint256[] memory, uint256, uint256) {
         bytes[] memory paths;
         if(isUniquePaths) {
             paths = createPaths2(createPath(tokenChoices, seed), seed);
@@ -172,7 +172,7 @@ contract UniversalRouterTest is TestBed {
         }
         uint256 minAmountOut;
         {
-            (amountIn, minAmountOut) = calcMinAmount(amountIn, paths[0], true);
+            (amountIn, minAmountOut) = calcMinAmount(amountIn, paths[0], isAmountIn);
             minAmountOut = minAmountOut * 99/100;
             address tokenIn = paths[0].getTokenIn();
             address tokenOut = paths[0].getTokenOut();
@@ -195,7 +195,7 @@ contract UniversalRouterTest is TestBed {
         bytes[] memory paths;
         uint256[] memory weights;
         uint256 minAmountOut;
-        (paths, weights, amountIn, minAmountOut) = getPathsAndWeights(tokenChoices, seed, amountIn, false);
+        (paths, weights, amountIn, minAmountOut) = getPathsAndWeights(tokenChoices, seed, amountIn, false, true);
 
         (uint256 amountOut, uint256[][] memory amountsSplit, IUniversalRouter.Route[][] memory routesSplit) =
             router2.getAmountsOutSplit(amountIn, paths, weights);
@@ -230,7 +230,7 @@ contract UniversalRouterTest is TestBed {
         bytes[] memory paths;
         uint256[] memory weights;
         uint256 minAmountOut;
-        (paths, weights, amountIn, minAmountOut) = getPathsAndWeights(tokenChoices, seed, amountIn, false);
+        (paths, weights, amountIn, minAmountOut) = getPathsAndWeights(tokenChoices, seed, amountIn, false, true);
 
         (uint256 amountOut, uint256[][] memory amountsSplit, IUniversalRouter.Route[][] memory routesSplit) =
             router2.getAmountsOutSplitNoSwap(amountIn, paths, weights);
@@ -268,6 +268,42 @@ contract UniversalRouterTest is TestBed {
         } else {
             assertGe(sumAmounts(amountsSplit,false), minAmountOut);
         }
+    }
+
+    function testGetAmountsInSplit(uint8 tokenChoices, uint64 seed, uint256 amountOut) public {
+        bytes[] memory paths;
+        uint256[] memory weights;
+        uint256 minAmountIn;
+        (paths, weights, amountOut, minAmountIn) = getPathsAndWeights(tokenChoices, seed, amountOut, false, false);
+
+        (uint256 amountIn, uint256[][] memory amountsSplit, IUniversalRouter.Route[][] memory routesSplit) =
+            router2.getAmountsInSplit(amountOut, paths, weights);
+
+        for(uint256 i = 0; i < paths.length; i++) {
+            IUniversalRouter.Route[] memory _routes = router2.calcRoutes(paths[i], address(this));
+            assertEq(_routes.length,routesSplit[i].length);
+            for(uint256 j = 0; j < _routes.length; j++) {
+                assertEq(_routes[j].from,routesSplit[i][j].from);
+                assertEq(_routes[j].to,routesSplit[i][j].to);
+                assertEq(_routes[j].pair,routesSplit[i][j].pair);
+                assertEq(_routes[j].protocolId,routesSplit[i][j].protocolId);
+                if(_routes[j].protocolId == 6 || _routes[j].protocolId == 7) {
+                    assertEq(_routes[j].fee,routesSplit[i][j].fee);
+                }
+                assertEq(address(0),routesSplit[i][j].origin);
+                assertEq(address(0),routesSplit[i][j].destination);
+                assertEq(_routes[j].hop,routesSplit[i][j].hop);
+            }
+        }
+
+        assertEq(sumAmounts(amountsSplit,true), amountIn);
+        for(uint256 i = 0; i < amountsSplit.length; i++) {
+            for(uint256 j = 0; j < amountsSplit[i].length; j++) {
+                assertGt(amountsSplit[i][j],0);
+            }
+        }
+        assertEq(sumAmounts(amountsSplit,false), amountOut);
+        assertGt(sumAmounts(amountsSplit,true), minAmountIn);
     }
 
     function testGetAmountsOutNoSwap(uint8 tokenChoices, uint128 seed, uint256 amountIn) public {
@@ -363,7 +399,7 @@ contract UniversalRouterTest is TestBed {
         bytes[] memory paths;
         uint256[] memory weights;
         uint256 minAmountOut;
-        (paths, weights, amountIn, minAmountOut) = getPathsAndWeights(tokenChoices, seed, amountIn, true);
+        (paths, weights, amountIn, minAmountOut) = getPathsAndWeights(tokenChoices, seed, amountIn, true, true);
 
         (uint256 amountOut, uint256[][] memory amountsSplit, IUniversalRouter.Route[][] memory routesSplit) = router2.getAmountsOutSplit(amountIn, paths, weights);
 
