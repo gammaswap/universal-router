@@ -135,22 +135,31 @@ interface IUniversalRouter {
 
     /// @dev Expected amounts to get from swapping amountIn of token at path[0][] across multiple paths. Takes slippage from price impact and fees into account
     /// @param amountIn - total amount of token being swapped in
-    /// @param path - paths used to perform the swap (e.g. path[0] -> path[1] -> ... path[n]). The amountIn is split across multiple paths
+    /// @param paths - paths used to perform the swap (e.g. path[0] -> path[1] -> ... path[n]). The amountIn is split across multiple paths
     /// @param weights - percentage of amountIn to allocate to each path for swapping
     /// @return amountOut - total amount received from swap
     /// @return amounts - amounts of tokens swapped through each path provided
     /// @return routes - array of route parameters to perform swap through each path provided
-    function getAmountsOutSplit(uint256 amountIn, bytes[] memory path, uint256[] memory weights) external returns (uint256 amountOut, uint256[][] memory amounts, Route[][] memory routes);
+    function getAmountsOutSplit(uint256 amountIn, bytes[] memory paths, uint256[] memory weights) external returns (uint256 amountOut, uint256[][] memory amounts, Route[][] memory routes);
 
     /// @dev Expected amounts to get from swapping amountIn of token at path[0][] across multiple paths. Takes slippage from price impact and fees into account
     /// @dev Accepts possibility of an intermediate amount of a multi hop path turning into zero. This situations would revert when executing in most AMMs
     /// @param amountIn - total amount of token being swapped in
-    /// @param path - paths used to perform the swap (e.g. path[0] -> path[1] -> ... path[n]). The amountIn is split across multiple paths
+    /// @param paths - paths used to perform the swap (e.g. path[0] -> path[1] -> ... path[n]). The amountIn is split across multiple paths
     /// @param weights - percentage of amountIn to allocate to each path for swapping
     /// @return amountOut - total amount received from swap
     /// @return amounts - amounts of tokens swapped through each path provided
     /// @return routes - array of route parameters to perform swap through each path provided
-    function getAmountsOutSplitNoSwap(uint256 amountIn, bytes[] memory path, uint256[] memory weights) external returns (uint256 amountOut, uint256[][] memory amounts, Route[][] memory routes);
+    function getAmountsOutSplitNoSwap(uint256 amountIn, bytes[] memory paths, uint256[] memory weights) external returns (uint256 amountOut, uint256[][] memory amounts, Route[][] memory routes);
+
+    /// @dev Expected amounts to provide to obtain amountOut of token path[n][]. Takes slippage from price impact and fees into account
+    /// @param amountOut - desired amount to get of token[n] when swap finishes
+    /// @param paths - paths used to perform the swap (e.g. path[0] -> path[1] -> ... path[n]). The amountIn is split across multiple paths
+    /// @param weights - percentage of amountOut to get from each path after swapping
+    /// @return amountIn - total amount to deposit to accomplish this swap
+    /// @return amounts - amounts of tokens swapped through each path provided
+    /// @return routes - array of route parameters to perform swap through each path provided
+    function getAmountsInSplit(uint256 amountOut, bytes[] memory paths, uint256[] memory weights) external returns (uint256 amountIn, uint256[][] memory amounts, Route[][] memory routes);
 
     /// @dev Expected amounts to provide to obtain amountOut of token path[n]. Takes slippage from price impact and fees into account
     /// @param amountOut - desired amount to get of token[n] when swap finishes
