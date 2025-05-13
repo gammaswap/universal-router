@@ -120,9 +120,10 @@ contract UniversalRouterSplit is UniversalRouter {
     /// @dev Not a view function to support UniswapV3 quoting
     /// @inheritdoc IUniversalRouter
     function getAmountsInSplit(uint256 amountOut, bytes[] memory paths, uint256[] memory weights) public override
-        virtual returns (uint256 amountIn, uint256[][] memory amountsSplit, Route[][] memory routesSplit) {
+        virtual returns (uint256 amountIn, uint256[] memory inWeights, uint256[][] memory amountsSplit, Route[][] memory routesSplit) {
         require(paths.length == weights.length);
         _validatePathsAndWeights(paths, weights, 2);
+        inWeights = new uint256[](paths.length);
         amountsSplit = new uint256[][](paths.length);
         routesSplit = new Route[][](paths.length);
         uint256[] memory amountsOut = _splitAmount(amountOut, weights);
@@ -140,6 +141,12 @@ contract UniversalRouterSplit is UniversalRouter {
                 }
             }
             amountIn += amounts[0];
+            unchecked {
+                ++i;
+            }
+        }
+        for(uint256 i = 0; i < amountsSplit.length;) {
+            inWeights[i] = amountsSplit[i][0] * 1e18 / amountIn;
             unchecked {
                 ++i;
             }

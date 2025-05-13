@@ -157,9 +157,10 @@ interface IUniversalRouter {
     /// @param paths - paths used to perform the swap (e.g. path[0] -> path[1] -> ... path[n]). The amountIn is split across multiple paths
     /// @param weights - percentage of amountOut to get from each path after swapping
     /// @return amountIn - total amount to deposit to accomplish this swap
+    /// @return inWeights - weights percentage to deposit amountIn to accomplish the swap
     /// @return amounts - amounts of tokens swapped through each path provided
     /// @return routes - array of route parameters to perform swap through each path provided
-    function getAmountsInSplit(uint256 amountOut, bytes[] memory paths, uint256[] memory weights) external returns (uint256 amountIn, uint256[][] memory amounts, Route[][] memory routes);
+    function getAmountsInSplit(uint256 amountOut, bytes[] memory paths, uint256[] memory weights) external returns (uint256 amountIn, uint256[] memory inWeights, uint256[][] memory amounts, Route[][] memory routes);
 
     /// @dev Expected amounts to provide to obtain amountOut of token path[n]. Takes slippage from price impact and fees into account
     /// @param amountOut - desired amount to get of token[n] when swap finishes

@@ -276,7 +276,7 @@ contract UniversalRouterTest is TestBed {
         uint256 minAmountIn;
         (paths, weights, amountOut, minAmountIn) = getPathsAndWeights(tokenChoices, seed, amountOut, false, false);
 
-        (uint256 amountIn, uint256[][] memory amountsSplit, IUniversalRouter.Route[][] memory routesSplit) =
+        (uint256 amountIn, uint256[] memory inWeights, uint256[][] memory amountsSplit, IUniversalRouter.Route[][] memory routesSplit) =
             router2.getAmountsInSplit(amountOut, paths, weights);
 
         for(uint256 i = 0; i < paths.length; i++) {
@@ -430,6 +430,43 @@ contract UniversalRouterTest is TestBed {
 
         assertEq(amountIn, balanceFrom0 - balanceFrom1);
         assertEq(minAmountOut, balanceTo1 - balanceTo0);
+        vm.stopPrank();
+    }
+
+    function testSwapExactTokensForTokensSplit2(uint8 tokenChoices, uint64 seed, uint256 amountOut) public {
+        bytes[] memory paths;
+        uint256[] memory weights;
+        (paths, weights, amountOut,) = getPathsAndWeights(tokenChoices, seed, amountOut, true, false);
+
+        uint256 amountIn;
+        uint256[][] memory amountsSplit;
+        IUniversalRouter.Route[][] memory routesSplit;
+        (amountIn, weights, amountsSplit, routesSplit) = router2.getAmountsInSplit(amountOut, paths, weights);
+
+        address _to = vm.addr(0x123);
+
+        uint256 balanceTo0 = IERC20(routesSplit[0][routesSplit[0].length - 1].to).balanceOf(_to);
+        uint256 balanceFrom0 = IERC20(routesSplit[0][0].from).balanceOf(owner);
+
+        vm.startPrank(owner);
+        IERC20(routesSplit[0][0].from).approve(address(router2), type(uint256).max);
+
+        vm.expectRevert('UniversalRouter: EXPIRED');
+        router2.swapExactTokensForTokensSplit(amountIn, amountOut, paths, weights, _to, block.timestamp - 1);
+
+        vm.expectRevert('UniversalRouter: ZERO_AMOUNT_IN');
+        router2.swapExactTokensForTokensSplit(0, amountOut, paths, weights, _to, block.timestamp);
+
+        vm.expectRevert('UniversalRouter: INSUFFICIENT_OUTPUT_AMOUNT');
+        router2.swapExactTokensForTokensSplit(amountIn, amountOut * 101/100, paths, weights, _to, block.timestamp);
+
+        router2.swapExactTokensForTokensSplit(amountIn, amountOut * 99/100, paths, weights, _to, block.timestamp);
+
+        uint256 balanceTo1 = IERC20(routesSplit[0][routesSplit[0].length - 1].to).balanceOf(_to);
+        uint256 balanceFrom1 = IERC20(routesSplit[0][0].from).balanceOf(owner);
+
+        assertEq(amountIn, balanceFrom0 - balanceFrom1);
+        assertApproxEqRel(amountOut, balanceTo1 - balanceTo0, 1e16);
         vm.stopPrank();
     }
 

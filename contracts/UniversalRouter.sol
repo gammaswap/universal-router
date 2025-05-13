@@ -271,7 +271,7 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
     /// @dev Not a view function to support UniswapV3 quoting
     /// @inheritdoc IUniversalRouter
     function getAmountsInSplit(uint256 amountOut, bytes[] memory paths, uint256[] memory weights) external override
-        virtual returns (uint256 amountIn, uint256[][] memory amountsSplit, Route[][] memory routesSplit) {
+        virtual returns (uint256 amountIn, uint256[] memory inWeights, uint256[][] memory amountsSplit, Route[][] memory routesSplit) {
     }
 
     /// @dev Not a view function to support UniswapV3 quoting
