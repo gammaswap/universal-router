@@ -274,18 +274,6 @@ contract UniversalRouterSplit is UniversalRouter {
     }
 
     /// @inheritdoc IUniversalRouter
-    function getAmountsOutNoSwap(uint256 amountIn, bytes memory path) public override virtual returns (uint256[] memory amounts, Route[] memory routes) {
-    }
-
-    /// @inheritdoc IUniversalRouter
-    function getAmountsOut(uint256 amountIn, bytes memory path) public override virtual returns (uint256[] memory amounts, Route[] memory routes) {
-    }
-
-    /// @inheritdoc IUniversalRouter
-    function getAmountsIn(uint256 amountOut, bytes memory path) public override virtual returns (uint256[] memory amounts, Route[] memory routes) {
-    }
-
-    /// @inheritdoc IUniversalRouter
     function swapExactETHForTokens(uint256 amountOutMin, bytes calldata path, address to, uint256 deadline) public override
         virtual payable {
     }
