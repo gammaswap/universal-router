@@ -1576,6 +1576,90 @@ contract UniversalRouterTest is TestBed {
         assertEq(weth.balanceOf(address(router2)), 0);
     }
 
+    function testExternalCallSwapSplit(uint256 deltaUSDC, uint256 deltaWETH, bool isBuyWeth) public {
+        deltaUSDC = boundVar(deltaUSDC, 10e6, 1_000e6);
+        deltaWETH = boundVar(deltaWETH, 1e16, 10e18);
+
+        bytes memory multiPathUsdcToWeth;
+        bytes memory multiPathWethToUsdc;
+
+        {
+            bytes memory tag25bytes = hex'00000000000000000000000000000000000000000000000000';
+            uint64 weight1 = 4e17;
+            uint64 weight2 = 3e17;
+            uint64 weight3 = 3e17;
+
+            bytes memory pathUsdcToWeth1 = abi.encodePacked(address(usdc), uint16(1), poolFee1, address(wbtc), uint16(1), poolFee1, address(weth));
+            bytes memory pathUsdcToWeth2 = abi.encodePacked(address(usdc), uint16(2), poolFee1, address(wbtc), uint16(2), poolFee1, address(weth));
+            bytes memory pathUsdcToWeth3 = abi.encodePacked(address(usdc), uint16(3), poolFee1, address(wbtc), uint16(3), poolFee1, address(weth));
+            multiPathUsdcToWeth = abi.encodePacked(weight1,pathUsdcToWeth1,tag25bytes,weight2,pathUsdcToWeth2,tag25bytes,weight3,pathUsdcToWeth3);
+
+            bytes memory pathWethToUsdc1 = abi.encodePacked(address(weth), uint16(1), poolFee1, address(wbtc), uint16(1), poolFee1, address(usdc));
+            bytes memory pathWethToUsdc2 = abi.encodePacked(address(weth), uint16(2), poolFee1, address(wbtc), uint16(2), poolFee1, address(usdc));
+            bytes memory pathWethToUsdc3 = abi.encodePacked(address(weth), uint16(3), poolFee1, address(wbtc), uint16(3), poolFee1, address(usdc));
+            multiPathWethToUsdc = abi.encodePacked(weight1,pathWethToUsdc1,tag25bytes,weight2,pathWethToUsdc2,tag25bytes,weight3,pathWethToUsdc3);/**/
+        }
+
+        UniversalRouter.ExternalCallData memory data;
+
+        if (isBuyWeth) {
+            data = IRouterExternalCallee.ExternalCallData({
+                amountIn: deltaUSDC,
+                minAmountOut: 0,
+                deadline: type(uint256).max,
+                tokenId: 100,
+                path: multiPathUsdcToWeth
+            });
+        } else {
+            data = IRouterExternalCallee.ExternalCallData({
+                amountIn: deltaWETH,
+                minAmountOut: 0,
+                deadline: type(uint256).max,
+                tokenId: 100,
+                path: multiPathWethToUsdc
+            });
+        }
+
+        uint128[] memory amounts = new uint128[](2);
+        amounts[0] = uint128(deltaUSDC);
+        amounts[1] = uint128(deltaWETH);
+
+        usdc.mintExact(address(router2), deltaUSDC);
+        weth.mintExact(address(router2), deltaWETH);
+
+        uint256 balanceUSDC = usdc.balanceOf(address(this));
+        uint256 balanceWETH = weth.balanceOf(address(this));
+        assertEq(usdc.balanceOf(address(this)), 0);
+        assertEq(weth.balanceOf(address(this)), 0);
+        assertEq(usdc.balanceOf(address(router2)), deltaUSDC);
+        assertEq(weth.balanceOf(address(router2)), deltaWETH);
+
+        uint256 amountOut = calcAmountOutSplit(data.amountIn, data.path);
+        // Avoid stack-too-deep
+        {
+            vm.expectEmit(true,true,true,false);
+            emit ExternalCallSwap(vm.addr(1), address(this), data.tokenId, isBuyWeth ? address(usdc) : address(weth), isBuyWeth ? address(weth) : address(usdc), data.amountIn, amountOut);
+            router2.externalCall(vm.addr(1), amounts, 0, abi.encode(data));
+        }
+
+        if(isBuyWeth) {
+            assertEq(usdc.balanceOf(address(this)), balanceUSDC);
+            assertGt(weth.balanceOf(address(this)), balanceWETH);
+            assertApproxEqRel(weth.balanceOf(address(this)) - balanceWETH,amountOut + deltaWETH,1e15);
+        } else {
+            assertGt(usdc.balanceOf(address(this)), balanceUSDC);
+            assertEq(weth.balanceOf(address(this)), balanceWETH);
+            assertApproxEqRel(usdc.balanceOf(address(this)) - balanceUSDC,amountOut + deltaUSDC,1e15);
+        }
+        assertEq(usdc.balanceOf(address(router2)), 0);
+        assertEq(weth.balanceOf(address(router2)), 0);
+    }
+
+    function calcAmountOutSplit(uint256 amountIn, bytes memory path) internal returns(uint256 amountOut) {
+        (bytes[] memory paths, uint256[] memory weights) = path.toPathsAndWeightsArray();
+        (amountOut,,) = router2.getAmountsOutSplit(amountIn, paths, weights);
+    }
+
     function testGetPairInfo() public {
         for(uint16 protocolId = 1; protocolId < 8; protocolId++) {
             uint24 _poolFee = protocolId == 6 ? poolFee1 : protocolId == 7 ? uint24(aeroCLTickSpacing) : 0;
