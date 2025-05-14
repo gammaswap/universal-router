@@ -132,6 +132,36 @@ contract UniversalRouterTest is TestBed {
         assertGt(amountOut,minAmountOut);
     }
 
+    function testQuotesSplit(uint8 tokenChoices, uint64 seed, uint256 amountIn) public {
+        bytes[] memory paths;
+        uint256[] memory weights;
+        uint256 minAmountOut;
+        (paths, weights, amountIn, minAmountOut) = getPathsAndWeights(tokenChoices, seed, amountIn, false, true);
+
+        uint256 amountOut = router2.quoteSplit(amountIn, paths, weights);
+        uint256 expAmountOut = 0;
+
+        uint256[] memory amountsIn = router2.splitAmount(amountIn, weights);
+        for(uint256 i = 0; i < paths.length; i++) {
+            expAmountOut += router2.quote(amountsIn[i], paths[i]);
+        }
+        assertEq(amountOut,expAmountOut);
+
+        uint256 sumWeights = 0;
+        for(uint256 i = 0; i < weights.length; i++) {
+            sumWeights += weights[i];
+        }
+
+        expAmountOut = 0;
+        for(uint256 i = 0; i < paths.length; i++) {
+            uint256 amt = amountIn * weights[i] / sumWeights;
+            expAmountOut += router2.quote(amt, paths[i]);
+        }
+        assertApproxEqRel(amountOut,expAmountOut,1e14);
+
+        assertGt(amountOut,minAmountOut);
+    }
+
     function testSplitAmount(uint256 amount, uint8 numOfPaths) public {
         amount = boundVar(amount, 1e2, type(uint128).max);
         numOfPaths = numOfPaths == 0 ? 1 : numOfPaths;
@@ -1290,7 +1320,7 @@ contract UniversalRouterTest is TestBed {
         router2.validatePathsAndWeights(paths, weights, 1);
     }
 
-    function testCalcPathFee() public {
+    function testCalcPathFee2() public {
         bytes memory pathUsdcToWeth = abi.encodePacked(address(usdc), uint16(1), poolFee1, address(wbtc), uint16(1), poolFee1, address(weth));
         uint256 pathFee = router.calcPathFee(pathUsdcToWeth);
         assertEq(pathFee, 5991);
@@ -1302,7 +1332,54 @@ contract UniversalRouterTest is TestBed {
         bytes memory pathWethToDai = abi.encodePacked(address(weth), uint16(1), poolFee1, address(wbtc), uint16(1), poolFee1, address(usdc), uint16(6), poolFee1, address(dai));
         pathFee = router.calcPathFee(pathWethToDai);
         assertEq(pathFee, 15932);
-     }
+
+        pathWethToDai = abi.encodePacked(address(weth), uint16(1), poolFee1, address(wbtc), uint16(1), poolFee1, address(usdc), uint16(5), poolFee1, address(dai));
+        pathFee = router.calcPathFee(pathWethToDai);
+        assertEq(pathFee, 6489);
+    }
+
+    function testCalcPathFeeSplit() public {
+        uint256[] memory weights = new uint256[](3);
+        weights[0] = 1e18 / uint256(3);
+        weights[1] = 1e18 / uint256(3);
+        weights[1] = 1e18 / uint256(3);
+
+        bytes[] memory pathsUsdcToWeth = new bytes[](3);
+        pathsUsdcToWeth[0] = abi.encodePacked(address(usdc), uint16(1), poolFee1, address(wbtc), uint16(1), poolFee1, address(weth));
+        pathsUsdcToWeth[1] = abi.encodePacked(address(usdc), uint16(2), poolFee1, address(wbtc), uint16(2), poolFee1, address(weth));
+        pathsUsdcToWeth[2] = abi.encodePacked(address(usdc), uint16(3), poolFee1, address(wbtc), uint16(3), poolFee1, address(weth));
+        uint256 pathFee = router2.calcPathFeeSplit(pathsUsdcToWeth, weights);
+        assertEq(pathFee, 5988);
+
+        bytes[] memory pathsWethToUsdc = new bytes[](3);
+        pathsWethToUsdc[0] = abi.encodePacked(address(weth), uint16(1), poolFee1, address(wbtc), uint16(1), poolFee1, address(usdc));
+        pathsWethToUsdc[1] = abi.encodePacked(address(weth), uint16(2), poolFee1, address(wbtc), uint16(2), poolFee1, address(usdc));
+        pathsWethToUsdc[2] = abi.encodePacked(address(weth), uint16(3), poolFee1, address(wbtc), uint16(3), poolFee1, address(usdc));
+        pathFee = router2.calcPathFeeSplit(pathsWethToUsdc, weights);
+        assertEq(pathFee, 5988);
+
+        bytes[] memory pathsWethToDai = new bytes[](3);
+        pathsWethToDai[0] = abi.encodePacked(address(weth), uint16(1), poolFee1, address(wbtc), uint16(1), poolFee1, address(usdc), uint16(6), poolFee1, address(dai));
+        pathsWethToDai[1] = abi.encodePacked(address(weth), uint16(2), poolFee1, address(wbtc), uint16(2), poolFee1, address(usdc), uint16(6), poolFee1, address(dai));
+        pathsWethToDai[2] = abi.encodePacked(address(weth), uint16(3), poolFee1, address(wbtc), uint16(3), poolFee1, address(usdc), uint16(6), poolFee1, address(dai));
+        pathFee = router2.calcPathFeeSplit(pathsWethToDai, weights);
+        assertEq(pathFee, 15930);
+
+        pathsWethToDai[0] = abi.encodePacked(address(weth), uint16(1), poolFee1, address(wbtc), uint16(1), poolFee1, address(usdc), uint16(5), poolFee1, address(dai));
+        pathsWethToDai[1] = abi.encodePacked(address(weth), uint16(2), poolFee1, address(wbtc), uint16(2), poolFee1, address(usdc), uint16(5), poolFee1, address(dai));
+        pathsWethToDai[2] = abi.encodePacked(address(weth), uint16(3), poolFee1, address(wbtc), uint16(3), poolFee1, address(usdc), uint16(5), poolFee1, address(dai));
+        pathFee = router2.calcPathFeeSplit(pathsWethToDai, weights);
+        assertEq(pathFee, 6486);
+
+        weights = new uint256[](2);
+        weights[0] = 1e18 / uint256(2);
+        weights[1] = 1e18 / uint256(2);
+        pathsWethToDai = new bytes[](2);
+        pathsWethToDai[0] = abi.encodePacked(address(weth), uint16(1), poolFee1, address(wbtc), uint16(1), poolFee1, address(usdc), uint16(6), poolFee1, address(dai));
+        pathsWethToDai[1] = abi.encodePacked(address(weth), uint16(2), poolFee1, address(wbtc), uint16(2), poolFee1, address(usdc), uint16(5), poolFee1, address(dai));
+        pathFee = router2.calcPathFeeSplit(pathsWethToDai, weights);
+        assertEq(pathFee, 11210); //~(15930 + 6486) / 2
+    }
 
     function testPathFees(uint8 tokenChoices, uint128 seed) public {
         bytes memory path = createPath(tokenChoices, seed);
@@ -1321,6 +1398,40 @@ contract UniversalRouterTest is TestBed {
         IERC20(_routes[0].from).approve(address(router), type(uint256).max);
 
         router.swapExactTokensForTokens(amountIn, 0, path, owner, block.timestamp);
+
+        uint256 balanceTo1 = IERC20(_routes[_routes.length - 1].to).balanceOf(owner);
+        uint256 balanceFrom1 = IERC20(_routes[0].from).balanceOf(owner);
+
+        uint256 soldAmount = balanceFrom0 - balanceFrom1;
+        uint256 boughtAmount = balanceTo1 - balanceTo0;
+        assertApproxEqRel(amountOutPostFees, boughtAmount, 1e16);
+
+        vm.stopPrank();
+    }
+
+    function testPathFeesSplit(uint8 tokenChoices, uint64 seed, uint256 amountIn) public {
+        bytes[] memory paths;
+        uint256[] memory weights;
+        uint256 minAmountOut;
+        (paths, weights, amountIn, minAmountOut) = getPathsAndWeights(tokenChoices, seed, amountIn, true, true);
+
+
+        IUniversalRouter.Route[] memory _routes = router2.calcRoutes(paths[0], address(this));
+        amountIn = getMinAmountIn(_routes[0].from);
+        uint256 amountOut = router2.quoteSplit(amountIn,paths,weights);
+
+        uint256 pathFee = router2.calcPathFeeSplit(paths,weights);
+        uint256 amountOutPostFees = amountOut - amountOut * pathFee / 1e6;
+
+        vm.startPrank(owner);
+
+        uint256 balanceTo0 = IERC20(_routes[_routes.length - 1].to).balanceOf(owner);
+        console.log("balanceTo0:",balanceTo0);
+        uint256 balanceFrom0 = IERC20(_routes[0].from).balanceOf(owner);
+
+        IERC20(_routes[0].from).approve(address(router2), type(uint256).max);
+
+        router2.swapExactTokensForTokensSplit(amountIn, 0, paths, weights, owner, block.timestamp);
 
         uint256 balanceTo1 = IERC20(_routes[_routes.length - 1].to).balanceOf(owner);
         uint256 balanceFrom1 = IERC20(_routes[0].from).balanceOf(owner);

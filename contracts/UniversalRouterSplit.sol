@@ -96,8 +96,16 @@ contract UniversalRouterSplit is UniversalRouter {
         amounts = new uint256[](len);
         uint256 remainder = amount;
 
+        uint256 sumWeights;
+        for(uint256 i = 0; i < len;) {
+            sumWeights += weights[i];
+            unchecked {
+                ++i;
+            }
+        }
+
         for (uint256 i = 0; i < len;) {
-            uint256 w = amount * weights[i] / 1e18;
+            uint256 w = amount * weights[i] / sumWeights;
             uint256 alloc = w <= remainder ? w : remainder;
             amounts[i] = alloc;
             remainder -= alloc;
