@@ -256,7 +256,7 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
                 ++i;
             }
         }
-        require(routes[len - 1].destination == to);
+        require(routes[len - 1].destination == to, "UniversalRouter: INVALID_ROUTE");
     }
 
     /// @dev Calculate how much of the sold token will be sold at each path using the weights array
