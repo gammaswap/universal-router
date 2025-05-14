@@ -16,16 +16,51 @@ contract UniversalRouterSplit is UniversalRouter {
     constructor(address _WETH) UniversalRouter(_WETH) {
     }
 
+    /// @inheritdoc IUniversalRouter
+    function quoteSplit(uint256 amountIn, bytes[] calldata paths, uint256[] memory weights) public override virtual view returns(uint256 amountOut) {
+        _validatePathsAndWeights(paths, weights, 2);
+        uint256[] memory amountsIn = _splitAmount(amountIn, weights);
+        uint256 len = amountsIn.length;
+        for(uint256 i = 0; i < len;) {
+            amountOut += quote(amountsIn[i], paths[i]);
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /// @inheritdoc IUniversalRouter
+    function calcPathFeeSplit(bytes[] calldata paths, uint256[] memory weights) public override virtual view returns(uint256 pathFee) {
+        _validatePathsAndWeights(paths, weights, 2);
+        uint256 weightSum;
+        uint256 len = paths.length;
+        for(uint256 i = 0; i < len;) {
+            weightSum += weights[i];
+            pathFee += calcPathFee(paths[i]) * weights[i] / 1e18;
+            unchecked {
+                ++i;
+            }
+        }
+        pathFee = pathFee * 1e18 / weightSum;
+    }
+
+    /// @dev Main split swap function used by all public split swap functions. Swaps splitting across multiple paths by weight
+    /// @param amountIn - quantity of token at Route[0].from to swap for token at Route[n].to
+    /// @param amountOutMin - minimum quantity of token at Route[n].to willing to receive or revert
+    /// @param paths - paths used to perform the swap (e.g. path[0] -> path[1] -> ... path[n]). The amountIn is split across multiple paths
+    /// @param weights - percentage of amountIn to swap in each path. Must add up to 1. If there's some left over, it will be swapped in the last path
+    /// @param to - address to receive output of token swap
+    /// @param swapType - type of swap (e.g. 0: ETH for token, 1: token for ETH, 2: token for token)
+    /// @param sender - address funding swap
+    /// @return amountOut - amount bought of final token in path
     function _swapSplit(uint256 amountIn, uint256 amountOutMin, bytes[] memory paths, uint256[] memory weights, address to,
         uint8 swapType, address sender) internal virtual returns (uint256 amountOut) {
         _validatePathsAndWeights(paths, weights, swapType);
+        uint256 len = paths.length;
         uint256[] memory amountsIn = _splitAmount(amountIn, weights);
-        for(uint256 i = 0; i < paths.length;) {
-            Route[] memory routes = calcRoutes(paths[i], swapType == 1 ? address(this) : to);
+        for(uint256 i = 0; i < len;) {
+            Route[] memory routes = calcRoutes(paths[i], to);
             amountOut += _swap(amountsIn[i], 0, routes, sender);
-            if(swapType == 1) {
-                unwrapWETH(0, to);
-            }
             unchecked {
                 ++i;
             }
@@ -42,7 +77,8 @@ contract UniversalRouterSplit is UniversalRouter {
     /// @inheritdoc IUniversalRouter
     function swapExactTokensForETHSplit(uint256 amountIn, uint256 amountOutMin, bytes[] calldata paths, uint256[] calldata weights, address to, uint256 deadline)
         public override virtual ensure(deadline) {
-        _swapSplit(amountIn, amountOutMin, paths, weights, to, 1, msg.sender);
+        _swapSplit(amountIn, amountOutMin, paths, weights, address(this), 1, msg.sender);
+        unwrapWETH(0, to);
     }
 
     /// @inheritdoc IUniversalRouter
@@ -92,24 +128,15 @@ contract UniversalRouterSplit is UniversalRouter {
 
     function _getAmountsOutSplit(uint256 amountIn, bytes[] memory paths, uint256[] memory weights, bool noSwap) internal
         virtual returns (uint256 amountOut, uint256[][] memory amountsSplit, Route[][] memory routesSplit) {
-        require(paths.length == weights.length);
         _validatePathsAndWeights(paths, weights, 2);
-        amountsSplit = new uint256[][](paths.length);
-        routesSplit = new Route[][](paths.length);
+        uint256 len = paths.length;
+        amountsSplit = new uint256[][](len);
+        routesSplit = new Route[][](len);
         uint256[] memory amountsIn = _splitAmount(amountIn, weights);
-        for(uint256 i = 0; i < amountsIn.length;) {
+        for(uint256 i = 0; i < len;) {
             (uint256[] memory amounts, Route[] memory routes) = _getAmountsOut(amountsIn[i], paths[i], noSwap);
-            amountsSplit[i] = new uint256[](amounts.length);
-            routesSplit[i] = new Route[](routes.length);
-            for(uint256 j = 0; j < amounts.length;) {
-                amountsSplit[i][j] = amounts[j];
-                if(j < routes.length) {
-                    routesSplit[i][j] = routes[j];
-                }
-                unchecked {
-                    ++j;
-                }
-            }
+            amountsSplit[i] = amounts;
+            routesSplit[i] = routes;
             amountOut += amounts[amounts.length - 1];
             unchecked {
                 ++i;
@@ -121,31 +148,22 @@ contract UniversalRouterSplit is UniversalRouter {
     /// @inheritdoc IUniversalRouter
     function getAmountsInSplit(uint256 amountOut, bytes[] memory paths, uint256[] memory weights) public override
         virtual returns (uint256 amountIn, uint256[] memory inWeights, uint256[][] memory amountsSplit, Route[][] memory routesSplit) {
-        require(paths.length == weights.length);
         _validatePathsAndWeights(paths, weights, 2);
-        inWeights = new uint256[](paths.length);
-        amountsSplit = new uint256[][](paths.length);
-        routesSplit = new Route[][](paths.length);
+        uint256 len = paths.length;
+        inWeights = new uint256[](len);
+        amountsSplit = new uint256[][](len);
+        routesSplit = new Route[][](len);
         uint256[] memory amountsOut = _splitAmount(amountOut, weights);
-        for(uint256 i = 0; i < amountsOut.length;) {
+        for(uint256 i = 0; i < len;) {
             (uint256[] memory amounts, Route[] memory routes) = _getAmountsIn(amountsOut[i], paths[i]);
-            amountsSplit[i] = new uint256[](amounts.length);
-            routesSplit[i] = new Route[](routes.length);
-            for(uint256 j = 0; j < amounts.length;) {
-                amountsSplit[i][j] = amounts[j];
-                if(j < routes.length) {
-                    routesSplit[i][j] = routes[j];
-                }
-                unchecked {
-                    ++j;
-                }
-            }
+            amountsSplit[i] = amounts;
+            routesSplit[i] = routes;
             amountIn += amounts[0];
             unchecked {
                 ++i;
             }
         }
-        for(uint256 i = 0; i < amountsSplit.length;) {
+        for(uint256 i = 0; i < len;) {
             inWeights[i] = amountsSplit[i][0] * 1e18 / amountIn;
             unchecked {
                 ++i;
@@ -159,7 +177,7 @@ contract UniversalRouterSplit is UniversalRouter {
 
         ExternalCallData memory data = abi.decode(_data, (ExternalCallData));
 
-        require(data.deadline >= block.timestamp, 'ExternalCall: EXPIRED');
+        if(data.deadline < block.timestamp) revert Expired();
 
         _processSwap(sender, amounts, lpTokens, data, data.path.isSinglePath());
     }
@@ -182,8 +200,9 @@ contract UniversalRouterSplit is UniversalRouter {
             tokenOut = data.path.getTokenOut();
         } else {
             (paths, weights) = data.path.toPathsAndWeightsArray();
-            tokenIn = paths[0].getTokenIn();
-            tokenOut = paths[0].getTokenOut();
+            bytes memory path = paths[0];
+            tokenIn = path.getTokenIn();
+            tokenOut = path.getTokenOut();
         }
 
         uint256 balanceIn = IERC20(tokenIn).balanceOf(address(this));
@@ -215,13 +234,14 @@ contract UniversalRouterSplit is UniversalRouter {
     /// @param paths - paths through which tokens will be swapped
     /// @param weights - percentage of amountIn to swap in each path. Must add up to 1. If there's some left over, it will be swapped in the last path
     /// @param swapType - 0: swap ETH for token, 1: swap token for ETH, 2: swap token for token
-    function _validatePathsAndWeights(bytes[] memory paths, uint256[] memory weights, uint8 swapType) internal virtual {
+    function _validatePathsAndWeights(bytes[] memory paths, uint256[] memory weights, uint8 swapType) internal virtual view {
         require(paths.length > 0, 'UniversalRouter: MISSING_PATHS');
         require(paths.length == weights.length, 'UniversalRouter: INVALID_WEIGHTS');
 
-        _validatePath(paths[0]);
-        address tokenIn = paths[0].getTokenIn();
-        address tokenOut = paths[0].getTokenOut();
+        bytes memory path = paths[0];
+        _validatePath(path);
+        address tokenIn = path.getTokenIn();
+        address tokenOut = path.getTokenOut();
 
         require(tokenIn != tokenOut, 'UniversalRouter: INVALID_PATH_TOKENS');
 
@@ -232,15 +252,29 @@ contract UniversalRouterSplit is UniversalRouter {
         }
 
         uint256 totalWeights = weights[0];
-        for(uint256 i = 1; i < paths.length;) {
-            _validatePath(paths[i]);
-            require(tokenIn == paths[i].getTokenIn() && tokenOut == paths[i].getTokenOut(), 'UniversalRouter: INVALID_PATH_TOKENS');
+        uint256 len = paths.length;
+        for(uint256 i = 1; i < len;) {
+            path = paths[i];
+            _validatePath(path);
+            require(tokenIn == path.getTokenIn() && tokenOut == path.getTokenOut(), 'UniversalRouter: INVALID_PATH_TOKENS');
             unchecked {
                 totalWeights += weights[i];
                 ++i;
             }
         }
         require(totalWeights > 0 && totalWeights <= 1e18, 'UniversalRouter: INVALID_WEIGHTS');
+    }
+
+    /// @inheritdoc IUniversalRouter
+    function getAmountsOutNoSwap(uint256 amountIn, bytes memory path) public override virtual returns (uint256[] memory amounts, Route[] memory routes) {
+    }
+
+    /// @inheritdoc IUniversalRouter
+    function getAmountsOut(uint256 amountIn, bytes memory path) public override virtual returns (uint256[] memory amounts, Route[] memory routes) {
+    }
+
+    /// @inheritdoc IUniversalRouter
+    function getAmountsIn(uint256 amountOut, bytes memory path) public override virtual returns (uint256[] memory amounts, Route[] memory routes) {
     }
 
     /// @inheritdoc IUniversalRouter

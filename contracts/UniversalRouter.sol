@@ -79,17 +79,18 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
     /// @return amountOut - amount bought of final token in path
     function _swap(uint256 amountIn, uint256 amountOutMin, Route[] memory routes, address sender) internal virtual returns(uint256 amountOut){
         require(amountIn > 0, 'UniversalRouter: ZERO_AMOUNT_IN');
-        send(routes[0].from, sender, routes[0].origin, amountIn);
-        uint256 lastRoute = routes.length - 1;
-        address to = routes[lastRoute].destination;
-        uint256 balanceBefore = IERC20(routes[lastRoute].to).balanceOf(to);
-        for (uint256 i; i <= lastRoute;) {
-            IProtocolRoute(routes[i].hop).swap(routes[i].from, routes[i].to, routes[i].fee, routes[i].destination);
+        Route memory first = routes[0];
+        send(first.from, sender, first.origin, amountIn);
+        Route memory last = routes[routes.length - 1];
+        uint256 balanceBefore = IERC20(last.to).balanceOf(last.destination);
+        for (uint256 i; i < routes.length;) {
+            Route memory route = routes[i];
+            IProtocolRoute(route.hop).swap(route.from, route.to, route.fee, route.destination);
             unchecked {
                 ++i;
             }
         }
-        amountOut = IERC20(routes[lastRoute].to).balanceOf(to) - balanceBefore;
+        amountOut = IERC20(last.to).balanceOf(last.destination) - balanceBefore;
         _validateAmountOut(amountOut, amountOutMin);
     }
 
@@ -136,8 +137,10 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
     /// @inheritdoc IUniversalRouter
     function quote(uint256 amountIn, bytes calldata path) public override virtual view returns(uint256 amountOut) {
         Route[] memory routes = calcRoutes(path, address(this));
-        for (uint256 i; i < routes.length;) {
-            amountIn = IProtocolRoute(routes[i].hop).quote(amountIn, routes[i].from, routes[i].to, routes[i].fee);
+        uint256 len = routes.length;
+        for (uint256 i; i < len;) {
+            Route memory route = routes[i];
+            amountIn = IProtocolRoute(route.hop).quote(amountIn, route.from, route.to, route.fee);
             unchecked {
                 ++i;
             }
@@ -149,14 +152,24 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
     function calcPathFee(bytes calldata path) public override view returns(uint256 pathFee) {
         Route[] memory routes = calcRoutes(path, address(this));
         pathFee = 1e6;
-        for (uint256 i; i < routes.length;) {
-            uint256 fee = IProtocolRoute(routes[i].hop).getFee(routes[i].from, routes[i].to, routes[i].fee);
+        uint256 len = routes.length;
+        for (uint256 i; i < len;) {
+            Route memory route = routes[i];
+            uint256 fee = IProtocolRoute(route.hop).getFee(route.from, route.to, route.fee);
             pathFee = pathFee * (1e6 - fee) / 1e6;
             unchecked {
                 ++i;
             }
         }
         pathFee = 1e6 - pathFee;
+    }
+
+    /// @inheritdoc IUniversalRouter
+    function quoteSplit(uint256 amountIn, bytes[] calldata paths, uint256[] memory weights) external override virtual view returns(uint256 amountOut) {
+    }
+
+    /// @inheritdoc IUniversalRouter
+    function calcPathFeeSplit(bytes[] calldata paths, uint256[] memory weights) external override virtual view returns(uint256 pathFee) {
     }
 
     /// @inheritdoc IUniversalRouter
