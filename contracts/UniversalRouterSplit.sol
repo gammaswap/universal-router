@@ -42,7 +42,7 @@ contract UniversalRouterSplit is UniversalRouter {
     /// @inheritdoc IUniversalRouter
     function swapExactTokensForETHSplit(uint256 amountIn, uint256 amountOutMin, bytes[] calldata paths, uint256[] calldata weights, address to, uint256 deadline)
         public override virtual ensure(deadline) {
-        _swapSplit(amountIn, amountOutMin, paths, weights, address(this), 1, msg.sender);
+        _swapSplit(amountIn, amountOutMin, paths, weights, to, 1, msg.sender);
     }
 
     /// @inheritdoc IUniversalRouter

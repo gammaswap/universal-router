@@ -85,7 +85,9 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
         uint256 balanceBefore = IERC20(routes[lastRoute].to).balanceOf(to);
         for (uint256 i; i <= lastRoute;) {
             IProtocolRoute(routes[i].hop).swap(routes[i].from, routes[i].to, routes[i].fee, routes[i].destination);
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
         amountOut = IERC20(routes[lastRoute].to).balanceOf(to) - balanceBefore;
         _validateAmountOut(amountOut, amountOutMin);

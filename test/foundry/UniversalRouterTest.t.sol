@@ -470,6 +470,96 @@ contract UniversalRouterTest is TestBed {
         vm.stopPrank();
     }
 
+    function testSwapExactETHForTokensSplit(uint8 tokenChoices, uint64 seed, uint256 amountIn) public {
+        bytes[] memory paths;
+        uint256[] memory weights;
+        uint256 minAmountOut;
+        (paths, weights, amountIn, minAmountOut) = getPathsAndWeights(tokenChoices, seed, amountIn, true, true);
+
+        IUniversalRouter.Route[] memory _routes = router2.calcRoutes(paths[0], address(this));
+        if(_routes[0].from != address(weth)) {
+            vm.expectRevert('UniversalRouter: AMOUNT_IN_NOT_ETH');
+            router2.swapExactETHForTokensSplit(0, paths, weights, owner, block.timestamp);
+
+            return;
+        }
+
+        (uint256 amountOut, uint256[][] memory amounts, IUniversalRouter.Route[][] memory routes) = router2.getAmountsOutSplit(amountIn, paths, weights);
+
+        assertEq(amountOut,sumAmounts(amounts,false));
+
+        minAmountOut = amountOut;
+        address _to = vm.addr(0x123);
+
+        vm.expectRevert(bytes4(keccak256("Expired()")));
+        router2.swapExactETHForTokensSplit(minAmountOut, paths, weights, _to, block.timestamp - 1);
+
+        vm.expectRevert('UniversalRouter: ZERO_AMOUNT_IN');
+        router2.swapExactETHForTokensSplit(minAmountOut, paths, weights, _to, block.timestamp);
+
+        vm.expectRevert('UniversalRouter: INSUFFICIENT_OUTPUT_AMOUNT');
+        router2.swapExactETHForTokensSplit{value: amountIn}(minAmountOut + 1, paths, weights, _to, block.timestamp);
+
+        uint256 balanceTo0 = IERC20(routes[0][routes[0].length - 1].to).balanceOf(_to);
+        uint256 balanceFrom0 = address(this).balance;
+
+        router2.swapExactETHForTokensSplit{value: amountIn}(minAmountOut, paths, weights, _to, block.timestamp);
+
+        uint256 balanceTo1 = IERC20(routes[0][routes[0].length - 1].to).balanceOf(_to);
+        uint256 balanceFrom1 = address(this).balance;
+
+        assertEq(amountIn, balanceFrom0 - balanceFrom1);
+        assertEq(minAmountOut, balanceTo1 - balanceTo0);
+    }
+
+    function testSwapExactTokensForETHSplit(uint8 tokenChoices, uint64 seed, uint256 amountIn) public {
+        bytes[] memory paths;
+        uint256[] memory weights;
+        uint256 minAmountOut;
+        (paths, weights, amountIn, minAmountOut) = getPathsAndWeights(tokenChoices, seed, amountIn, true, true);
+
+        IUniversalRouter.Route[] memory _routes = router2.calcRoutes(paths[0], address(this));
+        if(_routes[_routes.length - 1].to != address(weth)) {
+            vm.expectRevert('UniversalRouter: AMOUNT_OUT_NOT_ETH');
+            router2.swapExactTokensForETHSplit(0, 0, paths, weights, owner, block.timestamp);
+
+            return;
+        }
+
+        (uint256 amountOut, uint256[][] memory amounts, IUniversalRouter.Route[][] memory routes) = router2.getAmountsOutSplit(amountIn, paths, weights);
+
+        assertEq(amountOut,sumAmounts(amounts,false));
+
+        minAmountOut = amountOut;
+        address _to = vm.addr(0x123);
+
+        uint256 balanceTo0 = address(_to).balance;
+        uint256 balanceFrom0 = IERC20(routes[0][0].from).balanceOf(owner);
+
+        weth.deposit{value: 50e18}();
+
+        vm.startPrank(owner);
+        IERC20(routes[0][0].from).approve(address(router2), type(uint256).max);
+
+        vm.expectRevert(bytes4(keccak256("Expired()")));
+        router2.swapExactTokensForETHSplit(amountIn, minAmountOut, paths, weights, _to, block.timestamp - 1);
+
+        vm.expectRevert("UniversalRouter: ZERO_AMOUNT_IN");
+        router2.swapExactTokensForETHSplit(0, minAmountOut, paths, weights, _to, block.timestamp);
+
+        vm.expectRevert("UniversalRouter: INSUFFICIENT_OUTPUT_AMOUNT");
+        router2.swapExactTokensForETHSplit(amountIn, minAmountOut + 1, paths, weights, _to, block.timestamp);
+
+        router2.swapExactTokensForETHSplit(amountIn, minAmountOut, paths, weights, _to, block.timestamp);
+
+        uint256 balanceTo1 =address(_to).balance;
+        uint256 balanceFrom1 = IERC20(routes[0][0].from).balanceOf(owner);
+
+        assertEq(amountIn, balanceFrom0 - balanceFrom1);
+        assertEq(minAmountOut, balanceTo1 - balanceTo0);
+        vm.stopPrank();
+    }
+
     function testSwapExactTokensForTokens1(uint8 tokenChoices, uint128 seed, uint256 amountIn) public {
         bytes memory path = createPath(tokenChoices, seed);
         IUniversalRouter.Route[] memory _routes = router.calcRoutes(path, address(this));
