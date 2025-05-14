@@ -73,15 +73,6 @@ contract UniversalRouterTest is TestBed {
         router.addProtocolRoute(address(aeroStableRoute));
         router.addProtocolRoute(address(uniV3Route));
         router.addProtocolRoute(address(aeroCLRoute));
-
-        // set up routes for router2
-        router2.addProtocolRoute(address(uniV2Route));
-        router2.addProtocolRoute(address(sushiV2Route));
-        router2.addProtocolRoute(address(dsRoute));
-        router2.addProtocolRoute(address(aeroRoute));
-        router2.addProtocolRoute(address(aeroStableRoute));
-        router2.addProtocolRoute(address(uniV3Route));
-        router2.addProtocolRoute(address(aeroCLRoute));
     }
 
     function testAddRemoveProtocol() public {
@@ -138,12 +129,12 @@ contract UniversalRouterTest is TestBed {
         uint256 minAmountOut;
         (paths, weights, amountIn, minAmountOut) = getPathsAndWeights(tokenChoices, seed, amountIn, false, true);
 
-        uint256 amountOut = router2.quoteSplit(amountIn, paths, weights);
+        uint256 amountOut = router.quoteSplit(amountIn, paths, weights);
         uint256 expAmountOut = 0;
 
-        uint256[] memory amountsIn = router2.splitAmount(amountIn, weights);
+        uint256[] memory amountsIn = router.splitAmount(amountIn, weights);
         for(uint256 i = 0; i < paths.length; i++) {
-            expAmountOut += router2.quote(amountsIn[i], paths[i]);
+            expAmountOut += router.quote(amountsIn[i], paths[i]);
         }
         assertEq(amountOut,expAmountOut);
 
@@ -155,7 +146,7 @@ contract UniversalRouterTest is TestBed {
         expAmountOut = 0;
         for(uint256 i = 0; i < paths.length; i++) {
             uint256 amt = amountIn * weights[i] / sumWeights;
-            expAmountOut += router2.quote(amt, paths[i]);
+            expAmountOut += router.quote(amt, paths[i]);
         }
         assertApproxEqRel(amountOut,expAmountOut,1e14);
 
@@ -174,7 +165,7 @@ contract UniversalRouterTest is TestBed {
         assertEq(totalSum, 1e18);
 
         uint256 totalAmounts = 0;
-        uint256[] memory amounts = router2.splitAmount(amount, weights);
+        uint256[] memory amounts = router.splitAmount(amount, weights);
         for(uint256 i = 0; i < amounts.length; i++) {
             totalAmounts += amounts[i];
         }
@@ -228,9 +219,9 @@ contract UniversalRouterTest is TestBed {
         (paths, weights, amountIn, minAmountOut) = getPathsAndWeights(tokenChoices, seed, amountIn, false, true);
 
         (uint256 amountOut, uint256[][] memory amountsSplit, IUniversalRouter.Route[][] memory routesSplit) =
-            router2.getAmountsOutSplit(amountIn, paths, weights);
+            router.getAmountsOutSplit(amountIn, paths, weights);
         for(uint256 i = 0; i < paths.length; i++) {
-            IUniversalRouter.Route[] memory _routes = router2.calcRoutes(paths[i], address(this));
+            IUniversalRouter.Route[] memory _routes = router.calcRoutes(paths[i], address(this));
             assertEq(_routes.length,routesSplit[i].length);
             for(uint256 j = 0; j < _routes.length;j++) {
                 assertEq(_routes[j].from,routesSplit[i][j].from);
@@ -263,10 +254,10 @@ contract UniversalRouterTest is TestBed {
         (paths, weights, amountIn, minAmountOut) = getPathsAndWeights(tokenChoices, seed, amountIn, false, true);
 
         (uint256 amountOut, uint256[][] memory amountsSplit, IUniversalRouter.Route[][] memory routesSplit) =
-            router2.getAmountsOutSplitNoSwap(amountIn, paths, weights);
+            router.getAmountsOutSplitNoSwap(amountIn, paths, weights);
 
         for(uint256 i = 0; i < paths.length; i++) {
-            IUniversalRouter.Route[] memory _routes = router2.calcRoutes(paths[i], address(this));
+            IUniversalRouter.Route[] memory _routes = router.calcRoutes(paths[i], address(this));
             assertEq(_routes.length,routesSplit[i].length);
             for(uint256 j = 0; j < _routes.length;j++) {
                 assertEq(_routes[j].from,routesSplit[i][j].from);
@@ -307,10 +298,10 @@ contract UniversalRouterTest is TestBed {
         (paths, weights, amountOut, minAmountIn) = getPathsAndWeights(tokenChoices, seed, amountOut, false, false);
 
         (uint256 amountIn, uint256[] memory inWeights, uint256[][] memory amountsSplit, IUniversalRouter.Route[][] memory routesSplit) =
-            router2.getAmountsInSplit(amountOut, paths, weights);
+            router.getAmountsInSplit(amountOut, paths, weights);
 
         for(uint256 i = 0; i < paths.length; i++) {
-            IUniversalRouter.Route[] memory _routes = router2.calcRoutes(paths[i], address(this));
+            IUniversalRouter.Route[] memory _routes = router.calcRoutes(paths[i], address(this));
             assertEq(_routes.length,routesSplit[i].length);
             for(uint256 j = 0; j < _routes.length; j++) {
                 assertEq(_routes[j].from,routesSplit[i][j].from);
@@ -431,7 +422,7 @@ contract UniversalRouterTest is TestBed {
         uint256 minAmountOut;
         (paths, weights, amountIn, minAmountOut) = getPathsAndWeights(tokenChoices, seed, amountIn, true, true);
 
-        (uint256 amountOut, uint256[][] memory amountsSplit, IUniversalRouter.Route[][] memory routesSplit) = router2.getAmountsOutSplit(amountIn, paths, weights);
+        (uint256 amountOut, uint256[][] memory amountsSplit, IUniversalRouter.Route[][] memory routesSplit) = router.getAmountsOutSplit(amountIn, paths, weights);
 
         assertEq(amountOut,sumAmounts(amountsSplit,false));
 
@@ -442,18 +433,18 @@ contract UniversalRouterTest is TestBed {
         uint256 balanceFrom0 = IERC20(routesSplit[0][0].from).balanceOf(owner);
 
         vm.startPrank(owner);
-        IERC20(routesSplit[0][0].from).approve(address(router2), type(uint256).max);
+        IERC20(routesSplit[0][0].from).approve(address(router), type(uint256).max);
 
         vm.expectRevert(bytes4(keccak256("Expired()")));
-        router2.swapExactTokensForTokensSplit(amountIn, minAmountOut, paths, weights, _to, block.timestamp - 1);
+        router.swapExactTokensForTokensSplit(amountIn, minAmountOut, paths, weights, _to, block.timestamp - 1);
 
         vm.expectRevert('UniversalRouter: ZERO_AMOUNT_IN');
-        router2.swapExactTokensForTokensSplit(0, minAmountOut, paths, weights, _to, block.timestamp);
+        router.swapExactTokensForTokensSplit(0, minAmountOut, paths, weights, _to, block.timestamp);
 
         vm.expectRevert('UniversalRouter: INSUFFICIENT_OUTPUT_AMOUNT');
-        router2.swapExactTokensForTokensSplit(amountIn, minAmountOut + 1, paths, weights, _to, block.timestamp);
+        router.swapExactTokensForTokensSplit(amountIn, minAmountOut + 1, paths, weights, _to, block.timestamp);
 
-        router2.swapExactTokensForTokensSplit(amountIn, minAmountOut, paths, weights, _to, block.timestamp);
+        router.swapExactTokensForTokensSplit(amountIn, minAmountOut, paths, weights, _to, block.timestamp);
 
         uint256 balanceTo1 = IERC20(routesSplit[0][routesSplit[0].length - 1].to).balanceOf(_to);
         uint256 balanceFrom1 = IERC20(routesSplit[0][0].from).balanceOf(owner);
@@ -471,7 +462,7 @@ contract UniversalRouterTest is TestBed {
         uint256 amountIn;
         uint256[][] memory amountsSplit;
         IUniversalRouter.Route[][] memory routesSplit;
-        (amountIn, weights, amountsSplit, routesSplit) = router2.getAmountsInSplit(amountOut, paths, weights);
+        (amountIn, weights, amountsSplit, routesSplit) = router.getAmountsInSplit(amountOut, paths, weights);
 
         address _to = vm.addr(0x123);
 
@@ -479,18 +470,18 @@ contract UniversalRouterTest is TestBed {
         uint256 balanceFrom0 = IERC20(routesSplit[0][0].from).balanceOf(owner);
 
         vm.startPrank(owner);
-        IERC20(routesSplit[0][0].from).approve(address(router2), type(uint256).max);
+        IERC20(routesSplit[0][0].from).approve(address(router), type(uint256).max);
 
         vm.expectRevert(bytes4(keccak256("Expired()")));
-        router2.swapExactTokensForTokensSplit(amountIn, amountOut, paths, weights, _to, block.timestamp - 1);
+        router.swapExactTokensForTokensSplit(amountIn, amountOut, paths, weights, _to, block.timestamp - 1);
 
         vm.expectRevert('UniversalRouter: ZERO_AMOUNT_IN');
-        router2.swapExactTokensForTokensSplit(0, amountOut, paths, weights, _to, block.timestamp);
+        router.swapExactTokensForTokensSplit(0, amountOut, paths, weights, _to, block.timestamp);
 
         vm.expectRevert('UniversalRouter: INSUFFICIENT_OUTPUT_AMOUNT');
-        router2.swapExactTokensForTokensSplit(amountIn, amountOut * 101/100, paths, weights, _to, block.timestamp);
+        router.swapExactTokensForTokensSplit(amountIn, amountOut * 101/100, paths, weights, _to, block.timestamp);
 
-        router2.swapExactTokensForTokensSplit(amountIn, amountOut * 99/100, paths, weights, _to, block.timestamp);
+        router.swapExactTokensForTokensSplit(amountIn, amountOut * 99/100, paths, weights, _to, block.timestamp);
 
         uint256 balanceTo1 = IERC20(routesSplit[0][routesSplit[0].length - 1].to).balanceOf(_to);
         uint256 balanceFrom1 = IERC20(routesSplit[0][0].from).balanceOf(owner);
@@ -506,15 +497,14 @@ contract UniversalRouterTest is TestBed {
         uint256 minAmountOut;
         (paths, weights, amountIn, minAmountOut) = getPathsAndWeights(tokenChoices, seed, amountIn, true, true);
 
-        IUniversalRouter.Route[] memory _routes = router2.calcRoutes(paths[0], address(this));
+        IUniversalRouter.Route[] memory _routes = router.calcRoutes(paths[0], address(this));
         if(_routes[0].from != address(weth)) {
             vm.expectRevert('UniversalRouter: AMOUNT_IN_NOT_ETH');
-            router2.swapExactETHForTokensSplit(0, paths, weights, owner, block.timestamp);
-
+            router.swapExactETHForTokensSplit(0, paths, weights, owner, block.timestamp);
             return;
         }
 
-        (uint256 amountOut, uint256[][] memory amounts, IUniversalRouter.Route[][] memory routes) = router2.getAmountsOutSplit(amountIn, paths, weights);
+        (uint256 amountOut, uint256[][] memory amounts, IUniversalRouter.Route[][] memory routes) = router.getAmountsOutSplit(amountIn, paths, weights);
 
         assertEq(amountOut,sumAmounts(amounts,false));
 
@@ -522,18 +512,18 @@ contract UniversalRouterTest is TestBed {
         address _to = vm.addr(0x123);
 
         vm.expectRevert(bytes4(keccak256("Expired()")));
-        router2.swapExactETHForTokensSplit(minAmountOut, paths, weights, _to, block.timestamp - 1);
+        router.swapExactETHForTokensSplit(minAmountOut, paths, weights, _to, block.timestamp - 1);
 
         vm.expectRevert('UniversalRouter: ZERO_AMOUNT_IN');
-        router2.swapExactETHForTokensSplit(minAmountOut, paths, weights, _to, block.timestamp);
+        router.swapExactETHForTokensSplit(minAmountOut, paths, weights, _to, block.timestamp);
 
         vm.expectRevert('UniversalRouter: INSUFFICIENT_OUTPUT_AMOUNT');
-        router2.swapExactETHForTokensSplit{value: amountIn}(minAmountOut + 1, paths, weights, _to, block.timestamp);
+        router.swapExactETHForTokensSplit{value: amountIn}(minAmountOut + 1, paths, weights, _to, block.timestamp);
 
         uint256 balanceTo0 = IERC20(routes[0][routes[0].length - 1].to).balanceOf(_to);
         uint256 balanceFrom0 = address(this).balance;
 
-        router2.swapExactETHForTokensSplit{value: amountIn}(minAmountOut, paths, weights, _to, block.timestamp);
+        router.swapExactETHForTokensSplit{value: amountIn}(minAmountOut, paths, weights, _to, block.timestamp);
 
         uint256 balanceTo1 = IERC20(routes[0][routes[0].length - 1].to).balanceOf(_to);
         uint256 balanceFrom1 = address(this).balance;
@@ -548,15 +538,14 @@ contract UniversalRouterTest is TestBed {
         uint256 minAmountOut;
         (paths, weights, amountIn, minAmountOut) = getPathsAndWeights(tokenChoices, seed, amountIn, true, true);
 
-        IUniversalRouter.Route[] memory _routes = router2.calcRoutes(paths[0], address(this));
+        IUniversalRouter.Route[] memory _routes = router.calcRoutes(paths[0], address(this));
         if(_routes[_routes.length - 1].to != address(weth)) {
             vm.expectRevert('UniversalRouter: AMOUNT_OUT_NOT_ETH');
-            router2.swapExactTokensForETHSplit(0, 0, paths, weights, owner, block.timestamp);
-
+            router.swapExactTokensForETHSplit(0, 0, paths, weights, owner, block.timestamp);
             return;
         }
 
-        (uint256 amountOut, uint256[][] memory amounts, IUniversalRouter.Route[][] memory routes) = router2.getAmountsOutSplit(amountIn, paths, weights);
+        (uint256 amountOut, uint256[][] memory amounts, IUniversalRouter.Route[][] memory routes) = router.getAmountsOutSplit(amountIn, paths, weights);
 
         assertEq(amountOut,sumAmounts(amounts,false));
 
@@ -569,18 +558,18 @@ contract UniversalRouterTest is TestBed {
         weth.deposit{value: 50e18}();
 
         vm.startPrank(owner);
-        IERC20(routes[0][0].from).approve(address(router2), type(uint256).max);
+        IERC20(routes[0][0].from).approve(address(router), type(uint256).max);
 
         vm.expectRevert(bytes4(keccak256("Expired()")));
-        router2.swapExactTokensForETHSplit(amountIn, minAmountOut, paths, weights, _to, block.timestamp - 1);
+        router.swapExactTokensForETHSplit(amountIn, minAmountOut, paths, weights, _to, block.timestamp - 1);
 
         vm.expectRevert("UniversalRouter: ZERO_AMOUNT_IN");
-        router2.swapExactTokensForETHSplit(0, minAmountOut, paths, weights, _to, block.timestamp);
+        router.swapExactTokensForETHSplit(0, minAmountOut, paths, weights, _to, block.timestamp);
 
         vm.expectRevert("UniversalRouter: INSUFFICIENT_OUTPUT_AMOUNT");
-        router2.swapExactTokensForETHSplit(amountIn, minAmountOut + 1, paths, weights, _to, block.timestamp);
+        router.swapExactTokensForETHSplit(amountIn, minAmountOut + 1, paths, weights, _to, block.timestamp);
 
-        router2.swapExactTokensForETHSplit(amountIn, minAmountOut, paths, weights, _to, block.timestamp);
+        router.swapExactTokensForETHSplit(amountIn, minAmountOut, paths, weights, _to, block.timestamp);
 
         uint256 balanceTo1 =address(_to).balance;
         uint256 balanceFrom1 = IERC20(routes[0][0].from).balanceOf(owner);
@@ -1243,81 +1232,81 @@ contract UniversalRouterTest is TestBed {
         uint256[] memory weights = new uint256[](2);
 
         vm.expectRevert("UniversalRouter: MISSING_PATHS");
-        router2.validatePathsAndWeights(paths, weights, 2);
+        router.validatePathsAndWeights(paths, weights, 2);
 
         paths = new bytes[](1);
         vm.expectRevert("UniversalRouter: INVALID_WEIGHTS");
-        router2.validatePathsAndWeights(paths, weights, 2);
+        router.validatePathsAndWeights(paths, weights, 2);
 
         paths = new bytes[](3);
         vm.expectRevert("UniversalRouter: INVALID_WEIGHTS");
-        router2.validatePathsAndWeights(paths, weights, 2);
+        router.validatePathsAndWeights(paths, weights, 2);
 
         paths = new bytes[](2);
         vm.expectRevert("INVALID_PATH");
-        router2.validatePathsAndWeights(paths, weights, 2);
+        router.validatePathsAndWeights(paths, weights, 2);
 
         paths[0] = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e80001000bb882af49447d8a07e3bd95bd0d56f35241523fbab100010001f40c880f6761f1af8d9aa9c466984b80dab9a8c9e8';
         vm.expectRevert("UniversalRouter: INVALID_PATH_TOKENS");
-        router2.validatePathsAndWeights(paths, weights, 2);
+        router.validatePathsAndWeights(paths, weights, 2);
 
         paths[0] = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e80001000bb882af49447d8a07e3bd95bd0d56f35241523fbab1';
         vm.expectRevert("UniversalRouter: AMOUNT_IN_NOT_ETH");
-        router2.validatePathsAndWeights(paths, weights, 0);
+        router.validatePathsAndWeights(paths, weights, 0);
 
         paths[0] = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e80001000bb882af49447d8a07e3bd95bd0d56f35241523fbab1';
         vm.expectRevert("UniversalRouter: AMOUNT_OUT_NOT_ETH");
-        router2.validatePathsAndWeights(paths, weights, 1);
+        router.validatePathsAndWeights(paths, weights, 1);
 
         paths[0] = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e80001000bb882af49447d8a07e3bd95bd0d56f35241523fbab1';
         vm.expectRevert("INVALID_PATH");
-        router2.validatePathsAndWeights(paths, weights, 2);
+        router.validatePathsAndWeights(paths, weights, 2);
 
         paths[0] = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e80001000bb882af49447d8a07e3bd95bd0d56f35241523fbab100010001f4af88d065e77c8cc2239327c5edb3a432268e5831';
         paths[1] = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e80001000bb882af49447d8a07e3bd95bd0d56f35241523fbab1';
         vm.expectRevert("UniversalRouter: INVALID_PATH_TOKENS");
-        router2.validatePathsAndWeights(paths, weights, 2);
+        router.validatePathsAndWeights(paths, weights, 2);
 
         paths[0] = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e80001000bb882af49447d8a07e3bd95bd0d56f35241523fbab1';
         paths[1] = hex'0c880f6761f1af8d9aa9c466984b80dab9a8c9e80001000bb882af49447d8a07e3bd95bd0d56f35241523fbab1';
         vm.expectRevert('UniversalRouter: INVALID_WEIGHTS');
-        router2.validatePathsAndWeights(paths, weights, 2);
+        router.validatePathsAndWeights(paths, weights, 2);
 
         weights[0] = 2e17;
         weights[1] = 8e17 + 1;
         vm.expectRevert('UniversalRouter: INVALID_WEIGHTS');
-        router2.validatePathsAndWeights(paths, weights, 2);
+        router.validatePathsAndWeights(paths, weights, 2);
 
         weights[1] = 8e17 - 1;
-        router2.validatePathsAndWeights(paths, weights, 2);
+        router.validatePathsAndWeights(paths, weights, 2);
 
         weights[0] = 2e17 + 1;
-        router2.validatePathsAndWeights(paths, weights, 2);
+        router.validatePathsAndWeights(paths, weights, 2);
 
         weights[1] = 8e17;
         vm.expectRevert('UniversalRouter: INVALID_WEIGHTS');
-        router2.validatePathsAndWeights(paths, weights, 2);
+        router.validatePathsAndWeights(paths, weights, 2);
 
         weights[0] = 2e17;
         weights[1] = 8e17;
-        router2.validatePathsAndWeights(paths, weights, 2);
+        router.validatePathsAndWeights(paths, weights, 2);
 
         paths[0] = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A90001000bb882af49447d8a07e3bd95bd0d56f35241523fbab1';
         vm.expectRevert('UniversalRouter: INVALID_PATH_TOKENS');
-        router2.validatePathsAndWeights(paths, weights, 0);
+        router.validatePathsAndWeights(paths, weights, 0);
 
         paths[0] = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A90001000bb882af49447d8a07e3bd95bd0d56f35241523fbab1';
         paths[1] = hex'5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A900010001f4af88d065e77c8cc2239327c5edb3a432268e58310001000bb882af49447d8a07e3bd95bd0d56f35241523fbab1';
-        router2.validatePathsAndWeights(paths, weights, 0);
+        router.validatePathsAndWeights(paths, weights, 0);
 
         paths[0] = hex'af49447d8a07e3bd95bd0d56f35241523fbab10001000bb8825991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9';
         paths[1] = hex'af49447d8a07e3bd95bd0d56f35241523fbab10001000bb8825991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9';
         vm.expectRevert("UniversalRouter: AMOUNT_IN_NOT_ETH");
-        router2.validatePathsAndWeights(paths, weights, 0);
+        router.validatePathsAndWeights(paths, weights, 0);
 
         paths[0] = hex'af49447d8a07e3bd95bd0d56f35241523fbab10001000bb8825991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9';
         paths[1] = hex'af49447d8a07e3bd95bd0d56f35241523fbab10001000bb8825991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9';
-        router2.validatePathsAndWeights(paths, weights, 1);
+        router.validatePathsAndWeights(paths, weights, 1);
     }
 
     function testCalcPathFee2() public {
@@ -1348,27 +1337,27 @@ contract UniversalRouterTest is TestBed {
         pathsUsdcToWeth[0] = abi.encodePacked(address(usdc), uint16(1), poolFee1, address(wbtc), uint16(1), poolFee1, address(weth));
         pathsUsdcToWeth[1] = abi.encodePacked(address(usdc), uint16(2), poolFee1, address(wbtc), uint16(2), poolFee1, address(weth));
         pathsUsdcToWeth[2] = abi.encodePacked(address(usdc), uint16(3), poolFee1, address(wbtc), uint16(3), poolFee1, address(weth));
-        uint256 pathFee = router2.calcPathFeeSplit(pathsUsdcToWeth, weights);
+        uint256 pathFee = router.calcPathFeeSplit(pathsUsdcToWeth, weights);
         assertEq(pathFee, 5988);
 
         bytes[] memory pathsWethToUsdc = new bytes[](3);
         pathsWethToUsdc[0] = abi.encodePacked(address(weth), uint16(1), poolFee1, address(wbtc), uint16(1), poolFee1, address(usdc));
         pathsWethToUsdc[1] = abi.encodePacked(address(weth), uint16(2), poolFee1, address(wbtc), uint16(2), poolFee1, address(usdc));
         pathsWethToUsdc[2] = abi.encodePacked(address(weth), uint16(3), poolFee1, address(wbtc), uint16(3), poolFee1, address(usdc));
-        pathFee = router2.calcPathFeeSplit(pathsWethToUsdc, weights);
+        pathFee = router.calcPathFeeSplit(pathsWethToUsdc, weights);
         assertEq(pathFee, 5988);
 
         bytes[] memory pathsWethToDai = new bytes[](3);
         pathsWethToDai[0] = abi.encodePacked(address(weth), uint16(1), poolFee1, address(wbtc), uint16(1), poolFee1, address(usdc), uint16(6), poolFee1, address(dai));
         pathsWethToDai[1] = abi.encodePacked(address(weth), uint16(2), poolFee1, address(wbtc), uint16(2), poolFee1, address(usdc), uint16(6), poolFee1, address(dai));
         pathsWethToDai[2] = abi.encodePacked(address(weth), uint16(3), poolFee1, address(wbtc), uint16(3), poolFee1, address(usdc), uint16(6), poolFee1, address(dai));
-        pathFee = router2.calcPathFeeSplit(pathsWethToDai, weights);
+        pathFee = router.calcPathFeeSplit(pathsWethToDai, weights);
         assertEq(pathFee, 15930);
 
         pathsWethToDai[0] = abi.encodePacked(address(weth), uint16(1), poolFee1, address(wbtc), uint16(1), poolFee1, address(usdc), uint16(5), poolFee1, address(dai));
         pathsWethToDai[1] = abi.encodePacked(address(weth), uint16(2), poolFee1, address(wbtc), uint16(2), poolFee1, address(usdc), uint16(5), poolFee1, address(dai));
         pathsWethToDai[2] = abi.encodePacked(address(weth), uint16(3), poolFee1, address(wbtc), uint16(3), poolFee1, address(usdc), uint16(5), poolFee1, address(dai));
-        pathFee = router2.calcPathFeeSplit(pathsWethToDai, weights);
+        pathFee = router.calcPathFeeSplit(pathsWethToDai, weights);
         assertEq(pathFee, 6486);
 
         weights = new uint256[](2);
@@ -1377,7 +1366,7 @@ contract UniversalRouterTest is TestBed {
         pathsWethToDai = new bytes[](2);
         pathsWethToDai[0] = abi.encodePacked(address(weth), uint16(1), poolFee1, address(wbtc), uint16(1), poolFee1, address(usdc), uint16(6), poolFee1, address(dai));
         pathsWethToDai[1] = abi.encodePacked(address(weth), uint16(2), poolFee1, address(wbtc), uint16(2), poolFee1, address(usdc), uint16(5), poolFee1, address(dai));
-        pathFee = router2.calcPathFeeSplit(pathsWethToDai, weights);
+        pathFee = router.calcPathFeeSplit(pathsWethToDai, weights);
         assertEq(pathFee, 11210); //~(15930 + 6486) / 2
     }
 
@@ -1416,11 +1405,11 @@ contract UniversalRouterTest is TestBed {
         (paths, weights, amountIn, minAmountOut) = getPathsAndWeights(tokenChoices, seed, amountIn, true, true);
 
 
-        IUniversalRouter.Route[] memory _routes = router2.calcRoutes(paths[0], address(this));
+        IUniversalRouter.Route[] memory _routes = router.calcRoutes(paths[0], address(this));
         amountIn = getMinAmountIn(_routes[0].from);
-        uint256 amountOut = router2.quoteSplit(amountIn,paths,weights);
+        uint256 amountOut = router.quoteSplit(amountIn,paths,weights);
 
-        uint256 pathFee = router2.calcPathFeeSplit(paths,weights);
+        uint256 pathFee = router.calcPathFeeSplit(paths,weights);
         uint256 amountOutPostFees = amountOut - amountOut * pathFee / 1e6;
 
         vm.startPrank(owner);
@@ -1429,9 +1418,9 @@ contract UniversalRouterTest is TestBed {
         console.log("balanceTo0:",balanceTo0);
         uint256 balanceFrom0 = IERC20(_routes[0].from).balanceOf(owner);
 
-        IERC20(_routes[0].from).approve(address(router2), type(uint256).max);
+        IERC20(_routes[0].from).approve(address(router), type(uint256).max);
 
-        router2.swapExactTokensForTokensSplit(amountIn, 0, paths, weights, owner, block.timestamp);
+        router.swapExactTokensForTokensSplit(amountIn, 0, paths, weights, owner, block.timestamp);
 
         uint256 balanceTo1 = IERC20(_routes[_routes.length - 1].to).balanceOf(owner);
         uint256 balanceFrom1 = IERC20(_routes[0].from).balanceOf(owner);
@@ -1546,23 +1535,23 @@ contract UniversalRouterTest is TestBed {
         amounts[0] = uint128(deltaUSDC);
         amounts[1] = uint128(deltaWETH);
 
-        usdc.mintExact(address(router2), deltaUSDC);
-        weth.mintExact(address(router2), deltaWETH);
+        usdc.mintExact(address(router), deltaUSDC);
+        weth.mintExact(address(router), deltaWETH);
 
         uint256 balanceUSDC = usdc.balanceOf(address(this));
         uint256 balanceWETH = weth.balanceOf(address(this));
         assertEq(usdc.balanceOf(address(this)), 0);
         assertEq(weth.balanceOf(address(this)), 0);
-        assertEq(usdc.balanceOf(address(router2)), deltaUSDC);
-        assertEq(weth.balanceOf(address(router2)), deltaWETH);
+        assertEq(usdc.balanceOf(address(router)), deltaUSDC);
+        assertEq(weth.balanceOf(address(router)), deltaWETH);
 
         // Avoid stack-too-deep
         {
-            (uint256[] memory amountsOut,) = router2.getAmountsOut(data.amountIn, data.path);
+            (uint256[] memory amountsOut,) = router.getAmountsOut(data.amountIn, data.path);
 
             vm.expectEmit();
             emit ExternalCallSwap(vm.addr(1), address(this), data.tokenId, isBuyWeth ? address(usdc) : address(weth), isBuyWeth ? address(weth) : address(usdc), data.amountIn, amountsOut[amountsOut.length - 1]);
-            router2.externalCall(vm.addr(1), amounts, 0, abi.encode(data));
+            router.externalCall(vm.addr(1), amounts, 0, abi.encode(data));
         }
 
         if(isBuyWeth) {
@@ -1572,8 +1561,8 @@ contract UniversalRouterTest is TestBed {
             assertGt(usdc.balanceOf(address(this)), balanceUSDC);
             assertEq(weth.balanceOf(address(this)), balanceWETH);
         }
-        assertEq(usdc.balanceOf(address(router2)), 0);
-        assertEq(weth.balanceOf(address(router2)), 0);
+        assertEq(usdc.balanceOf(address(router)), 0);
+        assertEq(weth.balanceOf(address(router)), 0);
     }
 
     function testExternalCallSwapSplit(uint256 deltaUSDC, uint256 deltaWETH, bool isBuyWeth) public {
@@ -1624,22 +1613,22 @@ contract UniversalRouterTest is TestBed {
         amounts[0] = uint128(deltaUSDC);
         amounts[1] = uint128(deltaWETH);
 
-        usdc.mintExact(address(router2), deltaUSDC);
-        weth.mintExact(address(router2), deltaWETH);
+        usdc.mintExact(address(router), deltaUSDC);
+        weth.mintExact(address(router), deltaWETH);
 
         uint256 balanceUSDC = usdc.balanceOf(address(this));
         uint256 balanceWETH = weth.balanceOf(address(this));
         assertEq(usdc.balanceOf(address(this)), 0);
         assertEq(weth.balanceOf(address(this)), 0);
-        assertEq(usdc.balanceOf(address(router2)), deltaUSDC);
-        assertEq(weth.balanceOf(address(router2)), deltaWETH);
+        assertEq(usdc.balanceOf(address(router)), deltaUSDC);
+        assertEq(weth.balanceOf(address(router)), deltaWETH);
 
         uint256 amountOut = calcAmountOutSplit(data.amountIn, data.path);
         // Avoid stack-too-deep
         {
             vm.expectEmit(true,true,true,false);
             emit ExternalCallSwap(vm.addr(1), address(this), data.tokenId, isBuyWeth ? address(usdc) : address(weth), isBuyWeth ? address(weth) : address(usdc), data.amountIn, amountOut);
-            router2.externalCall(vm.addr(1), amounts, 0, abi.encode(data));
+            router.externalCall(vm.addr(1), amounts, 0, abi.encode(data));
         }
 
         if(isBuyWeth) {
@@ -1651,13 +1640,13 @@ contract UniversalRouterTest is TestBed {
             assertEq(weth.balanceOf(address(this)), balanceWETH);
             assertApproxEqRel(usdc.balanceOf(address(this)) - balanceUSDC,amountOut + deltaUSDC,1e15);
         }
-        assertEq(usdc.balanceOf(address(router2)), 0);
-        assertEq(weth.balanceOf(address(router2)), 0);
+        assertEq(usdc.balanceOf(address(router)), 0);
+        assertEq(weth.balanceOf(address(router)), 0);
     }
 
     function calcAmountOutSplit(uint256 amountIn, bytes memory path) internal returns(uint256 amountOut) {
         (bytes[] memory paths, uint256[] memory weights) = path.toPathsAndWeightsArray();
-        (amountOut,,) = router2.getAmountsOutSplit(amountIn, paths, weights);
+        (amountOut,,) = router.getAmountsOutSplit(amountIn, paths, weights);
     }
 
     function testGetPairInfo() public {
