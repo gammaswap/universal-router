@@ -18,4 +18,12 @@ contract TestUniversalRouter is UniversalRouter {
         }
         tokenOut = _path.skipToken().toAddress(0);
     }
+
+    function validatePathsAndWeights(bytes[] memory paths, uint256[] memory weights, uint8 swapType) external virtual {
+        _validatePathsAndWeights(paths, weights, swapType);
+    }
+
+    function splitAmount(uint256 amount, uint256[] memory weights) external view returns (uint256[] memory amounts) {
+        return _splitAmount(amount, weights);
+    }
 }

@@ -7,8 +7,12 @@ import './BytesLib2.sol';
 library Path2 {
     using BytesLib2 for bytes;
 
+    /// @dev The length of the bytes encoded in tag denoting path is element of array
+    uint256 private constant WEIGHT_TAG = 8;
     /// @dev The length of the bytes encoded address
     uint256 private constant ADDR_SIZE = 20;
+    /// @dev The length of the bytes encoded in tag denoting path is element of array
+    uint256 private constant ARRAY_TAG = WEIGHT_TAG + ADDR_SIZE;
     /// @dev The length of the bytes encoded protocol ID
     uint256 private constant PROTOCOL_ID_SIZE = 2;
     /// @dev The length of the bytes encoded fee (for V3 pools)
@@ -84,5 +88,108 @@ library Path2 {
     /// @return The remaining token + protocolId + fee elements in the path
     function hopToken(bytes memory path) internal pure returns (bytes memory) {
         return path.slice(0, path.length - NEXT_OFFSET);
+    }
+
+    /// @notice Get first token in path (token of the amountIn)
+    /// @param path The swap path
+    /// @return The first token in the swap path
+    function getTokenIn(bytes memory path) internal pure returns (address) {
+        return path.toAddress(0);
+    }
+
+    /// @notice Get last token in path (token of the amountOut)
+    /// @param path The swap path
+    /// @return The last token in the swap path
+    function getTokenOut(bytes memory path) internal pure returns (address) {
+        return path.toAddress(path.length - ADDR_SIZE);
+    }
+
+    /// @notice Calculate the number of paths in a multi path swap path
+    /// @dev Finds the smallest valid k such that L = 28k + 25n with n >= 1
+    /// @param path - The multi path swap path
+    /// @return k - The number of paths in the multipath swap path
+    function numOfPaths(bytes memory path) internal pure returns (uint256 k) {
+        require(path.length >= 53, "INVALID_SPLIT_PATH");
+        uint256 length = path.length;
+        uint256 modInv28 = 17; // 28^-1 mod 25
+
+        // Initial k mod 25
+        uint256 baseK = (modInv28 * length) % NEXT_OFFSET;
+        // Try successive values of k = baseK + 25*t
+        for (uint256 t = 0; t < 255; t++) {
+            k = baseK + NEXT_OFFSET * t;
+            if (k == 0) continue; // k must be >= 1
+
+            uint256 remainder = length >= ARRAY_TAG * k ? length - ARRAY_TAG * k : 0;
+            if (remainder % NEXT_OFFSET == 0) {
+                uint256 n = remainder / NEXT_OFFSET;
+                if (n >= 1) {
+                    return k;
+                }
+            }
+        }
+
+        revert("No valid k found for given length");
+    }
+
+    /// @dev Convert multi path swap path to array of single paths
+    /// @param path - The multi path swap path
+    /// @return paths - array of single paths in multi path swap path
+    /// @return weights - weights to swap in each swap path
+    function toPathsAndWeightsArray(bytes memory path) internal view returns (bytes[] memory paths, uint256[] memory weights) {
+        uint256 pathCount = numOfPaths(path);
+        paths = new bytes[](pathCount);
+        weights = new uint256[](pathCount);
+        bytes memory pathK = new bytes(0);
+        uint256 k = 0;
+        uint256 i = 0;
+        while (i + ARRAY_TAG <= path.length) {
+            weights[k] = path.toUint64(i);
+            i += WEIGHT_TAG;
+
+            address tokenIn = path.toAddress(i);
+            i += ADDR_SIZE;
+            pathK = abi.encodePacked(tokenIn);
+
+            // Read protocolId + feeSize + tokenOut pairs
+            // If next 25 bytes is of zero blocks then it's a new element of the array of paths
+            while (i + NEXT_OFFSET <= path.length && !isZeroBlock(path, i)) {
+                pathK = abi.encodePacked(pathK,path.toUint16(i));
+                i += PROTOCOL_ID_SIZE;
+
+                pathK = abi.encodePacked(pathK,path.toUint24(i));
+                i += FEE_SIZE;
+
+                pathK = abi.encodePacked(pathK,path.toAddress(i));
+                i += ADDR_SIZE;
+            }
+
+            // If zero block found, skip it
+            if (i + NEXT_OFFSET <= path.length && isZeroBlock(path, i)) {
+                validatePath(pathK);
+                paths[k] = pathK;
+                i += NEXT_OFFSET;
+                k++;
+            }
+        }
+        validatePath(pathK);
+        paths[k] = pathK;
+    }
+
+    /// @dev Returns true if path is single path format
+    function isSinglePath(bytes memory path) internal pure returns(bool) {
+        return path.length >= 45 && (path.length - 20) % 25 == 0;
+    }
+
+    function validatePath(bytes memory path) internal pure {
+        require(isSinglePath(path), "INVALID_PATH");
+    }
+
+    /// @dev Check if next 25 bytes in data is made up of only zero bytes
+    /// @param data - sequence of bytes
+    /// @param offset - offset of data
+    /// @return true if next 25 bytes is made up of zero bytes
+    function isZeroBlock(bytes memory data, uint256 offset) internal pure returns (bool) {
+        return offset + NEXT_OFFSET <= data.length && data.toUint200(offset) == 0;
     }
 }
