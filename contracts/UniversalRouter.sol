@@ -173,46 +173,42 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
     }
 
     /// @inheritdoc IUniversalRouter
-    function calcRoutes(bytes memory path, address _to) public override virtual view returns (Route[] memory routes) {
+    function calcRoutes(bytes memory path, address to) public override virtual view returns (Route[] memory routes) {
         _validatePath(path);
-        routes = new Route[](path.numPools());
-        uint256 i = 0;
-        while (true) {
-            bool hasMultiplePools = path.hasMultiplePools();
+
+        uint256 len = path.numPools();
+        routes = new Route[](len);
+
+        for(uint256 i; i < len;) {
+            // only the first pool in the path is necessary
+            (address from, address toAddr, uint16 protocolId, uint24 fee) = path.getFirstPool().decodeFirstPool();
+            address hop = protocolRoutes[protocolId];
+            _validateRoute(Route(address(0), from, toAddr, protocolId, fee, to, address(0), hop));
+
+            (address pair, address origin) = IProtocolRoute(hop).getOrigin(from, toAddr, fee);
 
             routes[i] = Route({
-                pair: address(0),
-                from: address(0),
-                to: address(0),
-                protocolId: 0,
-                fee: 0,
-                destination: _to,
-                origin: address(0),
-                hop: address(0)
+                pair: pair,
+                from: from,
+                to: toAddr,
+                protocolId: protocolId,
+                fee: fee,
+                destination: to,
+                origin: origin,
+                hop: hop
             });
 
-            // only the first pool in the path is necessary
-            (routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee) = path.getFirstPool().decodeFirstPool();
-
-            routes[i].hop = protocolRoutes[routes[i].protocolId];
-            _validateRoute(routes[i]);
-
-            (routes[i].pair, routes[i].origin) = IProtocolRoute(routes[i].hop).getOrigin(routes[i].from,
-                routes[i].to, routes[i].fee);
-
-            if(i > 0) routes[i - 1].destination = routes[i].origin;
+            if(i > 0) routes[i - 1].destination = origin;
 
             // decide whether to continue or terminate
-            if (hasMultiplePools) {
-                path = path.skipToken();
-            } else {
-                break;
-            }
+            if (!path.hasMultiplePools()) break;
+            path = path.skipToken();
+
             unchecked {
                 ++i;
             }
         }
-        require(routes[i].destination == _to);
+        require(routes[len - 1].destination == to);
     }
 
     /// @inheritdoc IUniversalRouter
@@ -240,44 +236,40 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
     /// @dev Not a view function to support UniswapV3 quoting
     function _getAmountsOut(uint256 amountIn, bytes memory path, bool noSwap) internal virtual returns (uint256[] memory amounts, Route[] memory routes) {
         _validatePath(path);
-        routes = new Route[](path.numPools());
-        amounts = new uint256[](path.numPools() + 1);
+        uint256 poolCount = path.numPools();
+        routes = new Route[](poolCount);
+        amounts = new uint256[](poolCount + 1);
         amounts[0] = amountIn;
-        uint256 i = 0;
-        while (true) {
-            bool hasMultiplePools = path.hasMultiplePools();
+        for (uint256 i;;) {
+            // only the first pool in the path is necessary
+            (address from, address to, uint16 protocolId, uint24 fee) = path.getFirstPool().decodeFirstPool();
+            address hop = protocolRoutes[protocolId];
 
             routes[i] = Route({
                 pair: address(0),
-                from: address(0),
-                to: address(0),
-                protocolId: 0,
-                fee: 0,
+                from: from,
+                to: to,
+                protocolId: protocolId,
+                fee: fee,
                 destination: address(0),
                 origin: address(0),
-                hop: address(0)
+                hop: hop
             });
 
-            // only the first pool in the path is necessary
-            (routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee) = path.getFirstPool().decodeFirstPool();
-
-            routes[i].hop = protocolRoutes[routes[i].protocolId];
             _validateRoute(routes[i]);
 
-            if(noSwap) {
-                (amounts[i + 1], routes[i].pair, routes[i].fee) = IProtocolRoute(routes[i].hop).getAmountOutNoSwap(amounts[i],
-                    routes[i].from, routes[i].to, routes[i].fee);
-            } else {
-                (amounts[i + 1], routes[i].pair, routes[i].fee) = IProtocolRoute(routes[i].hop).getAmountOut(amounts[i],
-                    routes[i].from, routes[i].to, routes[i].fee);
-            }
+            (uint256 amtOut, address pair, uint24 updatedFee) = noSwap
+                ? IProtocolRoute(hop).getAmountOutNoSwap(amounts[i], from, to, fee)
+                : IProtocolRoute(hop).getAmountOut(amounts[i], from, to, fee);
+
+            amounts[i + 1] = amtOut;
+            routes[i].pair = pair;
+            routes[i].fee = updatedFee;
 
             // decide whether to continue or terminate
-            if (hasMultiplePools) {
-                path = path.skipToken();
-            } else {
-                break;
-            }
+            if (!path.hasMultiplePools()) break;
+            path = path.skipToken();
+
             unchecked {
                 ++i;
             }
@@ -299,42 +291,41 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
     /// @dev Not a view function to support UniswapV3 quoting
     function _getAmountsIn(uint256 amountOut, bytes memory path) internal virtual returns (uint256[] memory amounts, Route[] memory routes) {
         _validatePath(path);
-        routes = new Route[](path.numPools());
-        amounts = new uint256[](path.numPools() + 1);
-        uint256 i = routes.length - 1;
-        amounts[i + 1] = amountOut;
-        while (true) {
-            bool hasMultiplePools = path.hasMultiplePools();
-
-            routes[i] = Route({
-                pair: address(0),
-                from: address(0),
-                to: address(0),
-                protocolId: 0,
-                fee: 0,
-                destination: address(0),
-                origin: address(0),
-                hop: address(0)
-            });
-
-            // only the first pool in the path is necessary
-            (routes[i].from, routes[i].to, routes[i].protocolId, routes[i].fee) = path.getLastPool().decodeFirstPool();
-
-            routes[i].hop = protocolRoutes[routes[i].protocolId];
-            _validateRoute(routes[i]);
-
-            (amounts[i], routes[i].pair, routes[i].fee) = IProtocolRoute(routes[i].hop).getAmountIn(amounts[i + 1],
-                routes[i].from, routes[i].to, routes[i].fee);
-
-            // decide whether to continue or terminate
-            if (hasMultiplePools) {
-                path = path.hopToken();
-            } else {
-                break;
-            }
+        uint256 poolCount = path.numPools();
+        routes = new Route[](poolCount);
+        amounts = new uint256[](poolCount + 1);
+        amounts[poolCount] = amountOut;
+        for (uint256 i = poolCount; i > 0;) {
             unchecked {
                 --i;
             }
+
+            // only the first pool in the path is necessary
+            (address from, address to, uint16 protocolId, uint24 fee) = path.getLastPool().decodeFirstPool();
+            address hop = protocolRoutes[protocolId];
+
+            routes[i] = Route({
+                pair: address(0),
+                from: from,
+                to: to,
+                protocolId: protocolId,
+                fee: fee,
+                destination: address(0),
+                origin: address(0),
+                hop: hop
+            });
+
+            _validateRoute(routes[i]);
+
+            (uint256 amtIn, address pair, uint24 updatedFee) = IProtocolRoute(hop).getAmountIn(amounts[i + 1], from, to, fee);
+
+            amounts[i] = amtIn;
+            routes[i].pair = pair;
+            routes[i].fee = updatedFee;
+
+            // decide whether to continue or terminate
+            if (!path.hasMultiplePools()) break;
+            path = path.hopToken();
         }
     }
 

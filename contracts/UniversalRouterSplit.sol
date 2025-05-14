@@ -272,27 +272,4 @@ contract UniversalRouterSplit is UniversalRouter {
         }
         require(totalWeights > 0 && totalWeights <= 1e18, 'UniversalRouter: INVALID_WEIGHTS');
     }
-
-    /// @inheritdoc IUniversalRouter
-    function swapExactETHForTokens(uint256 amountOutMin, bytes calldata path, address to, uint256 deadline) public override
-        virtual payable {
-    }
-
-    /// @inheritdoc IUniversalRouter
-    function swapExactTokensForETH(uint256 amountIn, uint256 amountOutMin, bytes calldata path, address to, uint256 deadline)
-        public override virtual {
-    }
-
-    /// @inheritdoc IUniversalRouter
-    function swapExactTokensForTokens(uint256 amountIn, uint256 amountOutMin, bytes calldata path, address to, uint256 deadline)
-        public override virtual {
-    }
-
-    /// @inheritdoc IUniversalRouter
-    function trackPair(address token0, address token1, uint24 fee, uint16 protocolId) external virtual override {
-    }
-
-    /// @inheritdoc IUniversalRouter
-    function unTrackPair(address token0, address token1, uint24 fee, uint16 protocolId) external virtual override {
-    }
 }
