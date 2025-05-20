@@ -153,6 +153,37 @@ contract UniversalRouterTest is TestBed {
         assertGt(amountOut,minAmountOut);
     }
 
+    function testQuotesSplit0(uint8 tokenChoices, uint64 seed, uint256 amountIn) public {
+        bytes[] memory paths;
+        uint256[] memory weights;
+        uint256 minAmountOut;
+        (paths, weights, amountIn, minAmountOut) = getPathsAndWeights(tokenChoices, seed, amountIn, false, true);
+
+        bytes memory path = Path2.fromPathsAndWeightsArray(paths,weights);
+        uint256 amountOut = router.quote(amountIn, path);
+        uint256 expAmountOut = 0;
+
+        uint256[] memory amountsIn = router.splitAmount(amountIn, weights);
+        for(uint256 i = 0; i < paths.length; i++) {
+            expAmountOut += router.quote(amountsIn[i], paths[i]);
+        }
+        assertEq(amountOut,expAmountOut);
+
+        uint256 sumWeights = 0;
+        for(uint256 i = 0; i < weights.length; i++) {
+            sumWeights += weights[i];
+        }
+
+        expAmountOut = 0;
+        for(uint256 i = 0; i < paths.length; i++) {
+            uint256 amt = amountIn * weights[i] / sumWeights;
+            expAmountOut += router.quote(amt, paths[i]);
+        }
+        assertApproxEqRel(amountOut,expAmountOut,1e14);
+
+        assertGt(amountOut,minAmountOut);
+    }
+
     function testSplitAmount(uint256 amount, uint8 numOfPaths) public {
         amount = boundVar(amount, 1e2, type(uint128).max);
         numOfPaths = numOfPaths == 0 ? 1 : numOfPaths;
