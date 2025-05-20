@@ -7,6 +7,9 @@ import './BytesLib2.sol';
 library Path2 {
     using BytesLib2 for bytes;
 
+    /// @dev Buffer bytes to separate elements of array in multi path
+    bytes constant tag25bytes = hex'00000000000000000000000000000000000000000000000000';
+
     /// @dev The length of the bytes encoded in tag denoting path is element of array
     uint256 private constant WEIGHT_TAG = 8;
     /// @dev The length of the bytes encoded address
@@ -145,35 +148,56 @@ library Path2 {
         uint256 i = 0;
         while (i + ARRAY_TAG <= path.length) {
             weights[k] = path.toUint64(i);
-            i += WEIGHT_TAG;
+            unchecked { i += WEIGHT_TAG; }
 
             address tokenIn = path.toAddress(i);
-            i += ADDR_SIZE;
+            unchecked { i += ADDR_SIZE; }
             pathK = abi.encodePacked(tokenIn);
 
             // Read protocolId + feeSize + tokenOut pairs
             // If next 25 bytes is of zero blocks then it's a new element of the array of paths
             while (i + NEXT_OFFSET <= path.length && !isZeroBlock(path, i)) {
                 pathK = abi.encodePacked(pathK,path.toUint16(i));
-                i += PROTOCOL_ID_SIZE;
+                unchecked { i += PROTOCOL_ID_SIZE; }
 
                 pathK = abi.encodePacked(pathK,path.toUint24(i));
-                i += FEE_SIZE;
+                unchecked { i += FEE_SIZE; }
 
                 pathK = abi.encodePacked(pathK,path.toAddress(i));
-                i += ADDR_SIZE;
+                unchecked { i += ADDR_SIZE; }
             }
 
             // If zero block found, skip it
             if (i + NEXT_OFFSET <= path.length && isZeroBlock(path, i)) {
                 validatePath(pathK);
                 paths[k] = pathK;
-                i += NEXT_OFFSET;
-                k++;
+                unchecked {
+                    i += NEXT_OFFSET;
+                    ++k;
+                }
             }
         }
         validatePath(pathK);
         paths[k] = pathK;
+    }
+
+    /// @dev convert paths and weights array into a multi path bytes object
+    /// @param paths - array of single paths in multi path swap path
+    /// @param weights - weights to swap in each swap path
+    /// @return path - The multi path swap path
+    function fromPathsAndWeightsArray(bytes[] memory paths, uint256[] memory weights) internal view returns(bytes memory path) {
+        uint256 len = paths.length;
+        require(len == weights.length, "INVALID_WEIGHT_LENGTH");
+        for(uint256 i = 0; i < len;) {
+            if(i == 0) {
+                path = abi.encodePacked(uint64(weights[i]),paths[i]);
+            } else {
+                path = abi.encodePacked(path,tag25bytes,uint64(weights[i]),paths[i]);
+            }
+            unchecked {
+                ++i;
+            }
+        }
     }
 
     /// @dev Returns true if path is single path format
@@ -181,6 +205,7 @@ library Path2 {
         return path.length >= 45 && (path.length - 20) % 25 == 0;
     }
 
+    /// @dev Validate single paths
     function validatePath(bytes memory path) internal pure {
         require(isSinglePath(path), "INVALID_PATH");
     }
