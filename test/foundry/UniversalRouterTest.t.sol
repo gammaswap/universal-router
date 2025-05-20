@@ -1225,6 +1225,9 @@ contract UniversalRouterTest is TestBed {
         assertEq(weights[0],weight1);
         assertEq(weights[1],weight1);
         assertEq(weights[2],weight2);
+
+        bytes memory combinedPaths = Path2.fromPathsAndWeightsArray(paths, weights);
+        assertEq(combinedPaths,path);
     }
 
     function testValidatePathsAndWeights() public {
