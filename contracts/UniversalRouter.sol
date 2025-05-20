@@ -95,27 +95,42 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
     }
 
     /// @inheritdoc IUniversalRouter
-    function swapExactETHForTokens(uint256 amountOutMin, bytes calldata path, address to, uint256 deadline)
+    function swapExactETHForTokens(uint256 amountOutMin, bytes memory path, address to, uint256 deadline)
         public override virtual payable ensure(deadline) {
-        Route[] memory routes = calcRoutes(path, to);
-        require(routes[0].from == WETH, 'UniversalRouter: AMOUNT_IN_NOT_ETH');
-        _swap(msg.value, amountOutMin, routes, address(this));
+        if(path.isSinglePath()) {
+            Route[] memory routes = calcRoutes(path, to);
+            require(routes[0].from == WETH, 'UniversalRouter: AMOUNT_IN_NOT_ETH');
+            _swap(msg.value, amountOutMin, routes, address(this));
+        } else {
+            (bytes[] memory paths, uint256[] memory weights) = path.toPathsAndWeightsArray();
+            swapExactETHForTokensSplit(amountOutMin, paths, weights, to, deadline);
+        }
     }
 
     /// @inheritdoc IUniversalRouter
-    function swapExactTokensForETH(uint256 amountIn, uint256 amountOutMin, bytes calldata path, address to, uint256 deadline)
+    function swapExactTokensForETH(uint256 amountIn, uint256 amountOutMin, bytes memory path, address to, uint256 deadline)
         public override virtual ensure(deadline) {
-        Route[] memory routes = calcRoutes(path, address(this));
-        require(routes[routes.length - 1].to == WETH, 'UniversalRouter: AMOUNT_OUT_NOT_ETH');
-        _swap(amountIn, amountOutMin, routes, msg.sender);
-        unwrapWETH(0, to);
+        if(path.isSinglePath()) {
+            Route[] memory routes = calcRoutes(path, address(this));
+            require(routes[routes.length - 1].to == WETH, 'UniversalRouter: AMOUNT_OUT_NOT_ETH');
+            _swap(amountIn, amountOutMin, routes, msg.sender);
+            unwrapWETH(0, to);
+        } else {
+            (bytes[] memory paths, uint256[] memory weights) = path.toPathsAndWeightsArray();
+            swapExactTokensForETHSplit(amountIn, amountOutMin, paths, weights, to, deadline);
+        }
     }
 
     /// @inheritdoc IUniversalRouter
-    function swapExactTokensForTokens(uint256 amountIn, uint256 amountOutMin, bytes calldata path, address to, uint256 deadline)
+    function swapExactTokensForTokens(uint256 amountIn, uint256 amountOutMin, bytes memory path, address to, uint256 deadline)
         public override virtual ensure(deadline) {
-        Route[] memory routes = calcRoutes(path, to);
-        _swap(amountIn, amountOutMin, routes, msg.sender);
+        if(path.isSinglePath()) {
+            Route[] memory routes = calcRoutes(path, to);
+            _swap(amountIn, amountOutMin, routes, msg.sender);
+        } else {
+            (bytes[] memory paths, uint256[] memory weights) = path.toPathsAndWeightsArray();
+            swapExactTokensForTokensSplit(amountIn, amountOutMin, paths, weights, to, deadline);
+        }
     }
 
     /// @dev Main split swap function used by all public split swap functions. Swaps splitting across multiple paths by weight
@@ -143,57 +158,67 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
     }
 
     /// @inheritdoc IUniversalRouter
-    function swapExactTokensForTokensSplit(uint256 amountIn, uint256 amountOutMin, bytes[] calldata paths, uint256[] calldata weights, address to, uint256 deadline)
+    function swapExactTokensForTokensSplit(uint256 amountIn, uint256 amountOutMin, bytes[] memory paths, uint256[] memory weights, address to, uint256 deadline)
         public override virtual ensure(deadline) {
         _swapSplit(amountIn, amountOutMin, paths, weights, to, 2, msg.sender);
     }
 
     /// @inheritdoc IUniversalRouter
-    function swapExactTokensForETHSplit(uint256 amountIn, uint256 amountOutMin, bytes[] calldata paths, uint256[] calldata weights, address to, uint256 deadline)
+    function swapExactTokensForETHSplit(uint256 amountIn, uint256 amountOutMin, bytes[] memory paths, uint256[] memory weights, address to, uint256 deadline)
         public override virtual ensure(deadline) {
         _swapSplit(amountIn, amountOutMin, paths, weights, address(this), 1, msg.sender);
         unwrapWETH(0, to);
     }
 
     /// @inheritdoc IUniversalRouter
-    function swapExactETHForTokensSplit(uint256 amountOutMin, bytes[] calldata paths, uint256[] calldata weights, address to, uint256 deadline)
+    function swapExactETHForTokensSplit(uint256 amountOutMin, bytes[] memory paths, uint256[] memory weights, address to, uint256 deadline)
         public override virtual payable ensure(deadline) {
         _swapSplit(msg.value, amountOutMin, paths, weights, to, 0, msg.sender);
     }
 
     // **** Estimate swap results functions ****
     /// @inheritdoc IUniversalRouter
-    function quote(uint256 amountIn, bytes calldata path) public override virtual view returns(uint256 amountOut) {
-        Route[] memory routes = calcRoutes(path, address(this));
-        uint256 len = routes.length;
-        for (uint256 i; i < len;) {
-            Route memory route = routes[i];
-            amountIn = IProtocolRoute(route.hop).quote(amountIn, route.from, route.to, route.fee);
-            unchecked {
-                ++i;
+    function quote(uint256 amountIn, bytes memory path) public override virtual view returns(uint256 amountOut) {
+        if(path.isSinglePath()) {
+            Route[] memory routes = calcRoutes(path, address(this));
+            uint256 len = routes.length;
+            for (uint256 i; i < len;) {
+                Route memory route = routes[i];
+                amountIn = IProtocolRoute(route.hop).quote(amountIn, route.from, route.to, route.fee);
+                unchecked {
+                    ++i;
+                }
             }
+            amountOut = amountIn;
+        } else {
+            (bytes[] memory paths, uint256[] memory weights) = path.toPathsAndWeightsArray();
+            return quoteSplit(amountIn, paths, weights);
         }
-        amountOut = amountIn;
     }
 
     /// @inheritdoc IUniversalRouter
-    function calcPathFee(bytes calldata path) public override view returns(uint256 pathFee) {
-        Route[] memory routes = calcRoutes(path, address(this));
-        pathFee = 1e6;
-        uint256 len = routes.length;
-        for (uint256 i; i < len;) {
-            Route memory route = routes[i];
-            uint256 fee = IProtocolRoute(route.hop).getFee(route.from, route.to, route.fee);
-            pathFee = pathFee * (1e6 - fee) / 1e6;
-            unchecked {
-                ++i;
+    function calcPathFee(bytes memory path) public override view returns(uint256 pathFee) {
+        if(path.isSinglePath()) {
+            Route[] memory routes = calcRoutes(path, address(this));
+            pathFee = 1e6;
+            uint256 len = routes.length;
+            for (uint256 i; i < len;) {
+                Route memory route = routes[i];
+                uint256 fee = IProtocolRoute(route.hop).getFee(route.from, route.to, route.fee);
+                pathFee = pathFee * (1e6 - fee) / 1e6;
+                unchecked {
+                    ++i;
+                }
             }
+            pathFee = 1e6 - pathFee;
+        } else {
+            (bytes[] memory paths, uint256[] memory weights) = path.toPathsAndWeightsArray();
+            return calcPathFeeSplit(paths, weights);
         }
-        pathFee = 1e6 - pathFee;
     }
 
     /// @inheritdoc IUniversalRouter
-    function quoteSplit(uint256 amountIn, bytes[] calldata paths, uint256[] memory weights) public override virtual view returns(uint256 amountOut) {
+    function quoteSplit(uint256 amountIn, bytes[] memory paths, uint256[] memory weights) public override virtual view returns(uint256 amountOut) {
         _validatePathsAndWeights(paths, weights, 2);
         uint256[] memory amountsIn = _splitAmount(amountIn, weights);
         uint256 len = amountsIn.length;
@@ -206,7 +231,7 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
     }
 
     /// @inheritdoc IUniversalRouter
-    function calcPathFeeSplit(bytes[] calldata paths, uint256[] memory weights) public override virtual view returns(uint256 pathFee) {
+    function calcPathFeeSplit(bytes[] memory paths, uint256[] memory weights) public override virtual view returns(uint256 pathFee) {
         _validatePathsAndWeights(paths, weights, 2);
         uint256 weightSum;
         uint256 len = paths.length;
