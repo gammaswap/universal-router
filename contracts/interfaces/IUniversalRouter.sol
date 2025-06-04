@@ -211,4 +211,17 @@ interface IUniversalRouter {
     /// @return token1 - address of second token in AMM
     /// @return factory - factory contract that created AMM
     function getPairInfo(address tokenA, address tokenB, uint24 fee, uint16 protocolId) external view returns(address pair, address token0, address token1, address factory);
+
+    /// @dev Convert path to paths and weights and return boolean flag as false if it's multi path
+    /// @param path - path used to perform the swap (e.g. path[0] -> path[1] -> ... path[n])
+    /// @return paths - paths used to perform the swap (e.g. path[0] -> path[1] -> ... path[n]). The amountIn is split across multiple paths
+    /// @return weights - percentage of amountIn to allocate to each path for swapping
+    /// @return isSinglePath - true if path is single path and false if it's multi path
+    function toPathsAndWeights(bytes memory path) external view returns(bytes[] memory paths, uint256[] memory weights, bool isSinglePath);
+
+    /// @dev Generate multi path bytes from paths and weights arrays
+    /// @param paths - paths used to perform the swap (e.g. path[0] -> path[1] -> ... path[n]). The amountIn is split across multiple paths
+    /// @param weights - percentage of amountIn to allocate to each path for swapping
+    /// @return path - path used to perform the swap (e.g. path[0] -> path[1] -> ... path[n])
+    function fromPathsAndWeights(bytes[] memory paths, uint256[] memory weights) external view returns(bytes memory path);
 }
