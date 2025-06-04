@@ -78,7 +78,7 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
     /// @param sender - address funding swap
     /// @return amountOut - amount bought of final token in path
     function _swap(uint256 amountIn, uint256 amountOutMin, Route[] memory routes, address sender) internal virtual returns(uint256 amountOut){
-        require(amountIn > 0, 'UniversalRouter: ZERO_AMOUNT_IN');
+        require(amountIn > 0, 'UR: ZERO_AMOUNT_IN');
         Route memory first = routes[0];
         send(first.from, sender, first.origin, amountIn);
         Route memory last = routes[routes.length - 1];
@@ -99,7 +99,7 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
         public override virtual payable ensure(deadline) {
         if(path.isSinglePath()) {
             Route[] memory routes = calcRoutes(path, to);
-            require(routes[0].from == WETH, 'UniversalRouter: AMOUNT_IN_NOT_ETH');
+            require(routes[0].from == WETH, 'UR: AMOUNT_IN_NOT_ETH');
             _swap(msg.value, amountOutMin, routes, address(this));
         } else {
             (bytes[] memory paths, uint256[] memory weights) = path.toPathsAndWeightsArray();
@@ -112,7 +112,7 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
         public override virtual ensure(deadline) {
         if(path.isSinglePath()) {
             Route[] memory routes = calcRoutes(path, address(this));
-            require(routes[routes.length - 1].to == WETH, 'UniversalRouter: AMOUNT_OUT_NOT_ETH');
+            require(routes[routes.length - 1].to == WETH, 'UR: AMOUNT_OUT_NOT_ETH');
             _swap(amountIn, amountOutMin, routes, msg.sender);
             unwrapWETH(0, to);
         } else {
@@ -507,7 +507,7 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
         _validateNonZeroAddress(tokenB);
 
         address protocol = protocolRoutes[protocolId];
-        require(protocol != address(0), 'UniversalRouter: ROUTE_NOT_SET_UP');
+        require(protocol != address(0), 'UR: ROUTE_NOT_SET_UP');
 
         (pair, token0, token1) = IProtocolRoute(protocol).pairFor(tokenA, tokenB, fee);
 
@@ -523,6 +523,24 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
         if(data.deadline < block.timestamp) revert Expired();
 
         _processSwap(sender, amounts, lpTokens, data, data.path.isSinglePath());
+    }
+
+    /// @inheritdoc IUniversalRouter
+    function toPathsAndWeights(bytes memory path) public override virtual view returns(bytes[] memory paths, uint256[] memory weights, bool isSinglePath) {
+        isSinglePath = path.isSinglePath();
+        if(isSinglePath) {
+            paths = new bytes[](1);
+            weights = new uint256[](1);
+            paths[0] = path;
+            weights[0] = 1e18;
+        } else {
+            (paths, weights) = path.toPathsAndWeightsArray();
+        }
+    }
+
+    /// @inheritdoc IUniversalRouter
+    function fromPathsAndWeights(bytes[] memory paths, uint256[] memory weights) public override virtual view returns(bytes memory path) {
+        return Path2.fromPathsAndWeightsArray(paths, weights);
     }
 
     /// @dev Perform swap that is of multiple paths or single path
@@ -578,20 +596,20 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
     /// @param weights - percentage of amountIn to swap in each path. Must add up to 1. If there's some left over, it will be swapped in the last path
     /// @param swapType - 0: swap ETH for token, 1: swap token for ETH, 2: swap token for token
     function _validatePathsAndWeights(bytes[] memory paths, uint256[] memory weights, uint8 swapType) internal virtual view {
-        require(paths.length > 0, 'UniversalRouter: MISSING_PATHS');
-        require(paths.length == weights.length, 'UniversalRouter: INVALID_WEIGHTS');
+        require(paths.length > 0, 'UR: MISSING_PATHS');
+        require(paths.length == weights.length, 'UR: INVALID_WEIGHTS');
 
         bytes memory path = paths[0];
         _validatePath(path);
         address tokenIn = path.getTokenIn();
         address tokenOut = path.getTokenOut();
 
-        require(tokenIn != tokenOut, 'UniversalRouter: INVALID_PATH_TOKENS');
+        require(tokenIn != tokenOut, 'UR: INVALID_PATH_TOKENS');
 
         if(swapType == 0) {
-            require(tokenIn == WETH, 'UniversalRouter: AMOUNT_IN_NOT_ETH'); // we can check the path ends in ETH somewhere else
+            require(tokenIn == WETH, 'UR: AMOUNT_IN_NOT_ETH'); // we can check the path ends in ETH somewhere else
         } else if(swapType == 1) {
-            require(tokenOut == WETH, 'UniversalRouter: AMOUNT_OUT_NOT_ETH'); // we can check the path ends in ETH somewhere else
+            require(tokenOut == WETH, 'UR: AMOUNT_OUT_NOT_ETH'); // we can check the path ends in ETH somewhere else
         }
 
         uint256 totalWeights = weights[0];
@@ -599,13 +617,13 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
         for(uint256 i = 1; i < len;) {
             path = paths[i];
             _validatePath(path);
-            require(tokenIn == path.getTokenIn() && tokenOut == path.getTokenOut(), 'UniversalRouter: INVALID_PATH_TOKENS');
+            require(tokenIn == path.getTokenIn() && tokenOut == path.getTokenOut(), 'UR: INVALID_PATH_TOKENS');
             unchecked {
                 totalWeights += weights[i];
                 ++i;
             }
         }
-        require(totalWeights > 0 && totalWeights <= 1e18, 'UniversalRouter: INVALID_WEIGHTS');
+        require(totalWeights > 0 && totalWeights <= 1e18, 'UR: INVALID_WEIGHTS');
     }
 
     /// @dev Validate individual path format: addr - protocolId - fee - addr
@@ -616,12 +634,12 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
 
     /// @dev Validate route by checking if hop exists
     function _validateRoute(Route memory route) internal virtual view {
-        require(route.hop != address(0), 'UniversalRouter: PROTOCOL_ROUTE_NOT_SET');
+        require(route.hop != address(0), 'UR: PROTOCOL_ROUTE_NOT_SET');
     }
 
     /// @dev Check address is not zero
     function _validateNonZeroAddress(address addr) internal virtual view {
-        require(addr != address(0), 'UniversalRouter: ZERO_ADDRESS');
+        require(addr != address(0), 'UR: ZERO_ADDRESS');
     }
 
     /// @dev Check protocolId used to identify protocols in routes is not zero
@@ -633,7 +651,7 @@ contract UniversalRouter is IUniversalRouter, IRouterExternalCallee, Initializab
     /// @param amountOut - token amount received from swap
     /// @param amountOutMin - minimum amount expected to receive from swap
     function _validateAmountOut(uint256 amountOut, uint256 amountOutMin) internal virtual view {
-        require(amountOut >= amountOutMin, 'UniversalRouter: INSUFFICIENT_OUTPUT_AMOUNT');
+        require(amountOut >= amountOutMin, 'UR: INSUFFICIENT_OUTPUT_AMOUNT');
     }
 
     /// @inheritdoc Transfers
